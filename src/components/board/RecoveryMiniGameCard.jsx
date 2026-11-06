@@ -1,5 +1,6 @@
 import TeamLogo from '../TeamLogo.jsx';
 import {recoveryLeanShopping} from '../../lib/recoveryLeanShopping.js';
+import {recoveryCardFacts} from '../../lib/recoveryCardFacts.js';
 import './recoveryMiniGameCard.css';
 
 const validColor=(value,fallback)=>{
@@ -22,8 +23,8 @@ const smallName=t=>{
 
 export default function RecoveryMiniGameCard({game,onOpen,clock=Date.now()}){
  const model=game?.recoveryVerifiedProjection||null;
- const fresh=Boolean(model&&Date.parse(model.expiresAt)>clock&&
-   game.status==='scheduled'&&Date.parse(game.start)>clock);
+ const facts=recoveryCardFacts(game,clock);
+ const {fresh,actual}=facts;
  const shopping=recoveryLeanShopping(game,{now:clock});
  const lean=shopping.lean,book=shopping.book;
  const away=game.away||{},home=game.home||{};
@@ -32,7 +33,7 @@ export default function RecoveryMiniGameCard({game,onOpen,clock=Date.now()}){
  }):null;
  const reason=!fresh?'Awaiting FBIS projection':shopping.state==='NO_VERIFIED_PRICES'?'Waiting for verified lines':'No supported market lean';
  const bookLabel=book?(shopping.bookCount>1?'BEST PRICE · SAME LINE':'ONLY VERIFIED BOOK'):'NO VERIFIED BOOK';
- const projectionLabel=fresh?'FBIS PROJECTED':'PROJECTION UNAVAILABLE';
+ const projectionLabel=actual?(game.status==='final'?'FINAL SCORE':'LIVE SCORE'):fresh?'FBIS PROJECTED':'PROJECTION UNAVAILABLE';
  return <article
   className={'fbis-mini-card'+(fresh?' is-projected':' is-pending')}
   style={{'--fbis-mini-away':validColor(away.color,'#147cbd'),'--fbis-mini-home':validColor(home.color,'#9e274e')}}
@@ -43,7 +44,7 @@ export default function RecoveryMiniGameCard({game,onOpen,clock=Date.now()}){
    <header className="fbis-mini-header">
     <span className="fbis-mini-sport">{String(game.sport||'').toUpperCase()}</span>
     <span className="fbis-mini-time">{localTime(game.start)}</span>
-    <span className={'fbis-mini-status'+(fresh?' live-model':'')}>{fresh?'FBIS RESEARCH':'NO MODEL'}</span>
+    <span className={'fbis-mini-status'+(fresh?' live-model':'')}>{actual?(game.status==='final'?'FINAL':'LIVE'):fresh?'FBIS RESEARCH':'NO MODEL'}</span>
    </header>
    <div className="fbis-mini-body">
     <div className="fbis-mini-team fbis-mini-team-away">
@@ -53,10 +54,10 @@ export default function RecoveryMiniGameCard({game,onOpen,clock=Date.now()}){
     </div>
     <div className="fbis-mini-center">
      <span>{projectionLabel}</span>
-     <strong title={fresh?'Away '+model.awayScore.toFixed(1)+', Home '+model.homeScore.toFixed(1):'No verified model score'}>
-      {fresh?number(model.awayScore):'—'}<b>–</b>{fresh?number(model.homeScore):'—'}
+     <strong title={actual?'Observed score':fresh?'Away '+model.awayScore.toFixed(1)+', Home '+model.homeScore.toFixed(1):'No verified model score'}>
+      {number(facts.awayScore)}<b>–</b>{number(facts.homeScore)}
      </strong>
-     <small>{fresh?'AWAY · HOME':'NO CURRENT OUTPUT'}</small>
+     <small>{fresh||actual?'AWAY · HOME':'NO CURRENT OUTPUT'}</small>
     </div>
     <div className="fbis-mini-team fbis-mini-team-home">
      <TeamLogo team={home} size={53} tone="light"/>
@@ -64,6 +65,10 @@ export default function RecoveryMiniGameCard({game,onOpen,clock=Date.now()}){
      <span>{smallName(home)}</span>
     </div>
    </div>
+   {fresh&&<div className="fbis-mini-model-facts" aria-label="Model fair spread and total">
+    <div><span>MODEL FAIR SPREAD</span><strong>{facts.fairSpread}</strong></div>
+    <div><span>PROJECTED TOTAL</span><strong>{facts.total.toFixed(1)}</strong></div>
+   </div>}
    <div className="fbis-mini-bottom">
     <div className="fbis-mini-lean">
      <span>MODEL LEAN</span>
