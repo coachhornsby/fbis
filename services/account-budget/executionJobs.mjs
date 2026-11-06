@@ -18,9 +18,9 @@ export const CERTIFIED_EXECUTION_JOBS=Object.freeze({
  ['services/espn-mcp/worker.mjs']:Object.freeze({cpuMs:100,units:Object.freeze({...noD1,requests:1,responseBytes:4194304,r2Reads:0,r2Writes:0,r2Bytes:0})}),
  ['services/exchangeDiagnostics.mjs']:Object.freeze({cpuMs:100,units:Object.freeze({...noD1,requests:0,responseBytes:0,r2Reads:0,r2Writes:1,r2Bytes:16384})}),
  // Bounded card read: 1 fixture manifest + 1 Kalshi game + 1 Kalshi WS +
- // 3 basketball line families + 1 separate Polymarket stream snapshot = 7 R2 reads.
+ // 3 basketball line families + 1 separate Polymarket stream snapshot = 7 R2 reads plus one independent first-half total snapshot for CBB.
  // A production policy must independently admit these units; this cap does not activate collectors.
- ['functions/lib/exchangeCardDelivery.js']:Object.freeze({cpuMs:100,units:Object.freeze({...noD1,requests:0,responseBytes:0,r2Reads:7,r2Writes:0,r2Bytes:12582912})}),
+ ['functions/lib/exchangeCardDelivery.js']:Object.freeze({cpuMs:100,units:Object.freeze({...noD1,requests:0,responseBytes:0,r2Reads:8,r2Writes:0,r2Bytes:14680064})}),
  ['functions/api/kalshi-market-stream-sign.js']:Object.freeze({cpuMs:100,units:Object.freeze({...noD1,requests:0,responseBytes:0,r2Reads:0,r2Writes:0,r2Bytes:0})}),
  ['services/kalshi-public-collector/marketSession.mjs']:Object.freeze({cpuMs:100,units:Object.freeze({...noD1,requests:2,responseBytes:16384,r2Reads:5,r2Writes:1,r2Bytes:8388608,wsMessages:128,wsBytes:1048576,wsSends:1,wsSendBytes:16384,doDurationMs:30000})}),
  ['services/polymarket-rest-collector/fixtures.mjs']:Object.freeze({cpuMs:100,units:Object.freeze({...noD1,requests:1,responseBytes:4194304,r2Reads:0,r2Writes:0,r2Bytes:0})}),

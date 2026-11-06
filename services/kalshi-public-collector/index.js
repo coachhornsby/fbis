@@ -35,7 +35,7 @@ export async function relaySignedPages(env,{scope,sport=null,fetchImpl=fetch}={}
     return {ok:false,code:"SIGNED_RELAY_SECRET_MISSING"};
   if(scope!=="markets"&&scope!=="exchange-status"&&scope!=="series-catalog"&&scope!=="qualification-evidence"&&scope!=="player-props"&&scope!=="multilegs"&&scope!=="combo-tape"&&scope!=="nhl-official-prop-results"&&scope!=="prop-reconciliation"&&scope!=="nhl-official-scope-discovery"&&scope!=="nhl-prospective-capture"&&scope!=="prop-model-freeze"&&scope!=="prop-grade-reconcile")
     return {ok:false,code:"SIGNED_RELAY_SCOPE_NOT_ALLOWED"};
-  if(scope==="markets"&&![...SPORTS,"cfb_spread","cfb_total","nba_spread","nba_total","nba_team_total","cbb_spread","cbb_total","cbb_team_total",...TENNIS_RESEARCH].includes(sport))
+  if(scope==="markets"&&![...SPORTS,"cfb_spread","cfb_total","nba_spread","nba_total","nba_team_total","cbb_spread","cbb_total","cbb_team_total","cbb_1h_total",...TENNIS_RESEARCH].includes(sport))
     return {ok:false,code:"KALSHI_SPORT_NOT_ENABLED"};
   const url=new URL(PAGES_ROUTE);
   url.searchParams.set("scope",scope);

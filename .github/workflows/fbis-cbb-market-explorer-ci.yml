@@ -1,0 +1,46 @@
+name: FBIS CBB exchange market explorer checks
+on:
+  push:
+    branches: [feature/cbb-exchange-market-explorer-20261106]
+  pull_request:
+    paths:
+      - "functions/lib/kalshiFirstHalfTotalQuotes.js"
+      - "functions/lib/exchangeCardDelivery.js"
+      - "functions/lib/kalshiMarketShadow.js"
+      - "functions/lib/kalshiSignedCollector.js"
+      - "services/account-budget/executionJobs.mjs"
+      - "services/kalshi-public-collector/**"
+      - "functions/api/kalshi-collector-internal.js"
+      - "src/components/board/EventMarkets.jsx"
+      - "src/components/board/exchangeMarketExplorer.css"
+      - "src/lib/exchangeMarketExplorer.js"
+      - "test/*market-explorer*"
+      - "test/exchange-card-delivery.test.mjs"
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: cbb-market-explorer-checks-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4.2.2
+      - uses: actions/setup-node@v4.1.0
+        with:
+          node-version: "22"
+          cache: npm
+      - run: npm ci --ignore-scripts --no-audit --no-fund
+      - name: Syntax checks
+        run: |
+          node --check functions/lib/kalshiFirstHalfTotalQuotes.js
+          node --check functions/lib/exchangeCardDelivery.js
+          node --check functions/lib/kalshiSignedCollector.js
+          node --check services/kalshi-public-collector/entrypoint.mjs
+          node --check src/lib/exchangeMarketExplorer.js
+      - name: Targeted regression suite
+        run: node --test test/cbb-exchange-market-explorer.test.js test/exchange-card-delivery.test.mjs test/kalshi-basketball-line-quotes.test.mjs test/exchange-card-rows.test.mjs test/kalshi-market-shadow.test.js test/account-budget-admission.test.mjs
+      - name: Production Pages board build (no deployment)
+        run: cd deploy/board && npm run build

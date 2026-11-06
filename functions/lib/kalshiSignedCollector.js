@@ -59,7 +59,7 @@ const receiptKey=sport=>"sports/"+sport+"-status.json";
  */
 export async function captureSignedKalshiMarkets(env,{sport="nfl",now=new Date(),
   fetchImpl=fetch,webCrypto=crypto}={}){
-  if(!["nfl","cfb","nba","cbb","nhl","cfb_spread","cfb_total","nba_spread","nba_total","nba_team_total","cbb_spread","cbb_total","cbb_team_total","atp","wta","atp_challenger","itf_men","itf_women",
+  if(!["nfl","cfb","nba","cbb","nhl","cfb_spread","cfb_total","nba_spread","nba_total","nba_team_total","cbb_spread","cbb_total","cbb_team_total","cbb_1h_total","atp","wta","atp_challenger","itf_men","itf_women",
     "atp_doubles","wta_doubles","itf_doubles","itf_women_doubles"].includes(sport))
     return {ok:false,code:"KALSHI_SPORT_NOT_ENABLED"};
   if(!env?.ARCHIVE?.get||!env?.ARCHIVE?.put)
@@ -169,7 +169,7 @@ export async function captureSignedKalshiMarkets(env,{sport="nfl",now=new Date()
       await writeJson(env.ARCHIVE,progressKey(sport),progress);
       // Preserve traversal completeness separately from useful current rows.
       // Each row keeps its original fetchedAt; no partial page claims full coverage.
-      if(sport==='cbb'||/^(?:nba|cbb)_(?:spread|total|team_total)$/.test(sport))await writeJson(env.ARCHIVE,"sports/"+sport+".json",{
+      if(sport==='cbb'||/^(?:nba|cbb)_(?:spread|total|team_total|1h_total)$/.test(sport))await writeJson(env.ARCHIVE,"sports/"+sport+".json",{
         ok:true,provider:'Kalshi',sport,seriesTicker:KALSHI_SHADOW_SERIES[sport],
         capturedAt:iso(now),startedAt:progress.startedAt,records:progress.records,
         paginationComplete:false,coverage:'BOUNDED_PARTIAL_SERIES',pagesFetched:progress.pagesFetched,
