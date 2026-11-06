@@ -2,6 +2,14 @@
 
 The private `fbis-espn` plugin now connects to `fbis-espn-mcp` rather than the shared source hub. The old shared Worker and its PinnOdds/Torvik connections remain unchanged. The ESPN Worker has no models, wagering logic, market data writes or scheduled handler. OAuth adds a separate, bounded authentication-state Durable Object.
 
+## Release 1.2.1: browser form submission repair, November 6, 2026
+
+A real Chrome form submission reproduced `invalid_request` before checking the entered key. The authorization HTML inherited `Referrer-Policy: no-referrer`, which causes basic HTML form POST requests to carry an opaque/null Origin. The strict same-origin POST check therefore rejected a legitimate browser request. The earlier HTTP smoke test set Origin explicitly and missed the browser behavior.
+
+The HTML form now uses `Referrer-Policy: same-origin`. Cross-origin referrers remain suppressed. Origin validation, signed request expiry and the CSRF cookie are unchanged; missing or null origins still reject. The form CSP permits only the FBIS origin and `https://chatgpt.com`, so Chrome can follow the server-validated ChatGPT callback after a successful submission. This does not change the callback allowlist or tool authorization.
+
+Chrome validation before deployment returned the exact generic error; after deployment the same deliberately invalid key reached the intended key-validation message. No real key was entered through browser automation. All 74 targeted tests and 25 live HTTP OAuth checks passed. The native ChatGPT owner login still requires the user's real connection attempt. There are no budget, model, storage-policy, credential or wagering-authority changes.
+
 ## Release 1.2.0: web OAuth, November 6, 2026
 
 The endpoint now supports protected-resource metadata, authorization-server discovery, Dynamic Client Registration (DCR), owner approval, authorization-code exchange with PKCE S256, one-hour access tokens, rotating refresh tokens and refresh-grant revocation. OAuth and the original bearer-key connection coexist. Public MCP initialize/list/ping requests expose only tool metadata. Every tool call still requires valid authorization; all four tools advertise the `espn:read` OAuth scope.

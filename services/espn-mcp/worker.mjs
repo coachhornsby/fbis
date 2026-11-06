@@ -39,7 +39,7 @@ export function requestSpec(name,a){
 }
 export async function callTool(name,a,env,{fetchImpl=fetch,admit=requireJobAdmission}={}){
  const spec=requestSpec(name,a);
- if(!spec)return content({source:'ESPN unofficial public API',version:'1.2.0',readOnly:true,scheduledPolling:false,wagerAuthority:false,budgetBindingConfigured:!!env.FBIS_ACCOUNT_BUDGET,timeZone:'America/Chicago',leagues:Object.keys(LEAGUES)});
+ if(!spec)return content({source:'ESPN unofficial public API',version:'1.2.1',readOnly:true,scheduledPolling:false,wagerAuthority:false,budgetBindingConfigured:!!env.FBIS_ACCOUNT_BUDGET,timeZone:'America/Chicago',leagues:Object.keys(LEAGUES)});
  const {url,action,date,offset,limit}=spec;const requestedAt=new Date().toISOString();let receivedAt=null,httpStatus=null;
  try{
   const admission=await admit(env,JOB,crypto.randomUUID());
@@ -77,7 +77,7 @@ export default {async fetch(req,env){
  if(!m||Array.isArray(m)||m.jsonrpc!=='2.0'||typeof m.method!=='string')return rpcError(null,-32600,'Invalid request');
  if(m.id==null&&m.method.startsWith('notifications/'))return new Response(null,{status:202});
  if(m.id==null)return rpcError(null,-32600,'Request id required');
- if(m.method==='initialize')return result(m.id,{protocolVersion:'2025-03-26',capabilities:{tools:{}},serverInfo:{name:'FBIS ESPN',version:'1.2.0'}});
+ if(m.method==='initialize')return result(m.id,{protocolVersion:'2025-03-26',capabilities:{tools:{}},serverInfo:{name:'FBIS ESPN',version:'1.2.1'}});
  if(m.method==='ping')return result(m.id,{});
  if(m.method==='tools/list')return result(m.id,{tools:TOOLS});
  if(m.method!=='tools/call')return rpcError(m.id,-32601,'Method not found');

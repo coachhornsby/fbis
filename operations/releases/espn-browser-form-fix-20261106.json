@@ -1,0 +1,206 @@
+{
+  "date": "20261106",
+  "startedAt": "2026-11-06T22:37:58.229Z",
+  "checks": [
+    {
+      "name": "OAuth discovery",
+      "ok": true
+    },
+    {
+      "name": "Resource discovery",
+      "ok": true
+    },
+    {
+      "name": "Dynamic client registration",
+      "ok": true,
+      "httpStatus": 201
+    },
+    {
+      "name": "Owner sign-in page",
+      "ok": true,
+      "httpStatus": 200
+    },
+    {
+      "name": "Browser form origin preserved",
+      "ok": true
+    },
+    {
+      "name": "ChatGPT callback allowed by CSP",
+      "ok": true
+    },
+    {
+      "name": "CSRF rejection",
+      "ok": true,
+      "httpStatus": 400
+    },
+    {
+      "name": "Invalid owner key rejected",
+      "ok": true
+    },
+    {
+      "name": "Owner authorization",
+      "ok": true,
+      "httpStatus": 303
+    },
+    {
+      "name": "State and issuer preserved",
+      "ok": true
+    },
+    {
+      "name": "Invalid PKCE rejected",
+      "ok": true,
+      "httpStatus": 400
+    },
+    {
+      "name": "Code exchange",
+      "ok": true,
+      "httpStatus": 200
+    },
+    {
+      "name": "Code replay rejected",
+      "ok": true,
+      "httpStatus": 400
+    },
+    {
+      "name": "Unauthenticated tool discovery",
+      "ok": true
+    },
+    {
+      "name": "Unauthenticated data denied",
+      "ok": true,
+      "httpStatus": 401
+    },
+    {
+      "name": "OAuth access reaches MCP",
+      "ok": true,
+      "httpStatus": 200,
+      "version": "1.2.1"
+    },
+    {
+      "name": "Existing bearer connection retained",
+      "ok": true
+    },
+    {
+      "name": "cfb OAuth scoreboard",
+      "ok": true,
+      "league": "cfb",
+      "httpStatus": 200,
+      "events": 5,
+      "receivedAt": "2026-11-06T22:38:07.007Z",
+      "sourceHttpDate": "Fri, 06 Nov 2026 22:38:07 GMT",
+      "sourceUpdatedAt": null,
+      "isError": false
+    },
+    {
+      "name": "nba OAuth scoreboard",
+      "ok": true,
+      "league": "nba",
+      "httpStatus": 200,
+      "events": 9,
+      "receivedAt": "2026-11-06T22:38:07.168Z",
+      "sourceHttpDate": "Fri, 06 Nov 2026 22:38:07 GMT",
+      "sourceUpdatedAt": null,
+      "isError": false
+    },
+    {
+      "name": "cbb OAuth scoreboard",
+      "ok": true,
+      "league": "cbb",
+      "httpStatus": 200,
+      "events": 72,
+      "receivedAt": "2026-11-06T22:38:07.351Z",
+      "sourceHttpDate": "Fri, 06 Nov 2026 22:38:07 GMT",
+      "sourceUpdatedAt": null,
+      "isError": false
+    },
+    {
+      "name": "nhl OAuth scoreboard",
+      "ok": true,
+      "league": "nhl",
+      "httpStatus": 200,
+      "events": 3,
+      "receivedAt": "2026-11-06T22:38:07.630Z",
+      "sourceHttpDate": "Fri, 06 Nov 2026 22:38:07 GMT",
+      "sourceUpdatedAt": null,
+      "isError": false
+    },
+    {
+      "name": "Refresh rotation",
+      "ok": true,
+      "httpStatus": 200
+    },
+    {
+      "name": "Refresh replay rejected",
+      "ok": true,
+      "httpStatus": 400
+    },
+    {
+      "name": "Revoke test grant",
+      "ok": true,
+      "httpStatus": 200
+    },
+    {
+      "name": "Revoked refresh rejected",
+      "ok": true,
+      "httpStatus": 400
+    }
+  ],
+  "failures": [],
+  "sports": [
+    {
+      "league": "cfb",
+      "httpStatus": 200,
+      "events": 5,
+      "receivedAt": "2026-11-06T22:38:07.007Z",
+      "sourceHttpDate": "Fri, 06 Nov 2026 22:38:07 GMT",
+      "sourceUpdatedAt": null,
+      "isError": false
+    },
+    {
+      "league": "nba",
+      "httpStatus": 200,
+      "events": 9,
+      "receivedAt": "2026-11-06T22:38:07.168Z",
+      "sourceHttpDate": "Fri, 06 Nov 2026 22:38:07 GMT",
+      "sourceUpdatedAt": null,
+      "isError": false
+    },
+    {
+      "league": "cbb",
+      "httpStatus": 200,
+      "events": 72,
+      "receivedAt": "2026-11-06T22:38:07.351Z",
+      "sourceHttpDate": "Fri, 06 Nov 2026 22:38:07 GMT",
+      "sourceUpdatedAt": null,
+      "isError": false
+    },
+    {
+      "league": "nhl",
+      "httpStatus": 200,
+      "events": 3,
+      "receivedAt": "2026-11-06T22:38:07.630Z",
+      "sourceHttpDate": "Fri, 06 Nov 2026 22:38:07 GMT",
+      "sourceUpdatedAt": null,
+      "isError": false
+    }
+  ],
+  "completedAt": "2026-11-06T22:38:08.297Z",
+  "release": {
+    "version": "1.2.1",
+    "testsPassed": 74,
+    "liveChecksPassed": 25,
+    "browserBefore": "Real Chrome form submission returned invalid_request before key validation",
+    "browserAfter": "Same invalid test key reached The connection key was not accepted",
+    "realKeyEnteredViaBrowser": false,
+    "nativeChatGPTOwnerLoginVerified": false,
+    "budgetChanged": false,
+    "modelsChanged": false,
+    "wagerAuthorityChanged": false,
+    "csrfChecksPreserved": true,
+    "temporaryTestGrantRevoked": true
+  },
+  "references": [
+    "https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Headers/Referrer-Policy",
+    "https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Headers/Content-Security-Policy/form-action"
+  ]
+}
