@@ -1,0 +1,21 @@
+name: FBIS CBB first-half roster priority checks
+on:
+  push:
+    branches: [fix/cbb-1h-market-roster-priority-20261106]
+  pull_request:
+    paths:
+      - 'services/polymarket-us-stream/boundedSession.mjs'
+      - 'test/polymarket-cbb-1h-roster-priority.test.mjs'
+      - '.github/workflows/fbis-poly-us-cbb-first-half-release-20261106.yml'
+permissions: {contents: read}
+jobs:
+  tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4.2.2
+      - uses: actions/setup-node@v4.1.0
+        with: {node-version: '22'}
+      - run: npm ci --ignore-scripts --no-audit --no-fund
+      - run: node --test test/polymarket-cbb-1h-roster-priority.test.mjs test/polymarket-bounded-session.test.mjs test/polymarket-us-cbb-first-half-route.test.mjs
+      - run: npm run build --prefix deploy/board
