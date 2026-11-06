@@ -11,30 +11,33 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
-      - name: Test Google Drive credentials and folder visibility (read only)
+      - name: Verify OAuth, FBIS_Data folder, and bounded write/read/delete
         env:
           GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID }}
           GOOGLE_CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }}
           GOOGLE_REFRESH_TOKEN: ${{ secrets.GOOGLE_REFRESH_TOKEN }}
-          FBIS_DATA_FOLDER_ID: ${{ vars.FBIS_DATA_FOLDER_ID }}
+          FBIS_DATA_FOLDER_ID: "1-cEe24VMCvfO55HZry5qxRaf0riTs6NO"
         run: |
           python -m pip install --disable-pip-version-check --quiet google-auth requests
           python - <<'PY'
-          import os, sys, requests
+          import json, os, sys, uuid
+          import requests
           from google.oauth2.credentials import Credentials
           from google.auth.transport.requests import Request
-          keys = ("GOOGLE_CLIENT_ID", "GOOGLE_CLIENT_SECRET", "GOOGLE_REFRESH_TOKEN", "FBIS_DATA_FOLDER_ID")
-          missing = [key for key in keys if not os.environ.get(key)]
+
+          required = ("GOOGLE_CLIENT_ID", "GOOGLE_CLIENT_SECRET", "GOOGLE_REFRESH_TOKEN", "FBIS_DATA_FOLDER_ID")
+          missing = [name for name in required if not os.environ.get(name)]
           if missing:
               print("CONFIGURATION_MISSING:", ", ".join(missing))
               sys.exit(1)
+
           credentials = Credentials(
               token=None,
               refresh_token=os.environ["GOOGLE_REFRESH_TOKEN"],
               token_uri="https://oauth2.googleapis.com/token",
               client_id=os.environ["GOOGLE_CLIENT_ID"],
               client_secret=os.environ["GOOGLE_CLIENT_SECRET"],
-              scopes=["https://www.googleapis.com/auth/drive.file"],
+              scopes=["https://www.googleapis.com/auth/drive"],
           )
           try:
               credentials.refresh(Request())
@@ -42,26 +45,69 @@ jobs:
               print("OAUTH_REFRESH_FAILED:", type(exc).__name__)
               sys.exit(1)
           print("OAUTH_REFRESH_OK")
+
+          folder_id = os.environ["FBIS_DATA_FOLDER_ID"]
+          session = requests.Session()
+          session.headers.update({"Authorization": "Bearer " + credentials.token})
+          api = "https://www.googleapis.com/drive/v3/files"
           try:
-              response = requests.get(
-                  "https://www.googleapis.com/drive/v3/files/" + os.environ["FBIS_DATA_FOLDER_ID"],
-                  params={"fields": "id,name,mimeType", "supportsAllDrives": "true"},
-                  headers={"Authorization": "Bearer " + credentials.token},
+              resp = session.get(
+                  api + "/" + folder_id,
+                  params={"fields": "id,name,mimeType,trashed", "supportsAllDrives": "true"},
                   timeout=20,
               )
-          except requests.RequestException as exc:
-              print("DRIVE_REQUEST_FAILED:", type(exc).__name__)
-              sys.exit(1)
-          if response.status_code == 200:
-              data = response.json()
-              if data.get("mimeType") != "application/vnd.google-apps.folder":
-                  print("TARGET_NOT_A_FOLDER")
+              if resp.status_code != 200:
+                  print("FOLDER_READ_FAILED: HTTP", resp.status_code)
                   sys.exit(1)
-              print("DRIVE_FOLDER_READ_OK:", data.get("name", "(unnamed)"))
-          elif response.status_code == 404:
-              print("DRIVE_FOLDER_NOT_ACCESSIBLE: Pre-existing folders are not automatically accessible under drive.file.")
-              sys.exit(1)
-          else:
-              print("DRIVE_FOLDER_CHECK_FAILED: HTTP", response.status_code)
+              folder = resp.json()
+              if folder.get("mimeType") != "application/vnd.google-apps.folder" or folder.get("trashed"):
+                  print("TARGET_NOT_AN_ACTIVE_FOLDER")
+                  sys.exit(1)
+              print("DRIVE_FOLDER_READ_OK:", folder.get("name", "(unnamed)"))
+
+              # Isolated disposable file; do not modify any existing Drive data.
+              proof = "FBIS Drive access test " + uuid.uuid4().hex
+              metadata = {"name": "_fbis_drive_access_test_" + uuid.uuid4().hex + ".txt",
+                          "mimeType": "text/plain", "parents": [folder_id]}
+              boundary = "fbisboundary" + uuid.uuid4().hex
+              body = (
+                  "--" + boundary + "\r\n"
+                  "Content-Type: application/json; charset=UTF-8\r\n\r\n"
+                  + json.dumps(metadata) + "\r\n"
+                  "--" + boundary + "\r\n"
+                  "Content-Type: text/plain; charset=UTF-8\r\n\r\n"
+                  + proof + "\r\n"
+                  "--" + boundary + "--\r\n"
+              ).encode("utf-8")
+              created = session.post(
+                  "https://www.googleapis.com/upload/drive/v3/files",
+                  params={"uploadType": "multipart", "fields": "id,name,parents"},
+                  headers={"Content-Type": "multipart/related; boundary=" + boundary},
+                  data=body, timeout=20,
+              )
+              if created.status_code != 200:
+                  print("DRIVE_CREATE_FAILED: HTTP", created.status_code)
+                  sys.exit(1)
+              item = created.json()
+              file_id = item["id"]
+              print("DRIVE_WRITE_OK")
+              try:
+                  if folder_id not in item.get("parents", []):
+                      print("CREATED_OUTSIDE_TARGET_FOLDER")
+                      sys.exit(1)
+                  check = session.get(api + "/" + file_id, params={"alt": "media"}, timeout=20)
+                  if check.status_code != 200 or check.text != proof:
+                      print("DRIVE_READBACK_FAILED: HTTP", check.status_code)
+                      sys.exit(1)
+                  print("DRIVE_READBACK_OK")
+              finally:
+                  removed = session.delete(api + "/" + file_id, timeout=20)
+                  if removed.status_code != 204:
+                      print("DRIVE_CLEANUP_FAILED: HTTP", removed.status_code)
+                      sys.exit(1)
+                  print("DRIVE_CLEANUP_OK")
+              print("FBIS_DRIVE_READ_WRITE_TEST_PASSED")
+          except requests.RequestException as exc:
+              print("DRIVE_NETWORK_ERROR:", type(exc).__name__)
               sys.exit(1)
           PY
