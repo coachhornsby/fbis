@@ -29,7 +29,7 @@ export default{
    const scoped=await beginJobExecution(env,KALSHI_RELAY_JOB,{reservationId:'kalshi-rest-'+minute,
     network:{origin:'https://fbis-myz.pages.dev',path:'/api/kalshi-collector-internal',method:'POST'}});
    const games=['nfl','cfb','nba','cbb','nhl'];
-   const lines=['nba_spread','nba_total','nba_team_total','cbb_spread','cbb_total','cbb_team_total'];
+   const lines=['nba_spread','nba_total','nba_team_total','cbb_spread','cbb_total','cbb_team_total','cbb_1h_total'];
    const sport=minute%2===0?games[Math.floor(minute/2)%games.length]:lines[Math.floor(minute/2)%lines.length];
    const result=await relaySignedPages(scoped,{scope:'markets',sport,fetchImpl:scoped.FBIS_JOB_FETCH});
    if(!result.ok)await recordExchangeDiagnostic(env,'kalshi-rest',result);return result;
