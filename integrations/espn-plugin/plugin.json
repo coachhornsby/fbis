@@ -1,0 +1,24 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "fbis-espn",
+  "version": "1.1.0",
+  "description": "Read-only ESPN scores, team identities and game summaries",
+  "author": {
+    "email": "coachhornsby@gmail.com",
+    "name": "Bryan Hornsby"
+  },
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "capabilities": [],
+        "category": "Data & Analytics",
+        "defaultPrompt": null,
+        "developerName": "Bryan Hornsby",
+        "displayName": "FBIS ESPN",
+        "longDescription": "Read-only ESPN scores, team identities and game summaries. No automatic polling or production wager authority.",
+        "shortDescription": "ESPN schedules and scores",
+        "websiteURL": "https://www.espn.com"
+      }
+    }
+  }
+}

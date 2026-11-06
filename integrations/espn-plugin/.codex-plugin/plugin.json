@@ -1,0 +1,21 @@
+{
+  "author": {
+    "email": "coachhornsby@gmail.com",
+    "name": "Bryan Hornsby"
+  },
+  "description": "Read-only ESPN scores, team identities and game summaries",
+  "interface": {
+    "capabilities": [],
+    "category": "Data & Analytics",
+    "defaultPrompt": null,
+    "developerName": "Bryan Hornsby",
+    "displayName": "FBIS ESPN",
+    "longDescription": "Read-only ESPN scores, team identities and game summaries. No automatic polling or production wager authority.",
+    "shortDescription": "ESPN schedules and scores",
+    "websiteURL": "https://www.espn.com"
+  },
+  "mcpServers": "./.mcp.json",
+  "name": "fbis-espn",
+  "skills": "./skills/",
+  "version": "1.1.0"
+}

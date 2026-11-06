@@ -1,0 +1,11 @@
+{
+  "mcpServers": {
+    "fbis_espn": {
+      "type": "http",
+      "url": "https://fbis-espn-mcp.coachhornsby.workers.dev/mcp",
+      "headers": {
+        "Authorization": "Bearer ${FBIS_ESPN_MCP_TOKEN}"
+      }
+    }
+  }
+}

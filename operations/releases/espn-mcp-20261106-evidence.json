@@ -1,0 +1,5428 @@
+{
+  "date": "20261106",
+  "timeZone": "America/Chicago",
+  "startedAt": "2026-11-06T21:31:08.329Z",
+  "endpoint": "https://fbis-espn-mcp.coachhornsby.workers.dev/mcp",
+  "failures": [],
+  "initialize": {
+    "protocolVersion": "2025-03-26",
+    "capabilities": {
+      "tools": {}
+    },
+    "serverInfo": {
+      "name": "FBIS ESPN",
+      "version": "1.1.0"
+    }
+  },
+  "tools": [
+    "espn_scoreboard",
+    "espn_summary",
+    "espn_teams",
+    "fbis_espn_status"
+  ],
+  "sourceStatus": {
+    "source": "ESPN unofficial public API",
+    "version": "1.1.0",
+    "readOnly": true,
+    "scheduledPolling": false,
+    "wagerAuthority": false,
+    "budgetBindingConfigured": true,
+    "timeZone": "America/Chicago",
+    "leagues": [
+      "cfb",
+      "nba",
+      "cbb",
+      "nhl",
+      "nfl",
+      "mlb",
+      "wnba"
+    ]
+  },
+  "completedAt": "2026-11-06T21:31:17.856Z",
+  "limitations": [
+    "sourceHttpDate is HTTP response time, not a per-game update timestamp. ESPN did not supply Last-Modified or sourceUpdatedAt.",
+    "CBB directory omits 14 opponent IDs present on today's scoreboard; no replacement IDs have been invented. Do not assume all missing teams are non-Division-I.",
+    "The existing chat session has not exposed ESPN tools after the plugin update; saved registration and authenticated remote MCP have been verified separately."
+  ],
+  "sports": [
+    {
+      "league": "cfb",
+      "eventCount": 5,
+      "teamCount": 762,
+      "statusCounts": {
+        "STATUS_SCHEDULED": 5
+      },
+      "directoryMissingCompetitors": [],
+      "timestampCoverage": [
+        {
+          "receivedAt": "2026-11-06T21:31:12.877Z",
+          "sourceHttpDate": "Fri, 06 Nov 2026 21:31:12 GMT",
+          "sourceLastModified": null,
+          "sourceUpdatedAt": null
+        }
+      ],
+      "events": [
+        {
+          "id": "401858288",
+          "date": "2026-11-07T00:00Z",
+          "name": "Virginia Tech Hokies at SMU Mustangs",
+          "status": {
+            "clock": 0,
+            "displayClock": "0:00",
+            "period": 0,
+            "type": {
+              "id": "1",
+              "name": "STATUS_SCHEDULED",
+              "state": "pre",
+              "completed": false,
+              "description": "Scheduled",
+              "detail": "Fri, November 6th at 7:00 PM EST",
+              "shortDetail": "11/6 - 7:00 PM EST"
+            }
+          },
+          "competitors": [
+            {
+              "teamId": "2567",
+              "name": "SMU Mustangs",
+              "homeAway": "home",
+              "score": "0",
+              "scoreAvailable": false
+            },
+            {
+              "teamId": "259",
+              "name": "Virginia Tech Hokies",
+              "homeAway": "away",
+              "score": "0",
+              "scoreAvailable": false
+            }
+          ]
+        },
+        {
+          "id": "401862818",
+          "date": "2026-11-07T00:30Z",
+          "name": "South Florida Bulls at East Carolina Pirates",
+          "status": {
+            "clock": 0,
+            "displayClock": "0:00",
+            "period": 0,
+            "type": {
+              "id": "1",
+              "name": "STATUS_SCHEDULED",
+              "state": "pre",
+              "completed": false,
+              "description": "Scheduled",
+              "detail": "Fri, November 6th at 7:30 PM EST",
+              "shortDetail": "11/6 - 7:30 PM EST"
+            }
+          },
+          "competitors": [
+            {
+              "teamId": "151",
+              "name": "East Carolina Pirates",
+              "homeAway": "home",
+              "score": "0",
+              "scoreAvailable": false
+            },
+            {
+              "teamId": "58",
+              "name": "South Florida Bulls",
+              "homeAway": "away",
+              "score": "0",
+              "scoreAvailable": false
+            }
+          ]
+        },
+        {
+          "id": "401858510",
+          "date": "2026-11-07T01:00Z",
+          "name": "Nebraska Cornhuskers at Illinois Fighting Illini",
+          "status": {
+            "clock": 0,
+            "displayClock": "0:00",
+            "period": 0,
+            "type": {
+              "id": "1",
+              "name": "STATUS_SCHEDULED",
+              "state": "pre",
+              "completed": false,
+              "description": "Scheduled",
+              "detail": "Fri, November 6th at 8:00 PM EST",
+              "shortDetail": "11/6 - 8:00 PM EST"
+            }
+          },
+          "competitors": [
+            {
+              "teamId": "356",
+              "name": "Illinois Fighting Illini",
+              "homeAway": "home",
+              "score": "0",
+              "scoreAvailable": false
+            },
+            {
+              "teamId": "158",
+              "name": "Nebraska Cornhuskers",
+              "homeAway": "away",
+              "score": "0",
+              "scoreAvailable": false
+            }
+          ]
+        },
+        {
+          "id": "401864533",
+          "date": "2026-11-07T02:00Z",
+          "name": "New Mexico Lobos at Nevada Wolf Pack",
+          "status": {
+            "clock": 0,
+            "displayClock": "0:00",
+            "period": 0,
+            "type": {
+              "id": "1",
+              "name": "STATUS_SCHEDULED",
+              "state": "pre",
+              "completed": false,
+              "description": "Scheduled",
+              "detail": "Fri, November 6th at 9:00 PM EST",
+              "shortDetail": "11/6 - 9:00 PM EST"
+            }
+          },
+          "competitors": [
+            {
+              "teamId": "2440",
+              "name": "Nevada Wolf Pack",
+              "homeAway": "home",
+              "score": "0",
+              "scoreAvailable": false
+            },
+            {
+              "teamId": "167",
+              "name": "New Mexico Lobos",
+              "homeAway": "away",
+              "score": "0",
+              "scoreAvailable": false
+            }
+          ]
+        },
+        {
+          "id": "401856855",
+          "date": "2026-11-07T03:15Z",
+          "name": "TCU Horned Frogs at Arizona Wildcats",
+          "status": {
+            "clock": 0,
+            "displayClock": "0:00",
+            "period": 0,
+            "type": {
+              "id": "1",
+              "name": "STATUS_SCHEDULED",
+              "state": "pre",
+              "completed": false,
+              "description": "Scheduled",
+              "detail": "Fri, November 6th at 10:15 PM EST",
+              "shortDetail": "11/6 - 10:15 PM EST"
+            }
+          },
+          "competitors": [
+            {
+              "teamId": "12",
+              "name": "Arizona Wildcats",
+              "homeAway": "home",
+              "score": "0",
+              "scoreAvailable": false
+            },
+            {
+              "teamId": "2628",
+              "name": "TCU Horned Frogs",
+              "homeAway": "away",
+              "score": "0",
+              "scoreAvailable": false
+            }
+          ]
+        }
+      ],
+      "directoryTeamIds": [
+        "2000",
+        "2001",
+        "2003",
+        "2005",
+        "2006",
+        "2010",
+        "333",
+        "2011",
+        "2013",
+        "2790",
+        "2015",
+        "2016",
+        "365",
+        "3162",
+        "2018",
+        "2019",
+        "2800",
+        "111674",
+        "2022",
+        "7",
+        "2023",
+        "129469",
+        "134002",
+        "2025",
+        "2026",
+        "3111",
+        "108358",
+        "9",
+        "12",
+        "124386",
+        "2028",
+        "8",
+        "2032",
+        "2033",
+        "2029",
+        "349",
+        "308",
+        "2038",
+        "2",
+        "124",
+        "2042",
+        "2043",
+        "2044",
+        "2045",
+        "2046",
+        "3178",
+        "2047",
+        "2048",
+        "2049",
+        "495",
+        "252",
+        "488",
+        "188",
+        "2050",
+        "122666",
+        "121",
+        "239",
+        "2056",
+        "266",
+        "132",
+        "490",
+        "2283",
+        "16111",
+        "2060",
+        "2757",
+        "492",
+        "2062",
+        "2802",
+        "2064",
+        "2065",
+        "2069",
+        "2071",
+        "124180",
+        "2074",
+        "68",
+        "103",
+        "340",
+        "2075",
+        "189",
+        "2913",
+        "2079",
+        "18",
+        "2080",
+        "2781",
+        "225",
+        "2803",
+        "2083",
+        "63",
+        "2084",
+        "2085",
+        "2086",
+        "2570",
+        "2094",
+        "13",
+        "2858",
+        "25",
+        "129738",
+        "2097",
+        "2098",
+        "424",
+        "2101",
+        "2102",
+        "32",
+        "2105",
+        "2106",
+        "2963",
+        "2107",
+        "2108",
+        "101442",
+        "2110",
+        "2964",
+        "2115",
+        "2860",
+        "2117",
+        "2118",
+        "2122",
+        "2119",
+        "2120",
+        "2121",
+        "2123",
+        "411",
+        "2128",
+        "2127",
+        "2429",
+        "3253",
+        "236",
+        "80",
+        "2130",
+        "2804",
+        "3112",
+        "2132",
+        "17",
+        "2134",
+        "2805",
+        "228",
+        "2557",
+        "324",
+        "2141",
+        "33",
+        "3210",
+        "2142",
+        "108382",
+        "38",
+        "11",
+        "2146",
+        "36",
+        "171",
+        "2148",
+        "2152",
+        "409",
+        "2151",
+        "3066",
+        "507",
+        "2985",
+        "2155",
+        "172",
+        "509",
+        "510",
+        "2161",
+        "511",
+        "40",
+        "512",
+        "513",
+        "159",
+        "2166",
+        "2168",
+        "83",
+        "110438",
+        "190",
+        "48",
+        "2169",
+        "2808",
+        "2170",
+        "2171",
+        "2254",
+        "2175",
+        "316",
+        "2181",
+        "49",
+        "150",
+        "2184",
+        "151",
+        "2191",
+        "2188",
+        "2193",
+        "2837",
+        "2194",
+        "127954",
+        "2197",
+        "2198",
+        "2199",
+        "2201",
+        "2202",
+        "331",
+        "2205",
+        "2206",
+        "122775",
+        "2207",
+        "72",
+        "2210",
+        "2213",
+        "2214",
+        "452",
+        "101784",
+        "101",
+        "2865",
+        "2221",
+        "2986",
+        "2219",
+        "2220",
+        "2222",
+        "366",
+        "2224",
+        "114",
+        "50",
+        "2226",
+        "57",
+        "2229",
+        "125762",
+        "52",
+        "2230",
+        "2231",
+        "2237",
+        "2232",
+        "2967",
+        "2234",
+        "2233",
+        "112334",
+        "278",
+        "527",
+        "341",
+        "231",
+        "417",
+        "367",
+        "2241",
+        "2242",
+        "415",
+        "2244",
+        "2245",
+        "46",
+        "61",
+        "290",
+        "2247",
+        "59",
+        "2248",
+        "2249",
+        "530",
+        "2755",
+        "125",
+        "2256",
+        "2257",
+        "65",
+        "146",
+        "2258",
+        "2968",
+        "348",
+        "162",
+        "297",
+        "2261",
+        "2262",
+        "2810",
+        "2264",
+        "173",
+        "108",
+        "535",
+        "62",
+        "191",
+        "2271",
+        "418",
+        "125974",
+        "2273",
+        "2274",
+        "174",
+        "108354",
+        "107",
+        "2812",
+        "2277",
+        "248",
+        "47",
+        "2758",
+        "2938",
+        "2280",
+        "2291",
+        "304",
+        "70",
+        "2286",
+        "356",
+        "2287",
+        "306",
+        "2916",
+        "84",
+        "282",
+        "111756",
+        "2292",
+        "2294",
+        "66",
+        "175",
+        "2296",
+        "55",
+        "256",
+        "2939",
+        "2302",
+        "118",
+        "2304",
+        "246",
+        "126",
+        "2305",
+        "2306",
+        "547",
+        "2871",
+        "126110",
+        "338",
+        "2309",
+        "3077",
+        "2310",
+        "2316",
+        "96",
+        "352",
+        "122774",
+        "247",
+        "255",
+        "2315",
+        "99",
+        "2318",
+        "548",
+        "322",
+        "437",
+        "262",
+        "6353",
+        "2320",
+        "2323",
+        "2324",
+        "268",
+        "388",
+        "2329",
+        "2331",
+        "2333",
+        "2335",
+        "124179",
+        "2876",
+        "2339",
+        "3209",
+        "2815",
+        "2877",
+        "203",
+        "2940",
+        "209",
+        "2341",
+        "263",
+        "2347",
+        "309",
+        "2348",
+        "97",
+        "67",
+        "2354",
+        "101161",
+        "2770",
+        "109",
+        "2359",
+        "126146",
+        "311",
+        "274",
+        "2362",
+        "2365",
+        "2366",
+        "317",
+        "2368",
+        "2369",
+        "276",
+        "446",
+        "2371",
+        "120",
+        "2373",
+        "110",
+        "113",
+        "561",
+        "2700",
+        "2816",
+        "241",
+        "2377",
+        "235",
+        "2382",
+        "2383",
+        "2385",
+        "2771",
+        "291",
+        "193",
+        "2390",
+        "127",
+        "2392",
+        "130",
+        "2393",
+        "2394",
+        "565",
+        "2395",
+        "2396",
+        "210",
+        "74",
+        "2398",
+        "134",
+        "135",
+        "2399",
+        "2817",
+        "2364",
+        "568",
+        "2969",
+        "344",
+        "2400",
+        "2880",
+        "2402",
+        "2403",
+        "2623",
+        "142",
+        "137",
+        "2919",
+        "2405",
+        "134001",
+        "149",
+        "147",
+        "2701",
+        "2818",
+        "3100",
+        "323",
+        "2413",
+        "60",
+        "2415",
+        "2416",
+        "2419",
+        "426",
+        "2422",
+        "93",
+        "332",
+        "152",
+        "2426",
+        "158",
+        "2438",
+        "6845",
+        "2904",
+        "2440",
+        "111675",
+        "160",
+        "2441",
+        "2424",
+        "167",
+        "166",
+        "2444",
+        "2447",
+        "2884",
+        "2450",
+        "2453",
+        "123086",
+        "2448",
+        "2428",
+        "153",
+        "286",
+        "3071",
+        "155",
+        "2449",
+        "2822",
+        "75",
+        "249",
+        "196",
+        "2464",
+        "2458",
+        "2459",
+        "2460",
+        "128",
+        "425",
+        "138",
+        "583",
+        "2823",
+        "2466",
+        "77",
+        "2886",
+        "2467",
+        "87",
+        "391",
+        "195",
+        "2477",
+        "427",
+        "194",
+        "3161",
+        "2980",
+        "319",
+        "2824",
+        "201",
+        "197",
+        "295",
+        "145",
+        "354",
+        "2483",
+        "204",
+        "359",
+        "2888",
+        "2487",
+        "205",
+        "2486",
+        "213",
+        "219",
+        "95",
+        "90",
+        "221",
+        "2972",
+        "3179",
+        "2923",
+        "2502",
+        "126086",
+        "2504",
+        "2506",
+        "163",
+        "2508",
+        "2509",
+        "2825",
+        "2516",
+        "29",
+        "2890",
+        "2528",
+        "227",
+        "2519",
+        "242",
+        "257",
+        "2891",
+        "2523",
+        "184",
+        "2524",
+        "599",
+        "127991",
+        "86",
+        "2827",
+        "164",
+        "2545",
+        "2567",
+        "2782",
+        "3236",
+        "2951",
+        "3110",
+        "16",
+        "2529",
+        "129",
+        "2830",
+        "2831",
+        "2598",
+        "2600",
+        "2614",
+        "2615",
+        "2532",
+        "2776",
+        "2534",
+        "2535",
+        "21",
+        "301",
+        "23",
+        "2542",
+        "611",
+        "2553",
+        "2551",
+        "2828",
+        "2974",
+        "2559",
+        "2560",
+        "2562",
+        "129758",
+        "2564",
+        "2894",
+        "215",
+        "6",
+        "2579",
+        "2569",
+        "233",
+        "613",
+        "2571",
+        "58",
+        "2546",
+        "267",
+        "199",
+        "2568",
+        "2583",
+        "79",
+        "2582",
+        "2572",
+        "200",
+        "2584",
+        "253",
+        "2896",
+        "2586",
+        "2587",
+        "616",
+        "2927",
+        "2588",
+        "81",
+        "2591",
+        "111610",
+        "2595",
+        "374",
+        "2779",
+        "2832",
+        "133",
+        "3254",
+        "375",
+        "2900",
+        "24",
+        "2617",
+        "618",
+        "56",
+        "471",
+        "284",
+        "2619",
+        "2834",
+        "216",
+        "183",
+        "2628",
+        "2627",
+        "620",
+        "218",
+        "2634",
+        "2635",
+        "2633",
+        "245",
+        "2658",
+        "2637",
+        "251",
+        "2639",
+        "2640",
+        "326",
+        "2641",
+        "2643",
+        "2442",
+        "2644",
+        "2646",
+        "134000",
+        "2838",
+        "2649",
+        "119",
+        "2651",
+        "2977",
+        "386",
+        "3214",
+        "2653",
+        "3237",
+        "2654",
+        "112",
+        "2655",
+        "202",
+        "2839",
+        "2657",
+        "5",
+        "399",
+        "302",
+        "2116",
+        "26",
+        "41",
+        "2433",
+        "379",
+        "2882",
+        "2439",
+        "30",
+        "2630",
+        "110243",
+        "2638",
+        "2636",
+        "2842",
+        "237",
+        "559",
+        "3212",
+        "389",
+        "2667",
+        "328",
+        "3101",
+        "254",
+        "390",
+        "2678",
+        "2673",
+        "628",
+        "2674",
+        "238",
+        "293",
+        "222",
+        "258",
+        "2355",
+        "330",
+        "259",
+        "2676",
+        "2749",
+        "2706",
+        "89",
+        "2681",
+        "154",
+        "3080",
+        "2682",
+        "2683",
+        "2685",
+        "2687",
+        "2686",
+        "264",
+        "143",
+        "265",
+        "2688",
+        "630",
+        "131",
+        "2844",
+        "2845",
+        "2691",
+        "2692",
+        "336",
+        "2695",
+        "223",
+        "110242",
+        "2698",
+        "2699",
+        "3211",
+        "2704",
+        "277",
+        "2707",
+        "455",
+        "2717",
+        "2714",
+        "2843",
+        "2710",
+        "98",
+        "2711",
+        "2702",
+        "2703",
+        "2848",
+        "2909",
+        "134087",
+        "433",
+        "2849",
+        "396",
+        "112335",
+        "2850",
+        "2721",
+        "2725",
+        "398",
+        "2930",
+        "2729",
+        "2911",
+        "2970",
+        "2912",
+        "129741",
+        "2731",
+        "3130",
+        "2733",
+        "351",
+        "2851",
+        "2736",
+        "275",
+        "2738",
+        "2740",
+        "2741",
+        "271",
+        "272",
+        "2723",
+        "2743",
+        "2744",
+        "2745",
+        "2746",
+        "2747",
+        "2748",
+        "402",
+        "2751",
+        "43",
+        "2754"
+      ],
+      "directoryPageProvenance": [
+        {
+          "source": "ESPN",
+          "unofficial": true,
+          "sourceUrl": "https://site.api.espn.com/apis/site/v2/sports/football/college-football/teams?limit=1000&groups=80",
+          "requestedAt": "2026-11-06T21:31:12.925Z",
+          "receivedAt": "2026-11-06T21:31:13.160Z",
+          "sourceHttpDate": "Fri, 06 Nov 2026 21:31:13 GMT",
+          "sourceLastModified": null,
+          "sourceAgeSeconds": null,
+          "httpStatus": 200,
+          "league": "cfb",
+          "date": null,
+          "timeZone": "America/Chicago",
+          "wagerAuthority": false,
+          "sourceUpdatedAt": null,
+          "totalRetrieved": 762,
+          "shown": 100,
+          "offset": 0,
+          "nextOffset": 100,
+          "truncated": true,
+          "upstreamLimit": 1000,
+          "upstreamMayBeTruncated": false,
+          "coverage": "ESPN college football directory (all divisions; groups filter not honored upstream)"
+        },
+        {
+          "source": "ESPN",
+          "unofficial": true,
+          "sourceUrl": "https://site.api.espn.com/apis/site/v2/sports/football/college-football/teams?limit=1000&groups=80",
+          "requestedAt": "2026-11-06T21:31:13.282Z",
+          "receivedAt": "2026-11-06T21:31:13.394Z",
+          "sourceHttpDate": "Fri, 06 Nov 2026 21:31:13 GMT",
+          "sourceLastModified": null,
+          "sourceAgeSeconds": null,
+          "httpStatus": 200,
+          "league": "cfb",
+          "date": null,
+          "timeZone": "America/Chicago",
+          "wagerAuthority": false,
+          "sourceUpdatedAt": null,
+          "totalRetrieved": 762,
+          "shown": 100,
+          "offset": 100,
+          "nextOffset": 200,
+          "truncated": true,
+          "upstreamLimit": 1000,
+          "upstreamMayBeTruncated": false,
+          "coverage": "ESPN college football directory (all divisions; groups filter not honored upstream)"
+        },
+        {
+          "source": "ESPN",
+          "unofficial": true,
+          "sourceUrl": "https://site.api.espn.com/apis/site/v2/sports/football/college-football/teams?limit=1000&groups=80",
+          "requestedAt": "2026-11-06T21:31:13.608Z",
+          "receivedAt": "2026-11-06T21:31:13.755Z",
+          "sourceHttpDate": "Fri, 06 Nov 2026 21:31:13 GMT",
+          "sourceLastModified": null,
+          "sourceAgeSeconds": null,
+          "httpStatus": 200,
+          "league": "cfb",
+          "date": null,
+          "timeZone": "America/Chicago",
+          "wagerAuthority": false,
+          "sourceUpdatedAt": null,
+          "totalRetrieved": 762,
+          "shown": 100,
+          "offset": 200,
+          "nextOffset": 300,
+          "truncated": true,
+          "upstreamLimit": 1000,
+          "upstreamMayBeTruncated": false,
+          "coverage": "ESPN college football directory (all divisions; groups filter not honored upstream)"
+        },
+        {
+          "source": "ESPN",
+          "unofficial": true,
+          "sourceUrl": "https://site.api.espn.com/apis/site/v2/sports/football/college-football/teams?limit=1000&groups=80",
+          "requestedAt": "2026-11-06T21:31:13.848Z",
+          "receivedAt": "2026-11-06T21:31:13.950Z",
+          "sourceHttpDate": "Fri, 06 Nov 2026 21:31:13 GMT",
+          "sourceLastModified": null,
+          "sourceAgeSeconds": null,
+          "httpStatus": 200,
+          "league": "cfb",
+          "date": null,
+          "timeZone": "America/Chicago",
+          "wagerAuthority": false,
+          "sourceUpdatedAt": null,
+          "totalRetrieved": 762,
+          "shown": 100,
+          "offset": 300,
+          "nextOffset": 400,
+          "truncated": true,
+          "upstreamLimit": 1000,
+          "upstreamMayBeTruncated": false,
+          "coverage": "ESPN college football directory (all divisions; groups filter not honored upstream)"
+        },
+        {
+          "source": "ESPN",
+          "unofficial": true,
+          "sourceUrl": "https://site.api.espn.com/apis/site/v2/sports/football/college-football/teams?limit=1000&groups=80",
+          "requestedAt": "2026-11-06T21:31:14.028Z",
+          "receivedAt": "2026-11-06T21:31:14.156Z",
+          "sourceHttpDate": "Fri, 06 Nov 2026 21:31:14 GMT",
+          "sourceLastModified": null,
+          "sourceAgeSeconds": null,
+          "httpStatus": 200,
+          "league": "cfb",
+          "date": null,
+          "timeZone": "America/Chicago",
+          "wagerAuthority": false,
+          "sourceUpdatedAt": null,
+          "totalRetrieved": 762,
+          "shown": 100,
+          "offset": 400,
+          "nextOffset": 500,
+          "truncated": true,
+          "upstreamLimit": 1000,
+          "upstreamMayBeTruncated": false,
+          "coverage": "ESPN college football directory (all divisions; groups filter not honored upstream)"
+        },
+        {
+          "source": "ESPN",
+          "unofficial": true,
+          "sourceUrl": "https://site.api.espn.com/apis/site/v2/sports/football/college-football/teams?limit=1000&groups=80",
+          "requestedAt": "2026-11-06T21:31:14.269Z",
+          "receivedAt": "2026-11-06T21:31:14.378Z",
+          "sourceHttpDate": "Fri, 06 Nov 2026 21:31:14 GMT",
+          "sourceLastModified": null,
+          "sourceAgeSeconds": null,
+          "httpStatus": 200,
+          "league": "cfb",
+          "date": null,
+          "timeZone": "America/Chicago",
+          "wagerAuthority": false,
+          "sourceUpdatedAt": null,
+          "totalRetrieved": 762,
+          "shown": 100,
+          "offset": 500,
+          "nextOffset": 600,
+          "truncated": true,
+          "upstreamLimit": 1000,
+          "upstreamMayBeTruncated": false,
+          "coverage": "ESPN college football directory (all divisions; groups filter not honored upstream)"
+        },
+        {
+          "source": "ESPN",
+          "unofficial": true,
+          "sourceUrl": "https://site.api.espn.com/apis/site/v2/sports/football/college-football/teams?limit=1000&groups=80",
+          "requestedAt": "2026-11-06T21:31:14.476Z",
+          "receivedAt": "2026-11-06T21:31:14.566Z",
+          "sourceHttpDate": "Fri, 06 Nov 2026 21:31:14 GMT",
+          "sourceLastModified": null,
+          "sourceAgeSeconds": null,
+          "httpStatus": 200,
+          "league": "cfb",
+          "date": null,
+          "timeZone": "America/Chicago",
+          "wagerAuthority": false,
+          "sourceUpdatedAt": null,
+          "totalRetrieved": 762,
+          "shown": 100,
+          "offset": 600,
+          "nextOffset": 700,
+          "truncated": true,
+          "upstreamLimit": 1000,
+          "upstreamMayBeTruncated": false,
+          "coverage": "ESPN college football directory (all divisions; groups filter not honored upstream)"
+        },
+        {
+          "source": "ESPN",
+          "unofficial": true,
+          "sourceUrl": "https://site.api.espn.com/apis/site/v2/sports/football/college-football/teams?limit=1000&groups=80",
+          "requestedAt": "2026-11-06T21:31:14.649Z",
+          "receivedAt": "2026-11-06T21:31:14.797Z",
+          "sourceHttpDate": "Fri, 06 Nov 2026 21:31:14 GMT",
+          "sourceLastModified": null,
+          "sourceAgeSeconds": null,
+          "httpStatus": 200,
+          "league": "cfb",
+          "date": null,
+          "timeZone": "America/Chicago",
+          "wagerAuthority": false,
+          "sourceUpdatedAt": null,
+          "totalRetrieved": 762,
+          "shown": 62,
+          "offset": 700,
+          "nextOffset": null,
+          "truncated": false,
+          "upstreamLimit": 1000,
+          "upstreamMayBeTruncated": false,
+          "coverage": "ESPN college football directory (all divisions; groups filter not honored upstream)"
+        }
+      ],
+      "summarySample": {
+        "sourceUrl": "https://site.api.espn.com/apis/site/v2/sports/football/college-football/summary?event=401858288",
+        "receivedAt": "2026-11-06T21:31:15.033Z",
+        "header": {
+          "id": "401858288",
+          "uid": "s:20~l:23~e:401858288",
+          "date": null,
+          "name": null,
+          "shortName": null,
+          "status": null,
+          "competitions": [
+            {
+              "id": "401858288",
+              "date": "2026-11-07T00:00Z",
+              "neutralSite": false,
+              "status": {
+                "clock": null,
+                "displayClock": null,
+                "period": null,
+                "type": {
+                  "id": "1",
+                  "name": "STATUS_SCHEDULED",
+                  "state": "pre",
+                  "completed": false,
+                  "description": "Scheduled",
+                  "detail": "Fri, November 6th at 7:00 PM EST",
+                  "shortDetail": "11/6 - 7:00 PM EST"
+                }
+              },
+              "competitors": [
+                {
+                  "id": "2567",
+                  "homeAway": "home",
+                  "score": null,
+                  "scoreAvailable": false,
+                  "winner": null,
+                  "team": {
+                    "id": "2567",
+                    "uid": "s:20~l:23~t:2567",
+                    "slug": null,
+                    "abbreviation": "SMU",
+                    "displayName": "SMU Mustangs",
+                    "shortDisplayName": null,
+                    "logo": "https://a.espncdn.com/i/teamlogos/ncaa/500/2567.png"
+                  }
+                },
+                {
+                  "id": "259",
+                  "homeAway": "away",
+                  "score": null,
+                  "scoreAvailable": false,
+                  "winner": null,
+                  "team": {
+                    "id": "259",
+                    "uid": "s:20~l:23~t:259",
+                    "slug": null,
+                    "abbreviation": "VT",
+                    "displayName": "Virginia Tech Hokies",
+                    "shortDisplayName": null,
+                    "logo": "https://a.espncdn.com/i/teamlogos/ncaa/500/259.png"
+                  }
+                }
+              ]
+            }
+          ]
+        }
+      }
+    },
+    {
+      "league": "nba",
+      "eventCount": 9,
+      "teamCount": 30,
+      "statusCounts": {
+        "STATUS_SCHEDULED": 9
+      },
+      "directoryMissingCompetitors": [],
+      "timestampCoverage": [
+        {
+          "receivedAt": "2026-11-06T21:31:15.182Z",
+          "sourceHttpDate": "Fri, 06 Nov 2026 21:31:15 GMT",
+          "sourceLastModified": null,
+          "sourceUpdatedAt": null
+        }
+      ],
+      "events": [
+        {
+          "id": "401909287",
+          "date": "2026-11-07T00:00Z",
+          "name": "Washington Wizards at Atlanta Hawks",
+          "status": {
+            "clock": 0,
+            "displayClock": "0.0",
+            "period": 0,
+            "type": {
+              "id": "1",
+              "name": "STATUS_SCHEDULED",
+              "state": "pre",
+              "completed": false,
+              "description": "Scheduled",
+              "detail": "Fri, November 6th at 7:00 PM EST",
+              "shortDetail": "11/6 - 7:00 PM EST"
+            }
+          },
+          "competitors": [
+            {
+              "teamId": "1",
+              "name": "Atlanta Hawks",
+              "homeAway": "home",
+              "score": "0",
+              "scoreAvailable": false
+            },
+            {
+              "teamId": "27",
+              "name": "Washington Wizards",
+              "homeAway": "away",
+              "score": "0",
+              "scoreAvailable": false
+            }
+          ]
+        },
+        {
+          "id": "401909288",
+          "date": "2026-11-07T00:00Z",
+          "name": "Boston Celtics at Charlotte Hornets",
+          "status": {
+            "clock": 0,
+            "displayClock": "0.0",
+            "period": 0,
+            "type": {
+              "id": "1",
+              "name": "STATUS_SCHEDULED",
+              "state": "pre",
+              "completed": false,
+              "description": "Scheduled",
+              "detail": "Fri, November 6th at 7:00 PM EST",
+              "shortDetail": "11/6 - 7:00 PM EST"
+            }
+          },
+          "competitors": [
+            {
+              "teamId": "30",
+              "name": "Charlotte Hornets",
+              "homeAway": "home",
+              "score": "0",
+              "scoreAvailable": false
+            },
+            {
+              "teamId": "2",
+              "name": "Boston Celtics",
+              "homeAway": "away",
+              "score": "0",
+              "scoreAvailable": false
+            }
+          ]
+        },
+        {
+          "id": "401909289",
+          "date": "2026-11-07T00:30Z",
+          "name": "Philadelphia 76ers at Cleveland Cavaliers",
+          "status": {
+            "clock": 0,
+            "displayClock": "0.0",
+            "period": 0,
+            "type": {
+              "id": "1",
+              "name": "STATUS_SCHEDULED",
+              "state": "pre",
+              "completed": false,
+              "description": "Scheduled",
+              "detail": "Fri, November 6th at 7:30 PM EST",
+              "shortDetail": "11/6 - 7:30 PM EST"
+            }
+          },
+          "competitors": [
+            {
+              "teamId": "5",
+              "name": "Cleveland Cavaliers",
+              "homeAway": "home",
+              "score": "0",
+              "scoreAvailable": false
+            },
+            {
+              "teamId": "20",
+              "name": "Philadelphia 76ers",
+              "homeAway": "away",
+              "score": "0",
+              "scoreAvailable": false
+            }
+          ]
+        },
+        {
+          "id": "401909290",
+          "date": "2026-11-07T01:00Z",
+          "name": "Utah Jazz at Dallas Mavericks",
+          "status": {
+            "clock": 0,
+            "displayClock": "0.0",
+            "period": 0,
+            "type": {
+              "id": "1",
+              "name": "STATUS_SCHEDULED",
+              "state": "pre",
+              "completed": false,
+              "description": "Scheduled",
+              "detail": "Fri, November 6th at 8:00 PM EST",
+              "shortDetail": "11/6 - 8:00 PM EST"
+            }
+          },
+          "competitors": [
+            {
+              "teamId": "6",
+              "name": "Dallas Mavericks",
+              "homeAway": "home",
+              "score": "0",
+              "scoreAvailable": false
+            },
+            {
+              "teamId": "26",
+              "name": "Utah Jazz",
+              "homeAway": "away",
+              "score": "0",
+              "scoreAvailable": false
+            }
+          ]
+        },
+        {
+          "id": "401909291",
+          "date": "2026-11-07T01:00Z",
+          "name": "Oklahoma City Thunder at Memphis Grizzlies",
+          "status": {
+            "clock": 0,
+            "displayClock": "0.0",
+            "period": 0,
+            "type": {
+              "id": "1",
+              "name": "STATUS_SCHEDULED",
+              "state": "pre",
+              "completed": false,
+              "description": "Scheduled",
+              "detail": "Fri, November 6th at 8:00 PM EST",
+              "shortDetail": "11/6 - 8:00 PM EST"
+            }
+          },
+          "competitors": [
+            {
+              "teamId": "29",
+              "name": "Memphis Grizzlies",
+              "homeAway": "home",
+              "score": "0",
+              "scoreAvailable": false
+            },
+            {
+              "teamId": "25",
+              "name": "Oklahoma City Thunder",
+              "homeAway": "away",
+              "score": "0",
+              "scoreAvailable": false
+            }
+          ]
+        },
+        {
+          "id": "401909292",
+          "date": "2026-11-07T01:00Z",
+          "name": "Toronto Raptors at Milwaukee Bucks",
+          "status": {
+            "clock": 0,
+            "displayClock": "0.0",
+            "period": 0,
+            "type": {
+              "id": "1",
+              "name": "STATUS_SCHEDULED",
+              "state": "pre",
+              "completed": false,
+              "description": "Scheduled",
+              "detail": "Fri, November 6th at 8:00 PM EST",
+              "shortDetail": "11/6 - 8:00 PM EST"
+            }
+          },
+          "competitors": [
+            {
+              "teamId": "15",
+              "name": "Milwaukee Bucks",
+              "homeAway": "home",
+              "score": "0",
+              "scoreAvailable": false
+            },
+            {
+              "teamId": "28",
+              "name": "Toronto Raptors",
+              "homeAway": "away",
+              "score": "0",
+              "scoreAvailable": false
+            }
+          ]
+        },
+        {
+          "id": "401909293",
+          "date": "2026-11-07T01:00Z",
+          "name": "Minnesota Timberwolves at New Orleans Pelicans",
+          "status": {
+            "clock": 0,
+            "displayClock": "0.0",
+            "period": 0,
+            "type": {
+              "id": "1",
+              "name": "STATUS_SCHEDULED",
+              "state": "pre",
+              "completed": false,
+              "description": "Scheduled",
+              "detail": "Fri, November 6th at 8:00 PM EST",
+              "shortDetail": "11/6 - 8:00 PM EST"
+            }
+          },
+          "competitors": [
+            {
+              "teamId": "3",
+              "name": "New Orleans Pelicans",
+              "homeAway": "home",
+              "score": "0",
+              "scoreAvailable": false
+            },
+            {
+              "teamId": "16",
+              "name": "Minnesota Timberwolves",
+              "homeAway": "away",
+              "score": "0",
+              "scoreAvailable": false
+            }
+          ]
+        },
+        {
+          "id": "401909294",
+          "date": "2026-11-07T03:00Z",
+          "name": "Portland Trail Blazers at Los Angeles Lakers",
+          "status": {
+            "clock": 0,
+            "displayClock": "0.0",
+            "period": 0,
+            "type": {
+              "id": "1",
+              "name": "STATUS_SCHEDULED",
+              "state": "pre",
+              "completed": false,
+              "description": "Scheduled",
+              "detail": "Fri, November 6th at 10:00 PM EST",
+              "shortDetail": "11/6 - 10:00 PM EST"
+            }
+          },
+          "competitors": [
+            {
+              "teamId": "13",
+              "name": "Los Angeles Lakers",
+              "homeAway": "home",
+              "score": "0",
+              "scoreAvailable": false
+            },
+            {
+              "teamId": "22",
+              "name": "Portland Trail Blazers",
+              "homeAway": "away",
+              "score": "0",
+              "scoreAvailable": false
+            }
+          ]
+        },
+        {
+          "id": "401909295",
+          "date": "2026-11-07T03:00Z",
+          "name": "San Antonio Spurs at Sacramento Kings",
+          "status": {
+            "clock": 0,
+            "displayClock": "0.0",
+            "period": 0,
+            "type": {
+              "id": "1",
+              "name": "STATUS_SCHEDULED",
+              "state": "pre",
+              "completed": false,
+              "description": "Scheduled",
+              "detail": "Fri, November 6th at 10:00 PM EST",
+              "shortDetail": "11/6 - 10:00 PM EST"
+            }
+          },
+          "competitors": [
+            {
+              "teamId": "23",
+              "name": "Sacramento Kings",
+              "homeAway": "home",
+              "score": "0",
+              "scoreAvailable": false
+            },
+            {
+              "teamId": "24",
+              "name": "San Antonio Spurs",
+              "homeAway": "away",
+              "score": "0",
+              "scoreAvailable": false
+            }
+          ]
+        }
+      ],
+      "directoryTeamIds": [
+        "1",
+        "2",
+        "17",
+        "30",
+        "4",
+        "5",
+        "6",
+        "7",
+        "8",
+        "9",
+        "10",
+        "11",
+        "12",
+        "13",
+        "29",
+        "14",
+        "15",
+        "16",
+        "3",
+        "18",
+        "25",
+        "19",
+        "20",
+        "21",
+        "22",
+        "23",
+        "24",
+        "28",
+        "26",
+        "27"
+      ],
+      "directoryPageProvenance": [
+        {
+          "source": "ESPN",
+          "unofficial": true,
+          "sourceUrl": "https://site.api.espn.com/apis/site/v2/sports/basketball/nba/teams?limit=1000",
+          "requestedAt": "2026-11-06T21:31:15.217Z",
+          "receivedAt": "2026-11-06T21:31:15.385Z",
+          "sourceHttpDate": "Fri, 06 Nov 2026 21:31:15 GMT",
+          "sourceLastModified": null,
+          "sourceAgeSeconds": null,
+          "httpStatus": 200,
+          "league": "nba",
+          "date": null,
+          "timeZone": "America/Chicago",
+          "wagerAuthority": false,
+          "sourceUpdatedAt": null,
+          "totalRetrieved": 30,
+          "shown": 30,
+          "offset": 0,
+          "nextOffset": null,
+          "truncated": false,
+          "upstreamLimit": 1000,
+          "upstreamMayBeTruncated": false,
+          "coverage": "league"
+        }
+      ],
+      "summarySample": {
+        "sourceUrl": "https://site.api.espn.com/apis/site/v2/sports/basketball/nba/summary?event=401909287",
+        "receivedAt": "2026-11-06T21:31:15.566Z",
+        "header": {
+          "id": "401909287",
+          "uid": "s:40~l:46~e:401909287",
+          "date": null,
+          "name": null,
+          "shortName": null,
+          "status": null,
+          "competitions": [
+            {
+              "id": "401909287",
+              "date": "2026-11-07T00:00Z",
+              "neutralSite": false,
+              "status": {
+                "clock": null,
+                "displayClock": null,
+                "period": null,
+                "type": {
+                  "id": "1",
+                  "name": "STATUS_SCHEDULED",
+                  "state": "pre",
+                  "completed": false,
+                  "description": "Scheduled",
+                  "detail": "Fri, November 6th at 7:00 PM EST",
+                  "shortDetail": "11/6 - 7:00 PM EST"
+                }
+              },
+              "competitors": [
+                {
+                  "id": "1",
+                  "homeAway": "home",
+                  "score": null,
+                  "scoreAvailable": false,
+                  "winner": null,
+                  "team": {
+                    "id": "1",
+                    "uid": "s:40~l:46~t:1",
+                    "slug": null,
+                    "abbreviation": "ATL",
+                    "displayName": "Atlanta Hawks",
+                    "shortDisplayName": null,
+                    "logo": "https://a.espncdn.com/i/teamlogos/nba/500/atl.png"
+                  }
+                },
+                {
+                  "id": "27",
+                  "homeAway": "away",
+                  "score": null,
+                  "scoreAvailable": false,
+                  "winner": null,
+                  "team": {
+                    "id": "27",
+                    "uid": "s:40~l:46~t:27",
+                    "slug": null,
+                    "abbreviation": "WSH",
+                    "displayName": "Washington Wizards",
+                    "shortDisplayName": null,
+                    "logo": "https://a.espncdn.com/i/teamlogos/nba/500/wsh.png"
+                  }
+                }
+              ]
+            }
+          ]
+        }
+      }
+    },
+    {
+      "league": "cbb",
+      "eventCount": 72,
+      "teamCount": 362,
+      "statusCounts": {
+        "STATUS_IN_PROGRESS": 1,
+        "STATUS_SCHEDULED": 71
+      },
+      "directoryMissingCompetitors": [
+        {
+          "event": "401929385",
+          "id": "111166",
+          "name": "Midway Eagles"
+        },
+        {
+          "event": "401928840",
+          "id": "128531",
+          "name": "Roberts Wesleyan Redhawks"
+        },
+        {
+          "event": "401926813",
+          "id": "2444",
+          "name": "Newberry Wolves"
+        },
+        {
+          "event": "401926161",
+          "id": "2215",
+          "name": "Erskine Flying Fleet"
+        },
+        {
+          "event": "401922210",
+          "id": "128550",
+          "name": "New College Mighty Banyans"
+        },
+        {
+          "event": "401921166",
+          "id": "2391",
+          "name": "Michigan Dearborn Wolves"
+        },
+        {
+          "event": "401911006",
+          "id": "2800",
+          "name": "Alma Scots"
+        },
+        {
+          "event": "401925089",
+          "id": "2639",
+          "name": "Texas Lutheran Bulldogs"
+        },
+        {
+          "event": "401928622",
+          "id": "2654",
+          "name": "Truman State Bulldogs"
+        },
+        {
+          "event": "401925641",
+          "id": "126826",
+          "name": "Mississippi U for Women Owls"
+        },
+        {
+          "event": "401919040",
+          "id": "2511",
+          "name": "Queens University Royals"
+        },
+        {
+          "event": "401929410",
+          "id": "3065",
+          "name": "Briar Cliff Chargers"
+        },
+        {
+          "event": "401917516",
+          "id": "124946",
+          "name": "Lincoln (CA) Oaklanders"
+        },
+        {
+          "event": "401929001",
+          "id": "3246",
+          "name": "Bethesda Flames"
+        }
+      ],
+      "timestampCoverage": [
+        {
+          "receivedAt": "2026-11-06T21:31:15.703Z",
+          "sourceHttpDate": "Fri, 06 Nov 2026 21:31:15 GMT",
+          "sourceLastModified": null,
+          "sourceUpdatedAt": null
+        }
+      ],
+      "events": [
+        {
+          "id": "401909552",
+          "date": "2026-11-06T21:00Z",
+          "name": "Massachusetts Minutemen at Boston College Eagles",
+          "status": {
+            "clock": 413,
+            "displayClock": "6:53",
+            "period": 1,
+            "type": {
+              "id": "2",
+              "name": "STATUS_IN_PROGRESS",
+              "state": "in",
+              "completed": false,
+              "description": "In Progress",
+              "detail": "6:53 - 1st Half",
+              "shortDetail": "6:53 - 1st"
+            }
+          },
+          "competitors": [
+            {
+              "teamId": "103",
+              "name": "Boston College Eagles",
+              "homeAway": "home",
+              "score": "21",
+              "scoreAvailable": true
+            },
+            {
+              "teamId": "113",
+              "name": "Massachusetts Minutemen",
+              "homeAway": "away",
+              "score": "24",
+              "scoreAvailable": true
+            }
+          ]
+        },
+        {
+          "id": "401920423",
+          "date": "2026-11-06T22:00Z",
+          "name": "Northeastern Huskies at Virginia Cavaliers",
+          "status": {
+            "clock": 0,
+            "displayClock": "0:00",
+            "period": 0,
+            "type": {
+              "id": "1",
+              "name": "STATUS_SCHEDULED",
+              "state": "pre",
+              "completed": false,
+              "description": "Scheduled",
+              "detail": "Fri, November 6th at 5:00 PM EST",
+              "shortDetail": "11/6 - 5:00 PM EST"
+            }
+          },
+          "competitors": [
+            {
+              "teamId": "258",
+              "name": "Virginia Cavaliers",
+              "homeAway": "home",
+              "score": "0",
+              "scoreAvailable": false
+            },
+            {
+              "teamId": "111",
+              "name": "Northeastern Huskies",
+              "homeAway": "away",
+              "score": "0",
+              "scoreAvailable": false
+            }
+          ]
+        },
+        {
+          "id": "401922248",
+          "date": "2026-11-06T22:00Z",
+          "name": "West Florida Argonauts at Florida International Panthers",
+          "status": {
+            "clock": 0,
+            "displayClock": "0:00",
+            "period": 0,
+            "type": {
+              "id": "1",
+              "name": "STATUS_SCHEDULED",
+              "state": "pre",
+              "completed": false,
+              "description": "Scheduled",
+              "detail": "Fri, November 6th at 5:00 PM EST",
+              "shortDetail": "11/6 - 5:00 PM EST"
+            }
+          },
+          "competitors": [
+            {
+              "teamId": "2229",
+              "name": "Florida International Panthers",
+              "homeAway": "home",
+              "score": "0",
+              "scoreAvailable": false
+            },
+            {
+              "teamId": "2697",
+              "name": "West Florida Argonauts",
+              "homeAway": "away",
+              "score": "0",
+              "scoreAvailable": false
+            }
+          ]
+        },
+        {
+          "id": "401909751",
+          "date": "2026-11-06T22:00Z",
+          "name": "Arkansas-Pine Bluff Golden Lions at Baylor Bears",
+          "status": {
+            "clock": 0,
+            "displayClock": "0:00",
+            "period": 0,
+            "type": {
+              "id": "1",
+              "name": "STATUS_SCHEDULED",
+              "state": "pre",
+              "completed": false,
+              "description": "Scheduled",
+              "detail": "Fri, November 6th at 5:00 PM EST",
+              "shortDetail": "11/6 - 5:00 PM EST"
+            }
+          },
+          "competitors": [
+            {
+              "teamId": "239",
+              "name": "Baylor Bears",
+              "homeAway": "home",
+              "score": "0",
+              "scoreAvailable": false
+            },
+            {
+              "teamId": "2029",
+              "name": "Arkansas-Pine Bluff Golden Lions",
+              "homeAway": "away",
+              "score": "0",
+              "scoreAvailable": false
+            }
+          ]
+        },
+        {
+          "id": "401920717",
+          "date": "2026-11-06T23:00Z",
+          "name": "Eastern Washington Eagles at Oregon Ducks",
+          "status": {
+            "clock": 0,
+            "displayClock": "0:00",
+            "period": 0,
+            "type": {
+              "id": "1",
+              "name": "STATUS_SCHEDULED",
+              "state": "pre",
+              "completed": false,
+              "description": "Scheduled",
+              "detail": "Fri, November 6th at 6:00 PM EST",
+              "shortDetail": "11/6 - 6:00 PM EST"
+            }
+          },
+          "competitors": [
+            {
+              "teamId": "2483",
+              "name": "Oregon Ducks",
+              "homeAway": "home",
+              "score": "0",
+              "scoreAvailable": false
+            },
+            {
+              "teamId": "331",
+              "name": "Eastern Washington Eagles",
+              "homeAway": "away",
+              "score": "0",
+              "scoreAvailable": false
+            }
+          ]
+        },
+        {
+          "id": "401926131",
+          "date": "2026-11-06T23:30Z",
+          "name": "Valparaiso Beacons at Purdue Boilermakers",
+          "status": {
+            "clock": 0,
+            "displayClock": "0:00",
+            "period": 0,
+            "type": {
+              "id": "1",
+              "name": "STATUS_SCHEDULED",
+              "state": "pre",
+              "completed": false,
+              "description": "Scheduled",
+              "detail": "Fri, November 6th at 6:30 PM EST",
+              "shortDetail": "11/6 - 6:30 PM EST"
+            }
+          },
+          "competitors": [
+            {
+              "teamId": "2509",
+              "name": "Purdue Boilermakers",
+              "homeAway": "home",
+              "score": "0",
+              "scoreAvailable": false
+            },
+            {
+              "teamId": "2674",
+              "name": "Valparaiso Beacons",
+              "homeAway": "away",
+              "score": "0",
+              "scoreAvailable": false
+            }
+          ]
+        },
+        {
+          "id": "401922059",
+          "date": "2026-11-06T23:30Z",
+          "name": "South Carolina State Bulldogs at South Carolina Upstate Spartans",
+          "status": {
+            "clock": 0,
+            "displayClock": "0:00",
+            "period": 0,
+            "type": {
+              "id": "1",
+              "name": "STATUS_SCHEDULED",
+              "state": "pre",
+              "completed": false,
+              "description": "Scheduled",
+              "detail": "Fri, November 6th at 6:30 PM EST",
+              "shortDetail": "11/6 - 6:30 PM EST"
+            }
+          },
+          "competitors": [
+            {
+              "teamId": "2908",
+              "name": "South Carolina Upstate Spartans",
+              "homeAway": "home",
+              "score": "0",
+              "scoreAvailable": false
+            },
+            {
+              "teamId": "2569",
+              "name": "South Carolina State Bulldogs",
+              "homeAway": "away",
+              "score": "0",
+              "scoreAvailable": false
+            }
+          ]
+        },
+        {
+          "id": "401916314",
+          "date": "2026-11-06T23:30Z",
+          "name": "Youngstown State Penguins at Ohio State Buckeyes",
+          "status": {
+            "clock": 0,
+            "displayClock": "0:00",
+            "period": 0,
+            "type": {
+              "id": "1",
+              "name": "STATUS_SCHEDULED",
+              "state": "pre",
+              "completed": false,
+              "description": "Scheduled",
+              "detail": "Fri, November 6th at 6:30 PM EST",
+              "shortDetail": "11/6 - 6:30 PM EST"
+            }
+          },
+          "competitors": [
+            {
+              "teamId": "194",
+              "name": "Ohio State Buckeyes",
+              "homeAway": "home",
+              "score": "0",
+              "scoreAvailable": false
+            },
+            {
+              "teamId": "2754",
+              "name": "Youngstown State Penguins",
+              "homeAway": "away",
+              "score": "0",
+              "scoreAvailable": false
+            }
+          ]
+        },
+        {
+          "id": "401921802",
+          "date": "2026-11-07T00:00Z",
+          "name": "James Madison Dukes at Kentucky Wildcats",
+          "status": {
+            "clock": 0,
+            "displayClock": "0:00",
+            "period": 0,
+            "type": {
+              "id": "1",
+              "name": "STATUS_SCHEDULED",
+              "state": "pre",
+              "completed": false,
+              "description": "Scheduled",
+              "detail": "Fri, November 6th at 7:00 PM EST",
+              "shortDetail": "11/6 - 7:00 PM EST"
+            }
+          },
+          "competitors": [
+            {
+              "teamId": "96",
+              "name": "Kentucky Wildcats",
+              "homeAway": "home",
+              "score": "0",
+              "scoreAvailable": false
+            },
+            {
+              "teamId": "256",
+              "name": "James Madison Dukes",
+              "homeAway": "away",
+              "score": "0",
+              "scoreAvailable": false
+            }
+          ]
+        },
+        {
+          "id": "401929385",
+          "date": "2026-11-07T00:00Z",
+          "name": "Midway Eagles at Eastern Kentucky Colonels",
+          "status": {
+            "clock": 0,
+            "displayClock": "0:00",
+            "period": 0,
+            "type": {
+              "id": "1",
+              "name": "STATUS_SCHEDULED",
+              "state": "pre",
+              "completed": false,
+              "description": "Scheduled",
+              "detail": "Fri, November 6th at 7:00 PM EST",
+              "shortDetail": "11/6 - 7:00 PM EST"
+            }
+          },
+          "competitors": [
+            {
+              "teamId": "2198",
+              "name": "Eastern Kentucky Colonels",
+              "homeAway": "home",
+              "score": "0",
+              "scoreAvailable": false
+            },
+            {
+              "teamId": "111166",
+              "name": "Midway Eagles",
+              "homeAway": "away",
+              "score": "0",
+              "scoreAvailable": false
+            }
+          ]
+        },
+        {
+          "id": "401928840",
+          "date": "2026-11-07T00:00Z",
+          "name": "Roberts Wesleyan Redhawks at Kent State Golden Flashes",
+          "status": {
+            "clock": 0,
+            "displayClock": "0:00",
+            "period": 0,
+            "type": {
+              "id": "1",
+              "name": "STATUS_SCHEDULED",
+              "state": "pre",
+              "completed": false,
+              "description": "Scheduled",
+              "detail": "Fri, November 6th at 7:00 PM EST",
+              "shortDetail": "11/6 - 7:00 PM EST"
+            }
+          },
+          "competitors": [
+            {
+              "teamId": "2309",
+              "name": "Kent State Golden Flashes",
+              "homeAway": "home",
+              "score": "0",
+              "scoreAvailable": false
+            },
+            {
+              "teamId": "128531",
+              "name": "Roberts Wesleyan Redhawks",
+              "homeAway": "away",
+              "score": "0",
+              "scoreAvailable": false
+            }
+          ]
+        },
+        {
+          "id": "401926813",
+          "date": "2026-11-07T00:00Z",
+          "name": "Newberry Wolves at Charleston Cougars",
+          "status": {
+            "clock": 0,
+            "displayClock": "0:00",
+            "period": 0,
+            "type": {
+              "id": "1",
+              "name": "STATUS_SCHEDULED",
+              "state": "pre",
+              "completed": false,
+              "description": "Scheduled",
+              "detail": "Fri, November 6th at 7:00 PM EST",
+              "shortDetail": "11/6 - 7:00 PM EST"
+            }
+          },
+          "competitors": [
+            {
+              "teamId": "232",
+              "name": "Charleston Cougars",
+              "homeAway": "home",
+              "score": "0",
+              "scoreAvailable": false
+            },
+            {
+              "teamId": "2444",
+              "name": "Newberry Wolves",
+              "homeAway": "away",
+              "score": "0",
+              "scoreAvailable": false
+            }
+          ]
+        },
+        {
+          "id": "401926161",
+          "date": "2026-11-07T00:00Z",
+          "name": "Erskine Flying Fleet at The Citadel Bulldogs",
+          "status": {
+            "clock": 0,
+            "displayClock": "0:00",
+            "period": 0,
+            "type": {
+              "id": "1",
+              "name": "STATUS_SCHEDULED",
+              "state": "pre",
+              "completed": false,
+              "description": "Scheduled",
+              "detail": "Fri, November 6th at 7:00 PM EST",
+              "shortDetail": "11/6 - 7:00 PM EST"
+            }
+          },
+          "competitors": [
+            {
+              "teamId": "2643",
+              "name": "The Citadel Bulldogs",
+              "homeAway": "home",
+              "score": "0",
+              "scoreAvailable": false
+            },
+            {
+              "teamId": "2215",
+              "name": "Erskine Flying Fleet",
+              "homeAway": "away",
+              "score": "0",
+              "scoreAvailable": false
+            }
+          ]
+        },
+        {
+          "id": "401926135",
+          "date": "2026-11-07T00:00Z",
+          "name": "New Haven Chargers at Rutgers Scarlet Knights",
+          "status": {
+            "clock": 0,
+            "displayClock": "0:00",
+            "period": 0,
+            "type": {
+              "id": "1",
+              "name": "STATUS_SCHEDULED",
+              "state": "pre",
+              "completed": false,
+              "description": "Scheduled",
+              "detail": "Fri, November 6th at 7:00 PM EST",
+              "shortDetail": "11/6 - 7:00 PM EST"
+            }
+          },
+          "competitors": [
+            {
+              "teamId": "164",
+              "name": "Rutgers Scarlet Knights",
+              "homeAway": "home",
+              "score": "0",
+              "scoreAvailable": false
+            },
+            {
+              "teamId": "2441",
+              "name": "New Haven Chargers",
+              "homeAway": "away",
+              "score": "0",
+              "scoreAvailable": false
+            }
+          ]
+        },
+        {
+          "id": "401922210",
+          "date": "2026-11-07T00:00Z",
+          "name": "New College Mighty Banyans at Florida Gulf Coast Eagles",
+          "status": {
+            "clock": 0,
+            "displayClock": "0:00",
+            "period": 0,
+            "type": {
+              "id": "1",
+              "name": "STATUS_SCHEDULED",
+              "state": "pre",
+              "completed": false,
+              "description": "Scheduled",
+              "detail": "Fri, November 6th at 7:00 PM EST",
+              "shortDetail": "11/6 - 7:00 PM EST"
+            }
+          },
+          "competitors": [
+            {
+              "teamId": "526",
+              "name": "Florida Gulf Coast Eagles",
+              "homeAway": "home",
+              "score": "0",
+              "scoreAvailable": false
+            },
+            {
+              "teamId": "128550",
+              "name": "New College Mighty Banyans",
+              "homeAway": "away",
+              "score": "0",
+              "scoreAvailable": false
+            }
+          ]
+        },
+        {
+          "id": "401921767",
+          "date": "2026-11-07T00:00Z",
+          "name": "Stetson Hatters at West Virginia Mountaineers",
+          "status": {
+            "clock": 0,
+            "displayClock": "0:00",
+            "period": 0,
+            "type": {
+              "id": "1",
+              "name": "STATUS_SCHEDULED",
+              "state": "pre",
+              "completed": false,
+              "description": "Scheduled",
+              "detail": "Fri, November 6th at 7:00 PM EST",
+              "shortDetail": "11/6 - 7:00 PM EST"
+            }
+          },
+          "competitors": [
+            {
+              "teamId": "277",
+              "name": "West Virginia Mountaineers",
+              "homeAway": "home",
+              "score": "0",
+              "scoreAvailable": false
+            },
+            {
+              "teamId": "56",
+              "name": "Stetson Hatters",
+              "homeAway": "away",
+              "score": "0",
+              "scoreAvailable": false
+            }
+          ]
+        },
+        {
+          "id": "401921754",
+          "date": "2026-11-07T00:00Z",
+          "name": "Yale Bulldogs at UCF Knights",
+          "status": {
+            "clock": 0,
+            "displayClock": "0:00",
+            "period": 0,
+            "type": {
+              "id": "1",
+              "name": "STATUS_SCHEDULED",
+              "state": "pre",
+              "completed": false,
+              "description": "Scheduled",
+              "detail": "Fri, November 6th at 7:00 PM EST",
+              "shortDetail": "11/6 - 7:00 PM EST"
+            }
+          },
+          "competitors": [
+            {
+              "teamId": "2116",
+              "name": "UCF Knights",
+              "homeAway": "home",
+              "score": "0",
+              "scoreAvailable": false
+            },
+            {
+              "teamId": "43",
+              "name": "Yale Bulldogs",
+              "homeAway": "away",
+              "score": "0",
+              "scoreAvailable": false
+            }
+          ]
+        },
+        {
+          "id": "401921285",
+          "date": "2026-11-07T00:00Z",
+          "name": "Holy Cross Crusaders at Villanova Wildcats",
+          "status": {
+            "clock": 0,
+            "displayClock": "0:00",
+            "period": 0,
+            "type": {
+              "id": "1",
+              "name": "STATUS_SCHEDULED",
+              "state": "pre",
+              "completed": false,
+              "description": "Scheduled",
+              "detail": "Fri, November 6th at 7:00 PM EST",
+              "shortDetail": "11/6 - 7:00 PM EST"
+            }
+          },
+          "competitors": [
+            {
+              "teamId": "222",
+              "name": "Villanova Wildcats",
+              "homeAway": "home",
+              "score": "0",
+              "scoreAvailable": false
+            },
+            {
+              "teamId": "107",
+              "name": "Holy Cross Crusaders",
+              "homeAway": "away",
+              "score": "0",
+              "scoreAvailable": false
+            }
+          ]
+        },
+        {
+          "id": "401921166",
+          "date": "2026-11-07T00:00Z",
+          "name": "Michigan Dearborn Wolves at Cleveland State Vikings",
+          "status": {
+            "clock": 0,
+            "displayClock": "0:00",
+            "period": 0,
+            "type": {
+              "id": "1",
+              "name": "STATUS_SCHEDULED",
+              "state": "pre",
+              "completed": false,
+              "description": "Scheduled",
+              "detail": "Fri, November 6th at 7:00 PM EST",
+              "shortDetail": "11/6 - 7:00 PM EST"
+            }
+          },
+          "competitors": [
+            {
+              "teamId": "325",
+              "name": "Cleveland State Vikings",
+              "homeAway": "home",
+              "score": "0",
+              "scoreAvailable": false
+            },
+            {
+              "teamId": "2391",
+              "name": "Michigan Dearborn Wolves",
+              "homeAway": "away",
+              "score": "0",
+              "scoreAvailable": false
+            }
+          ]
+        },
+        {
+          "id": "401921140",
+          "date": "2026-11-07T00:00Z",
+          "name": "UNC Greensboro Spartans at Elon Phoenix",
+          "status": {
+            "clock": 0,
+            "displayClock": "0:00",
+            "period": 0,
+            "type": {
+              "id": "1",
+              "name": "STATUS_SCHEDULED",
+              "state": "pre",
+              "completed": false,
+              "description": "Scheduled",
+              "detail": "Fri, November 6th at 7:00 PM EST",
+              "shortDetail": "11/6 - 7:00 PM EST"
+            }
+          },
+          "competitors": [
+            {
+              "teamId": "2210",
+              "name": "Elon Phoenix",
+              "homeAway": "home",
+              "score": "0",
+              "scoreAvailable": false
+            },
+            {
+              "teamId": "2430",
+              "name": "UNC Greensboro Spartans",
+              "homeAway": "away",
+              "score": "0",
+              "scoreAvailable": false
+            }
+          ]
+        },
+        {
+          "id": "401920920",
+          "date": "2026-11-07T00:00Z",
+          "name": "Loyola Maryland Greyhounds at Mount St. Mary's Mountaineers",
+          "status": {
+            "clock": 0,
+            "displayClock": "0:00",
+            "period": 0,
+            "type": {
+              "id": "1",
+              "name": "STATUS_SCHEDULED",
+              "state": "pre",
+              "completed": false,
+              "description": "Scheduled",
+              "detail": "Fri, November 6th at 7:00 PM EST",
+              "shortDetail": "11/6 - 7:00 PM EST"
+            }
+          },
+          "competitors": [
+            {
+              "teamId": "116",
+              "name": "Mount St. Mary's Mountaineers",
+              "homeAway": "home",
+              "score": "0",
+              "scoreAvailable": false
+            },
+            {
+              "teamId": "2352",
+              "name": "Loyola Maryland Greyhounds",
+              "homeAway": "away",
+              "score": "0",
+              "scoreAvailable": false
+            }
+          ]
+        },
+        {
+          "id": "401920305",
+          "date": "2026-11-07T00:00Z",
+          "name": "Georgia Southern Eagles at Georgia Tech Yellow Jackets",
+          "status": {
+            "clock": 0,
+            "displayClock": "0:00",
+            "period": 0,
+            "type": {
+              "id": "1",
+              "name": "STATUS_SCHEDULED",
+              "state": "pre",
+              "completed": false,
+              "description": "Scheduled",
+              "detail": "Fri, November 6th at 7:00 PM EST",
+              "shortDetail": "11/6 - 7:00 PM EST"
+            }
+          },
+          "competitors": [
+            {
+              "teamId": "59",
+              "name": "Georgia Tech Yellow Jackets",
+              "homeAway": "home",
+              "score": "0",
+              "scoreAvailable": false
+            },
+            {
+              "teamId": "290",
+              "name": "Georgia Southern Eagles",
+              "homeAway": "away",
+              "score": "0",
+              "scoreAvailable": false
+            }
+          ]
+        },
+        {
+          "id": "401920072",
+          "date": "2026-11-07T00:00Z",
+          "name": "Coppin State Eagles at George Mason Patriots",
+          "status": {
+            "clock": 0,
+            "displayClock": "0:00",
+            "period": 0,
+            "type": {
+              "id": "1",
+              "name": "STATUS_SCHEDULED",
+              "state": "pre",
+              "completed": false,
+              "description": "Scheduled",
+              "detail": "Fri, November 6th at 7:00 PM EST",
+              "shortDetail": "11/6 - 7:00 PM EST"
+            }
+          },
+          "competitors": [
+            {
+              "teamId": "2244",
+              "name": "George Mason Patriots",
+              "homeAway": "home",
+              "score": "0",
+              "scoreAvailable": false
+            },
+            {
+              "teamId": "2154",
+              "name": "Coppin State Eagles",
+              "homeAway": "away",
+              "score": "0",
+              "scoreAvailable": false
+            }
+          ]
+        },
+        {
+          "id": "401918956",
+          "date": "2026-11-07T00:00Z",
+          "name": "East Tennessee State Buccaneers at NC State Wolfpack",
+          "status": {
+            "clock": 0,
+            "displayClock": "0:00",
+            "period": 0,
+            "type": {
+              "id": "1",
+              "name": "STATUS_SCHEDULED",
+              "state": "pre",
+              "completed": false,
+              "description": "Scheduled",
+              "detail": "Fri, November 6th at 7:00 PM EST",
+              "shortDetail": "11/6 - 7:00 PM EST"
+            }
+          },
+          "competitors": [
+            {
+              "teamId": "152",
+              "name": "NC State Wolfpack",
+              "homeAway": "home",
+              "score": "0",
+              "scoreAvailable": false
+            },
+            {
+              "teamId": "2193",
+              "name": "East Tennessee State Buccaneers",
+              "homeAway": "away",
+              "score": "0",
+              "scoreAvailable": false
+            }
+          ]
+        },
+        {
+          "id": "401917949",
+          "date": "2026-11-07T00:00Z",
+          "name": "Austin Peay Governors at Kennesaw State Owls",
+          "status": {
+            "clock": 0,
+            "displayClock": "0:00",
+            "period": 0,
+            "type": {
+              "id": "1",
+              "name": "STATUS_SCHEDULED",
+              "state": "pre",
+              "completed": false,
+              "description": "Scheduled",
+              "detail": "Fri, November 6th at 7:00 PM EST",
+              "shortDetail": "11/6 - 7:00 PM EST"
+            }
+          },
+          "competitors": [
+            {
+              "teamId": "338",
+              "name": "Kennesaw State Owls",
+              "homeAway": "home",
+              "score": "0",
+              "scoreAvailable": false
+            },
+            {
+              "teamId": "2046",
+              "name": "Austin Peay Governors",
+              "homeAway": "away",
+              "score": "0",
+              "scoreAvailable": false
+            }
+          ]
+        },
+        {
+          "id": "401913100",
+          "date": "2026-11-07T00:00Z",
+          "name": "Wofford Terriers at North Carolina Tar Heels",
+          "status": {
+            "clock": 0,
+            "displayClock": "0:00",
+            "period": 0,
+            "type": {
+              "id": "1",
+              "name": "STATUS_SCHEDULED",
+              "state": "pre",
+              "completed": false,
+              "description": "Scheduled",
+              "detail": "Fri, November 6th at 7:00 PM EST",
+              "shortDetail": "11/6 - 7:00 PM EST"
+            }
+          },
+          "competitors": [
+            {
+              "teamId": "153",
+              "name": "North Carolina Tar Heels",
+              "homeAway": "home",
+              "score": "0",
+              "scoreAvailable": false
+            },
+            {
+              "teamId": "2747",
+              "name": "Wofford Terriers",
+              "homeAway": "away",
+              "score": "0",
+              "scoreAvailable": false
+            }
+          ]
+        },
+        {
+          "id": "401912208",
+          "date": "2026-11-07T00:00Z",
+          "name": "American University Eagles at Clemson Tigers",
+          "status": {
+            "clock": 0,
+            "displayClock": "0:00",
+            "period": 0,
+            "type": {
+              "id": "1",
+              "name": "STATUS_SCHEDULED",
+              "state": "pre",
+              "completed": false,
+              "description": "Scheduled",
+              "detail": "Fri, November 6th at 7:00 PM EST",
+              "shortDetail": "11/6 - 7:00 PM EST"
+            }
+          },
+          "competitors": [
+            {
+              "teamId": "228",
+              "name": "Clemson Tigers",
+              "homeAway": "home",
+              "score": "0",
+              "scoreAvailable": false
+            },
+            {
+              "teamId": "44",
+              "name": "American University Eagles",
+              "homeAway": "away",
+              "score": "0",
+              "scoreAvailable": false
+            }
+          ]
+        },
+        {
+          "id": "401911305",
+          "date": "2026-11-07T00:00Z",
+          "name": "Boston University Terriers at Brown Bears",
+          "status": {
+            "clock": 0,
+            "displayClock": "0:00",
+            "period": 0,
+            "type": {
+              "id": "1",
+              "name": "STATUS_SCHEDULED",
+              "state": "pre",
+              "completed": false,
+              "description": "Scheduled",
+              "detail": "Fri, November 6th at 7:00 PM EST",
+              "shortDetail": "11/6 - 7:00 PM EST"
+            }
+          },
+          "competitors": [
+            {
+              "teamId": "225",
+              "name": "Brown Bears",
+              "homeAway": "home",
+              "score": "0",
+              "scoreAvailable": false
+            },
+            {
+              "teamId": "104",
+              "name": "Boston University Terriers",
+              "homeAway": "away",
+              "score": "0",
+              "scoreAvailable": false
+            }
+          ]
+        },
+        {
+          "id": "401911249",
+          "date": "2026-11-07T00:00Z",
+          "name": "Saint Louis Billikens at Missouri Tigers",
+          "status": {
+            "clock": 0,
+            "displayClock": "0:00",
+            "period": 0,
+            "type": {
+              "id": "1",
+              "name": "STATUS_SCHEDULED",
+              "state": "pre",
+              "completed": false,
+              "description": "Scheduled",
+              "detail": "Fri, November 6th at 7:00 PM EST",
+              "shortDetail": "11/6 - 7:00 PM EST"
+            }
+          },
+          "competitors": [
+            {
+              "teamId": "142",
+              "name": "Missouri Tigers",
+              "homeAway": "home",
+              "score": "0",
+              "scoreAvailable": false
+            },
+            {
+              "teamId": "139",
+              "name": "Saint Louis Billikens",
+              "homeAway": "away",
+              "score": "0",
+              "scoreAvailable": false
+            }
+          ]
+        },
+        {
+          "id": "401911006",
+          "date": "2026-11-07T00:00Z",
+          "name": "Alma Scots at Central Michigan Chippewas",
+          "status": {
+            "clock": 0,
+            "displayClock": "0:00",
+            "period": 0,
+            "type": {
+              "id": "1",
+              "name": "STATUS_SCHEDULED",
+              "state": "pre",
+              "completed": false,
+              "description": "Scheduled",
+              "detail": "Fri, November 6th at 7:00 PM EST",
+              "shortDetail": "11/6 - 7:00 PM EST"
+            }
+          },
+          "competitors": [
+            {
+              "teamId": "2117",
+              "name": "Central Michigan Chippewas",
+              "homeAway": "home",
+              "score": "0",
+              "scoreAvailable": false
+            },
+            {
+              "teamId": "2800",
+              "name": "Alma Scots",
+              "homeAway": "away",
+              "score": "0",
+              "scoreAvailable": false
+            }
+          ]
+        },
+        {
+          "id": "401911005",
+          "date": "2026-11-07T00:00Z",
+          "name": "Indiana State Sycamores at Ball State Cardinals",
+          "status": {
+            "clock": 0,
+            "displayClock": "0:00",
+            "period": 0,
+            "type": {
+              "id": "1",
+              "name": "STATUS_SCHEDULED",
+              "state": "pre",
+              "completed": false,
+              "description": "Scheduled",
+              "detail": "Fri, November 6th at 7:00 PM EST",
+              "shortDetail": "11/6 - 7:00 PM EST"
+            }
+          },
+          "competitors": [
+            {
+              "teamId": "2050",
+              "name": "Ball State Cardinals",
+              "homeAway": "home",
+              "score": "0",
+              "scoreAvailable": false
+            },
+            {
+              "teamId": "282",
+              "name": "Indiana State Sycamores",
+              "homeAway": "away",
+              "score": "0",
+              "scoreAvailable": false
+            }
+          ]
+        },
+        {
+          "id": "401909695",
+          "date": "2026-11-07T00:00Z",
+          "name": "Troy Trojans at Florida State Seminoles",
+          "status": {
+            "clock": 0,
+            "displayClock": "0:00",
+            "period": 0,
+            "type": {
+              "id": "1",
+              "name": "STATUS_SCHEDULED",
+              "state": "pre",
+              "completed": false,
+              "description": "Scheduled",
+              "detail": "Fri, November 6th at 7:00 PM EST",
+              "shortDetail": "11/6 - 7:00 PM EST"
+            }
+          },
+          "competitors": [
+            {
+              "teamId": "52",
+              "name": "Florida State Seminoles",
+              "homeAway": "home",
+              "score": "0",
+              "scoreAvailable": false
+            },
+            {
+              "teamId": "2653",
+              "name": "Troy Trojans",
+              "homeAway": "away",
+              "score": "0",
+              "scoreAvailable": false
+            }
+          ]
+        },
+        {
+          "id": "401909542",
+          "date": "2026-11-07T00:00Z",
+          "name": "Eastern Michigan Eagles at Xavier Musketeers",
+          "status": {
+            "clock": 0,
+            "displayClock": "0:00",
+            "period": 0,
+            "type": {
+              "id": "1",
+              "name": "STATUS_SCHEDULED",
+              "state": "pre",
+              "completed": false,
+              "description": "Scheduled",
+              "detail": "Fri, November 6th at 7:00 PM EST",
+              "shortDetail": "11/6 - 7:00 PM EST"
+            }
+          },
+          "competitors": [
+            {
+              "teamId": "2752",
+              "name": "Xavier Musketeers",
+              "homeAway": "home",
+              "score": "0",
+              "scoreAvailable": false
+            },
+            {
+              "teamId": "2199",
+              "name": "Eastern Michigan Eagles",
+              "homeAway": "away",
+              "score": "0",
+              "scoreAvailable": false
+            }
+          ]
+        },
+        {
+          "id": "401906780",
+          "date": "2026-11-07T00:00Z",
+          "name": "Presbyterian Blue Hose at Georgia Bulldogs",
+          "status": {
+            "clock": 0,
+            "displayClock": "0:00",
+            "period": 0,
+            "type": {
+              "id": "1",
+              "name": "STATUS_SCHEDULED",
+              "state": "pre",
+              "completed": false,
+              "description": "Scheduled",
+              "detail": "Fri, November 6th at 7:00 PM EST",
+              "shortDetail": "11/6 - 7:00 PM EST"
+            }
+          },
+          "competitors": [
+            {
+              "teamId": "61",
+              "name": "Georgia Bulldogs",
+              "homeAway": "home",
+              "score": "0",
+              "scoreAvailable": false
+            },
+            {
+              "teamId": "2506",
+              "name": "Presbyterian Blue Hose",
+              "homeAway": "away",
+              "score": "0",
+              "scoreAvailable": false
+            }
+          ]
+        },
+        {
+          "id": "401906758",
+          "date": "2026-11-07T00:30Z",
+          "name": "Arkansas State Red Wolves at Alabama Crimson Tide",
+          "status": {
+            "clock": 0,
+            "displayClock": "0:00",
+            "period": 0,
+            "type": {
+              "id": "1",
+              "name": "STATUS_SCHEDULED",
+              "state": "pre",
+              "completed": false,
+              "description": "Scheduled",
+              "detail": "Fri, November 6th at 7:30 PM EST",
+              "shortDetail": "11/6 - 7:30 PM EST"
+            }
+          },
+          "competitors": [
+            {
+              "teamId": "333",
+              "name": "Alabama Crimson Tide",
+              "homeAway": "home",
+              "score": "0",
+              "scoreAvailable": false
+            },
+            {
+              "teamId": "2032",
+              "name": "Arkansas State Red Wolves",
+              "homeAway": "away",
+              "score": "0",
+              "scoreAvailable": false
+            }
+          ]
+        },
+        {
+          "id": "401925089",
+          "date": "2026-11-07T00:30Z",
+          "name": "Texas Lutheran Bulldogs at Stephen F. Austin Lumberjacks",
+          "status": {
+            "clock": 0,
+            "displayClock": "0:00",
+            "period": 0,
+            "type": {
+              "id": "1",
+              "name": "STATUS_SCHEDULED",
+              "state": "pre",
+              "completed": false,
+              "description": "Scheduled",
+              "detail": "Fri, November 6th at 7:30 PM EST",
+              "shortDetail": "11/6 - 7:30 PM EST"
+            }
+          },
+          "competitors": [
+            {
+              "teamId": "2617",
+              "name": "Stephen F. Austin Lumberjacks",
+              "homeAway": "home",
+              "score": "0",
+              "scoreAvailable": false
+            },
+            {
+              "teamId": "2639",
+              "name": "Texas Lutheran Bulldogs",
+              "homeAway": "away",
+              "score": "0",
+              "scoreAvailable": false
+            }
+          ]
+        },
+        {
+          "id": "401923260",
+          "date": "2026-11-07T00:30Z",
+          "name": "Florida Atlantic Owls at Wright State Raiders",
+          "status": {
+            "clock": 0,
+            "displayClock": "0:00",
+            "period": 0,
+            "type": {
+              "id": "1",
+              "name": "STATUS_SCHEDULED",
+              "state": "pre",
+              "completed": false,
+              "description": "Scheduled",
+              "detail": "Fri, November 6th at 7:30 PM EST",
+              "shortDetail": "11/6 - 7:30 PM EST"
+            }
+          },
+          "competitors": [
+            {
+              "teamId": "2750",
+              "name": "Wright State Raiders",
+              "homeAway": "home",
+              "score": "0",
+              "scoreAvailable": false
+            },
+            {
+              "teamId": "2226",
+              "name": "Florida Atlantic Owls",
+              "homeAway": "away",
+              "score": "0",
+              "scoreAvailable": false
+            }
+          ]
+        },
+        {
+          "id": "401920894",
+          "date": "2026-11-07T00:30Z",
+          "name": "Delaware Blue Hens at Wisconsin Badgers",
+          "status": {
+            "clock": 0,
+            "displayClock": "0:00",
+            "period": 0,
+            "type": {
+              "id": "1",
+              "name": "STATUS_SCHEDULED",
+              "state": "pre",
+              "completed": false,
+              "description": "Scheduled",
+              "detail": "Fri, November 6th at 7:30 PM EST",
+              "shortDetail": "11/6 - 7:30 PM EST"
+            }
+          },
+          "competitors": [
+            {
+              "teamId": "275",
+              "name": "Wisconsin Badgers",
+              "homeAway": "home",
+              "score": "0",
+              "scoreAvailable": false
+            },
+            {
+              "teamId": "48",
+              "name": "Delaware Blue Hens",
+              "homeAway": "away",
+              "score": "0",
+              "scoreAvailable": false
+            }
+          ]
+        },
+        {
+          "id": "401919015",
+          "date": "2026-11-07T00:30Z",
+          "name": "Nicholls Colonels at UAB Blazers",
+          "status": {
+            "clock": 0,
+            "displayClock": "0:00",
+            "period": 0,
+            "type": {
+              "id": "1",
+              "name": "STATUS_SCHEDULED",
+              "state": "pre",
+              "completed": false,
+              "description": "Scheduled",
+              "detail": "Fri, November 6th at 7:30 PM EST",
+              "shortDetail": "11/6 - 7:30 PM EST"
+            }
+          },
+          "competitors": [
+            {
+              "teamId": "5",
+              "name": "UAB Blazers",
+              "homeAway": "home",
+              "score": "0",
+              "scoreAvailable": false
+            },
+            {
+              "teamId": "2447",
+              "name": "Nicholls Colonels",
+              "homeAway": "away",
+              "score": "0",
+              "scoreAvailable": false
+            }
+          ]
+        },
+        {
+          "id": "401920685",
+          "date": "2026-11-07T01:00Z",
+          "name": "UConn Huskies at Michigan Wolverines",
+          "status": {
+            "clock": 0,
+            "displayClock": "0:00",
+            "period": 0,
+            "type": {
+              "id": "1",
+              "name": "STATUS_SCHEDULED",
+              "state": "pre",
+              "completed": false,
+              "description": "Scheduled",
+              "detail": "Fri, November 6th at 8:00 PM EST",
+              "shortDetail": "11/6 - 8:00 PM EST"
+            }
+          },
+          "competitors": [
+            {
+              "teamId": "130",
+              "name": "Michigan Wolverines",
+              "homeAway": "home",
+              "score": "0",
+              "scoreAvailable": false
+            },
+            {
+              "teamId": "41",
+              "name": "UConn Huskies",
+              "homeAway": "away",
+              "score": "0",
+              "scoreAvailable": false
+            }
+          ]
+        },
+        {
+          "id": "401909772",
+          "date": "2026-11-07T01:00Z",
+          "name": "Southern Miss Golden Eagles at Iowa State Cyclones",
+          "status": {
+            "clock": 0,
+            "displayClock": "0:00",
+            "period": 0,
+            "type": {
+              "id": "1",
+              "name": "STATUS_SCHEDULED",
+              "state": "pre",
+              "completed": false,
+              "description": "Scheduled",
+              "detail": "Fri, November 6th at 8:00 PM EST",
+              "shortDetail": "11/6 - 8:00 PM EST"
+            }
+          },
+          "competitors": [
+            {
+              "teamId": "66",
+              "name": "Iowa State Cyclones",
+              "homeAway": "home",
+              "score": "0",
+              "scoreAvailable": false
+            },
+            {
+              "teamId": "2572",
+              "name": "Southern Miss Golden Eagles",
+              "homeAway": "away",
+              "score": "0",
+              "scoreAvailable": false
+            }
+          ]
+        },
+        {
+          "id": "401928823",
+          "date": "2026-11-07T01:00Z",
+          "name": "Robert Morris Colonials at UIC Flames",
+          "status": {
+            "clock": 0,
+            "displayClock": "0:00",
+            "period": 0,
+            "type": {
+              "id": "1",
+              "name": "STATUS_SCHEDULED",
+              "state": "pre",
+              "completed": false,
+              "description": "Scheduled",
+              "detail": "Fri, November 6th at 8:00 PM EST",
+              "shortDetail": "11/6 - 8:00 PM EST"
+            }
+          },
+          "competitors": [
+            {
+              "teamId": "82",
+              "name": "UIC Flames",
+              "homeAway": "home",
+              "score": "0",
+              "scoreAvailable": false
+            },
+            {
+              "teamId": "2523",
+              "name": "Robert Morris Colonials",
+              "homeAway": "away",
+              "score": "0",
+              "scoreAvailable": false
+            }
+          ]
+        },
+        {
+          "id": "401928622",
+          "date": "2026-11-07T01:00Z",
+          "name": "Truman State Bulldogs at Missouri State Bears",
+          "status": {
+            "clock": 0,
+            "displayClock": "0:00",
+            "period": 0,
+            "type": {
+              "id": "1",
+              "name": "STATUS_SCHEDULED",
+              "state": "pre",
+              "completed": false,
+              "description": "Scheduled",
+              "detail": "Fri, November 6th at 8:00 PM EST",
+              "shortDetail": "11/6 - 8:00 PM EST"
+            }
+          },
+          "competitors": [
+            {
+              "teamId": "2623",
+              "name": "Missouri State Bears",
+              "homeAway": "home",
+              "score": "0",
+              "scoreAvailable": false
+            },
+            {
+              "teamId": "2654",
+              "name": "Truman State Bulldogs",
+              "homeAway": "away",
+              "score": "0",
+              "scoreAvailable": false
+            }
+          ]
+        },
+        {
+          "id": "401925641",
+          "date": "2026-11-07T01:00Z",
+          "name": "Mississippi U for Women Owls at Alabama A&M Bulldogs",
+          "status": {
+            "clock": 0,
+            "displayClock": "0:00",
+            "period": 0,
+            "type": {
+              "id": "1",
+              "name": "STATUS_SCHEDULED",
+              "state": "pre",
+              "completed": false,
+              "description": "Scheduled",
+              "detail": "Fri, November 6th at 8:00 PM EST",
+              "shortDetail": "11/6 - 8:00 PM EST"
+            }
+          },
+          "competitors": [
+            {
+              "teamId": "2010",
+              "name": "Alabama A&M Bulldogs",
+              "homeAway": "home",
+              "score": "0",
+              "scoreAvailable": false
+            },
+            {
+              "teamId": "126826",
+              "name": "Mississippi U for Women Owls",
+              "homeAway": "away",
+              "score": "0",
+              "scoreAvailable": false
+            }
+          ]
+        },
+        {
+          "id": "401925097",
+          "date": "2026-11-07T01:00Z",
+          "name": "Texas A&M-Corpus Christi Islanders at Louisiana Ragin' Cajuns",
+          "status": {
+            "clock": 0,
+            "displayClock": "0:00",
+            "period": 0,
+            "type": {
+              "id": "1",
+              "name": "STATUS_SCHEDULED",
+              "state": "pre",
+              "completed": false,
+              "description": "Scheduled",
+              "detail": "Fri, November 6th at 8:00 PM EST",
+              "shortDetail": "11/6 - 8:00 PM EST"
+            }
+          },
+          "competitors": [
+            {
+              "teamId": "309",
+              "name": "Louisiana Ragin' Cajuns",
+              "homeAway": "home",
+              "score": "0",
+              "scoreAvailable": false
+            },
+            {
+              "teamId": "357",
+              "name": "Texas A&M-Corpus Christi Islanders",
+              "homeAway": "away",
+              "score": "0",
+              "scoreAvailable": false
+            }
+          ]
+        },
+        {
+          "id": "401921809",
+          "date": "2026-11-07T01:00Z",
+          "name": "Texas Southern Tigers at LSU Tigers",
+          "status": {
+            "clock": 0,
+            "displayClock": "0:00",
+            "period": 0,
+            "type": {
+              "id": "1",
+              "name": "STATUS_SCHEDULED",
+              "state": "pre",
+              "completed": false,
+              "description": "Scheduled",
+              "detail": "Fri, November 6th at 8:00 PM EST",
+              "shortDetail": "11/6 - 8:00 PM EST"
+            }
+          },
+          "competitors": [
+            {
+              "teamId": "99",
+              "name": "LSU Tigers",
+              "homeAway": "home",
+              "score": "0",
+              "scoreAvailable": false
+            },
+            {
+              "teamId": "2640",
+              "name": "Texas Southern Tigers",
+              "homeAway": "away",
+              "score": "0",
+              "scoreAvailable": false
+            }
+          ]
+        },
+        {
+          "id": "401920807",
+          "date": "2026-11-07T01:00Z",
+          "name": "Northern Kentucky Norse at Texas A&M Aggies",
+          "status": {
+            "clock": 0,
+            "displayClock": "0:00",
+            "period": 0,
+            "type": {
+              "id": "1",
+              "name": "STATUS_SCHEDULED",
+              "state": "pre",
+              "completed": false,
+              "description": "Scheduled",
+              "detail": "Fri, November 6th at 8:00 PM EST",
+              "shortDetail": "11/6 - 8:00 PM EST"
+            }
+          },
+          "competitors": [
+            {
+              "teamId": "245",
+              "name": "Texas A&M Aggies",
+              "homeAway": "home",
+              "score": "0",
+              "scoreAvailable": false
+            },
+            {
+              "teamId": "94",
+              "name": "Northern Kentucky Norse",
+              "homeAway": "away",
+              "score": "0",
+              "scoreAvailable": false
+            }
+          ]
+        },
+        {
+          "id": "401920733",
+          "date": "2026-11-07T01:00Z",
+          "name": "Stony Brook Seawolves at Northwestern Wildcats",
+          "status": {
+            "clock": 0,
+            "displayClock": "0:00",
+            "period": 0,
+            "type": {
+              "id": "1",
+              "name": "STATUS_SCHEDULED",
+              "state": "pre",
+              "completed": false,
+              "description": "Scheduled",
+              "detail": "Fri, November 6th at 8:00 PM EST",
+              "shortDetail": "11/6 - 8:00 PM EST"
+            }
+          },
+          "competitors": [
+            {
+              "teamId": "77",
+              "name": "Northwestern Wildcats",
+              "homeAway": "home",
+              "score": "0",
+              "scoreAvailable": false
+            },
+            {
+              "teamId": "2619",
+              "name": "Stony Brook Seawolves",
+              "homeAway": "away",
+              "score": "0",
+              "scoreAvailable": false
+            }
+          ]
+        },
+        {
+          "id": "401919048",
+          "date": "2026-11-07T01:00Z",
+          "name": "Southern Jaguars at TCU Horned Frogs",
+          "status": {
+            "clock": 0,
+            "displayClock": "0:00",
+            "period": 0,
+            "type": {
+              "id": "1",
+              "name": "STATUS_SCHEDULED",
+              "state": "pre",
+              "completed": false,
+              "description": "Scheduled",
+              "detail": "Fri, November 6th at 8:00 PM EST",
+              "shortDetail": "11/6 - 8:00 PM EST"
+            }
+          },
+          "competitors": [
+            {
+              "teamId": "2628",
+              "name": "TCU Horned Frogs",
+              "homeAway": "home",
+              "score": "0",
+              "scoreAvailable": false
+            },
+            {
+              "teamId": "2582",
+              "name": "Southern Jaguars",
+              "homeAway": "away",
+              "score": "0",
+              "scoreAvailable": false
+            }
+          ]
+        },
+        {
+          "id": "401916304",
+          "date": "2026-11-07T01:00Z",
+          "name": "St. Thomas Tommies at Minnesota Golden Gophers",
+          "status": {
+            "clock": 0,
+            "displayClock": "0:00",
+            "period": 0,
+            "type": {
+              "id": "1",
+              "name": "STATUS_SCHEDULED",
+              "state": "pre",
+              "completed": false,
+              "description": "Scheduled",
+              "detail": "Fri, November 6th at 8:00 PM EST",
+              "shortDetail": "11/6 - 8:00 PM EST"
+            }
+          },
+          "competitors": [
+            {
+              "teamId": "135",
+              "name": "Minnesota Golden Gophers",
+              "homeAway": "home",
+              "score": "0",
+              "scoreAvailable": false
+            },
+            {
+              "teamId": "2900",
+              "name": "St. Thomas Tommies",
+              "homeAway": "away",
+              "score": "0",
+              "scoreAvailable": false
+            }
+          ]
+        },
+        {
+          "id": "401909523",
+          "date": "2026-11-07T01:00Z",
+          "name": "Detroit Mercy Titans at Marquette Golden Eagles",
+          "status": {
+            "clock": 0,
+            "displayClock": "0:00",
+            "period": 0,
+            "type": {
+              "id": "1",
+              "name": "STATUS_SCHEDULED",
+              "state": "pre",
+              "completed": false,
+              "description": "Scheduled",
+              "detail": "Fri, November 6th at 8:00 PM EST",
+              "shortDetail": "11/6 - 8:00 PM EST"
+            }
+          },
+          "competitors": [
+            {
+              "teamId": "269",
+              "name": "Marquette Golden Eagles",
+              "homeAway": "home",
+              "score": "0",
+              "scoreAvailable": false
+            },
+            {
+              "teamId": "2174",
+              "name": "Detroit Mercy Titans",
+              "homeAway": "away",
+              "score": "0",
+              "scoreAvailable": false
+            }
+          ]
+        },
+        {
+          "id": "401906802",
+          "date": "2026-11-07T01:00Z",
+          "name": "Mississippi Valley State Delta Devils at Oklahoma Sooners",
+          "status": {
+            "clock": 0,
+            "displayClock": "0:00",
+            "period": 0,
+            "type": {
+              "id": "1",
+              "name": "STATUS_SCHEDULED",
+              "state": "pre",
+              "completed": false,
+              "description": "Scheduled",
+              "detail": "Fri, November 6th at 8:00 PM EST",
+              "shortDetail": "11/6 - 8:00 PM EST"
+            }
+          },
+          "competitors": [
+            {
+              "teamId": "201",
+              "name": "Oklahoma Sooners",
+              "homeAway": "home",
+              "score": "0",
+              "scoreAvailable": false
+            },
+            {
+              "teamId": "2400",
+              "name": "Mississippi Valley State Delta Devils",
+              "homeAway": "away",
+              "score": "0",
+              "scoreAvailable": false
+            }
+          ]
+        },
+        {
+          "id": "401922021",
+          "date": "2026-11-07T01:30Z",
+          "name": "Idaho State Bengals at Wyoming Cowboys",
+          "status": {
+            "clock": 0,
+            "displayClock": "0:00",
+            "period": 0,
+            "type": {
+              "id": "1",
+              "name": "STATUS_SCHEDULED",
+              "state": "pre",
+              "completed": false,
+              "description": "Scheduled",
+              "detail": "Fri, November 6th at 8:30 PM EST",
+              "shortDetail": "11/6 - 8:30 PM EST"
+            }
+          },
+          "competitors": [
+            {
+              "teamId": "2751",
+              "name": "Wyoming Cowboys",
+              "homeAway": "home",
+              "score": "0",
+              "scoreAvailable": false
+            },
+            {
+              "teamId": "304",
+              "name": "Idaho State Bengals",
+              "homeAway": "away",
+              "score": "0",
+              "scoreAvailable": false
+            }
+          ]
+        },
+        {
+          "id": "401920952",
+          "date": "2026-11-07T01:30Z",
+          "name": "Southern Illinois Salukis at Kansas City Roos",
+          "status": {
+            "clock": 0,
+            "displayClock": "0:00",
+            "period": 0,
+            "type": {
+              "id": "1",
+              "name": "STATUS_SCHEDULED",
+              "state": "pre",
+              "completed": false,
+              "description": "Scheduled",
+              "detail": "Fri, November 6th at 8:30 PM EST",
+              "shortDetail": "11/6 - 8:30 PM EST"
+            }
+          },
+          "competitors": [
+            {
+              "teamId": "140",
+              "name": "Kansas City Roos",
+              "homeAway": "home",
+              "score": "0",
+              "scoreAvailable": false
+            },
+            {
+              "teamId": "79",
+              "name": "Southern Illinois Salukis",
+              "homeAway": "away",
+              "score": "0",
+              "scoreAvailable": false
+            }
+          ]
+        },
+        {
+          "id": "401920726",
+          "date": "2026-11-07T01:30Z",
+          "name": "Eastern Illinois Panthers at Iowa Hawkeyes",
+          "status": {
+            "clock": 0,
+            "displayClock": "0:00",
+            "period": 0,
+            "type": {
+              "id": "1",
+              "name": "STATUS_SCHEDULED",
+              "state": "pre",
+              "completed": false,
+              "description": "Scheduled",
+              "detail": "Fri, November 6th at 8:30 PM EST",
+              "shortDetail": "11/6 - 8:30 PM EST"
+            }
+          },
+          "competitors": [
+            {
+              "teamId": "2294",
+              "name": "Iowa Hawkeyes",
+              "homeAway": "home",
+              "score": "0",
+              "scoreAvailable": false
+            },
+            {
+              "teamId": "2197",
+              "name": "Eastern Illinois Panthers",
+              "homeAway": "away",
+              "score": "0",
+              "scoreAvailable": false
+            }
+          ]
+        },
+        {
+          "id": "401917914",
+          "date": "2026-11-07T01:30Z",
+          "name": "Central Arkansas Bears at Ole Miss Rebels",
+          "status": {
+            "clock": 0,
+            "displayClock": "0:00",
+            "period": 0,
+            "type": {
+              "id": "1",
+              "name": "STATUS_SCHEDULED",
+              "state": "pre",
+              "completed": false,
+              "description": "Scheduled",
+              "detail": "Fri, November 6th at 8:30 PM EST",
+              "shortDetail": "11/6 - 8:30 PM EST"
+            }
+          },
+          "competitors": [
+            {
+              "teamId": "145",
+              "name": "Ole Miss Rebels",
+              "homeAway": "home",
+              "score": "0",
+              "scoreAvailable": false
+            },
+            {
+              "teamId": "2110",
+              "name": "Central Arkansas Bears",
+              "homeAway": "away",
+              "score": "0",
+              "scoreAvailable": false
+            }
+          ]
+        },
+        {
+          "id": "401921719",
+          "date": "2026-11-07T02:00Z",
+          "name": "Wagner Seahawks at Miami Hurricanes",
+          "status": {
+            "clock": 0,
+            "displayClock": "0:00",
+            "period": 0,
+            "type": {
+              "id": "1",
+              "name": "STATUS_SCHEDULED",
+              "state": "pre",
+              "completed": false,
+              "description": "Scheduled",
+              "detail": "Fri, November 6th at 9:00 PM EST",
+              "shortDetail": "11/6 - 9:00 PM EST"
+            }
+          },
+          "competitors": [
+            {
+              "teamId": "2390",
+              "name": "Miami Hurricanes",
+              "homeAway": "home",
+              "score": "0",
+              "scoreAvailable": false
+            },
+            {
+              "teamId": "2681",
+              "name": "Wagner Seahawks",
+              "homeAway": "away",
+              "score": "0",
+              "scoreAvailable": false
+            }
+          ]
+        },
+        {
+          "id": "401909785",
+          "date": "2026-11-07T02:00Z",
+          "name": "Middle Tennessee Blue Raiders at Kansas Jayhawks",
+          "status": {
+            "clock": 0,
+            "displayClock": "0:00",
+            "period": 0,
+            "type": {
+              "id": "1",
+              "name": "STATUS_SCHEDULED",
+              "state": "pre",
+              "completed": false,
+              "description": "Scheduled",
+              "detail": "Fri, November 6th at 9:00 PM EST",
+              "shortDetail": "11/6 - 9:00 PM EST"
+            }
+          },
+          "competitors": [
+            {
+              "teamId": "2305",
+              "name": "Kansas Jayhawks",
+              "homeAway": "home",
+              "score": "0",
+              "scoreAvailable": false
+            },
+            {
+              "teamId": "2393",
+              "name": "Middle Tennessee Blue Raiders",
+              "homeAway": "away",
+              "score": "0",
+              "scoreAvailable": false
+            }
+          ]
+        },
+        {
+          "id": "401921739",
+          "date": "2026-11-07T02:00Z",
+          "name": "Omaha Mavericks at BYU Cougars",
+          "status": {
+            "clock": 0,
+            "displayClock": "0:00",
+            "period": 0,
+            "type": {
+              "id": "1",
+              "name": "STATUS_SCHEDULED",
+              "state": "pre",
+              "completed": false,
+              "description": "Scheduled",
+              "detail": "Fri, November 6th at 9:00 PM EST",
+              "shortDetail": "11/6 - 9:00 PM EST"
+            }
+          },
+          "competitors": [
+            {
+              "teamId": "252",
+              "name": "BYU Cougars",
+              "homeAway": "home",
+              "score": "0",
+              "scoreAvailable": false
+            },
+            {
+              "teamId": "2437",
+              "name": "Omaha Mavericks",
+              "homeAway": "away",
+              "score": "0",
+              "scoreAvailable": false
+            }
+          ]
+        },
+        {
+          "id": "401922261",
+          "date": "2026-11-07T02:00Z",
+          "name": "Idaho Vandals at Colorado State Rams",
+          "status": {
+            "clock": 0,
+            "displayClock": "0:00",
+            "period": 0,
+            "type": {
+              "id": "1",
+              "name": "STATUS_SCHEDULED",
+              "state": "pre",
+              "completed": false,
+              "description": "Scheduled",
+              "detail": "Fri, November 6th at 9:00 PM EST",
+              "shortDetail": "11/6 - 9:00 PM EST"
+            }
+          },
+          "competitors": [
+            {
+              "teamId": "36",
+              "name": "Colorado State Rams",
+              "homeAway": "home",
+              "score": "0",
+              "scoreAvailable": false
+            },
+            {
+              "teamId": "70",
+              "name": "Idaho Vandals",
+              "homeAway": "away",
+              "score": "0",
+              "scoreAvailable": false
+            }
+          ]
+        },
+        {
+          "id": "401921732",
+          "date": "2026-11-07T02:00Z",
+          "name": "Northern Colorado Bears at Arizona State Sun Devils",
+          "status": {
+            "clock": 0,
+            "displayClock": "0:00",
+            "period": 0,
+            "type": {
+              "id": "1",
+              "name": "STATUS_SCHEDULED",
+              "state": "pre",
+              "completed": false,
+              "description": "Scheduled",
+              "detail": "Fri, November 6th at 9:00 PM EST",
+              "shortDetail": "11/6 - 9:00 PM EST"
+            }
+          },
+          "competitors": [
+            {
+              "teamId": "9",
+              "name": "Arizona State Sun Devils",
+              "homeAway": "home",
+              "score": "0",
+              "scoreAvailable": false
+            },
+            {
+              "teamId": "2458",
+              "name": "Northern Colorado Bears",
+              "homeAway": "away",
+              "score": "0",
+              "scoreAvailable": false
+            }
+          ]
+        },
+        {
+          "id": "401919040",
+          "date": "2026-11-07T02:00Z",
+          "name": "Queens University Royals at Oklahoma State Cowboys",
+          "status": {
+            "clock": 0,
+            "displayClock": "0:00",
+            "period": 0,
+            "type": {
+              "id": "1",
+              "name": "STATUS_SCHEDULED",
+              "state": "pre",
+              "completed": false,
+              "description": "Scheduled",
+              "detail": "Fri, November 6th at 9:00 PM EST",
+              "shortDetail": "11/6 - 9:00 PM EST"
+            }
+          },
+          "competitors": [
+            {
+              "teamId": "197",
+              "name": "Oklahoma State Cowboys",
+              "homeAway": "home",
+              "score": "0",
+              "scoreAvailable": false
+            },
+            {
+              "teamId": "2511",
+              "name": "Queens University Royals",
+              "homeAway": "away",
+              "score": "0",
+              "scoreAvailable": false
+            }
+          ]
+        },
+        {
+          "id": "401909797",
+          "date": "2026-11-07T02:00Z",
+          "name": "Cal State Northridge Matadors at Kansas State Wildcats",
+          "status": {
+            "clock": 0,
+            "displayClock": "0:00",
+            "period": 0,
+            "type": {
+              "id": "1",
+              "name": "STATUS_SCHEDULED",
+              "state": "pre",
+              "completed": false,
+              "description": "Scheduled",
+              "detail": "Fri, November 6th at 9:00 PM EST",
+              "shortDetail": "11/6 - 9:00 PM EST"
+            }
+          },
+          "competitors": [
+            {
+              "teamId": "2306",
+              "name": "Kansas State Wildcats",
+              "homeAway": "home",
+              "score": "0",
+              "scoreAvailable": false
+            },
+            {
+              "teamId": "2463",
+              "name": "Cal State Northridge Matadors",
+              "homeAway": "away",
+              "score": "0",
+              "scoreAvailable": false
+            }
+          ]
+        },
+        {
+          "id": "401929410",
+          "date": "2026-11-07T02:30Z",
+          "name": "Briar Cliff Chargers at South Dakota State Jackrabbits",
+          "status": {
+            "clock": 0,
+            "displayClock": "0:00",
+            "period": 0,
+            "type": {
+              "id": "1",
+              "name": "STATUS_SCHEDULED",
+              "state": "pre",
+              "completed": false,
+              "description": "Scheduled",
+              "detail": "Fri, November 6th at 9:30 PM EST",
+              "shortDetail": "11/6 - 9:30 PM EST"
+            }
+          },
+          "competitors": [
+            {
+              "teamId": "2571",
+              "name": "South Dakota State Jackrabbits",
+              "homeAway": "home",
+              "score": "0",
+              "scoreAvailable": false
+            },
+            {
+              "teamId": "3065",
+              "name": "Briar Cliff Chargers",
+              "homeAway": "away",
+              "score": "0",
+              "scoreAvailable": false
+            }
+          ]
+        },
+        {
+          "id": "401929356",
+          "date": "2026-11-07T02:30Z",
+          "name": "UT Arlington Mavericks at Portland Pilots",
+          "status": {
+            "clock": 0,
+            "displayClock": "0:00",
+            "period": 0,
+            "type": {
+              "id": "1",
+              "name": "STATUS_SCHEDULED",
+              "state": "pre",
+              "completed": false,
+              "description": "Scheduled",
+              "detail": "Fri, November 6th at 9:30 PM EST",
+              "shortDetail": "11/6 - 9:30 PM EST"
+            }
+          },
+          "competitors": [
+            {
+              "teamId": "2501",
+              "name": "Portland Pilots",
+              "homeAway": "home",
+              "score": "0",
+              "scoreAvailable": false
+            },
+            {
+              "teamId": "250",
+              "name": "UT Arlington Mavericks",
+              "homeAway": "away",
+              "score": "0",
+              "scoreAvailable": false
+            }
+          ]
+        },
+        {
+          "id": "401920344",
+          "date": "2026-11-07T02:30Z",
+          "name": "California Baptist Lancers at Oregon State Beavers",
+          "status": {
+            "clock": 0,
+            "displayClock": "0:00",
+            "period": 0,
+            "type": {
+              "id": "1",
+              "name": "STATUS_SCHEDULED",
+              "state": "pre",
+              "completed": false,
+              "description": "Scheduled",
+              "detail": "Fri, November 6th at 9:30 PM EST",
+              "shortDetail": "11/6 - 9:30 PM EST"
+            }
+          },
+          "competitors": [
+            {
+              "teamId": "204",
+              "name": "Oregon State Beavers",
+              "homeAway": "home",
+              "score": "0",
+              "scoreAvailable": false
+            },
+            {
+              "teamId": "2856",
+              "name": "California Baptist Lancers",
+              "homeAway": "away",
+              "score": "0",
+              "scoreAvailable": false
+            }
+          ]
+        },
+        {
+          "id": "401917515",
+          "date": "2026-11-07T02:30Z",
+          "name": "Tarleton State Texans at San Diego Toreros",
+          "status": {
+            "clock": 0,
+            "displayClock": "0:00",
+            "period": 0,
+            "type": {
+              "id": "1",
+              "name": "STATUS_SCHEDULED",
+              "state": "pre",
+              "completed": false,
+              "description": "Scheduled",
+              "detail": "Fri, November 6th at 9:30 PM EST",
+              "shortDetail": "11/6 - 9:30 PM EST"
+            }
+          },
+          "competitors": [
+            {
+              "teamId": "301",
+              "name": "San Diego Toreros",
+              "homeAway": "home",
+              "score": "0",
+              "scoreAvailable": false
+            },
+            {
+              "teamId": "2627",
+              "name": "Tarleton State Texans",
+              "homeAway": "away",
+              "score": "0",
+              "scoreAvailable": false
+            }
+          ]
+        },
+        {
+          "id": "401921727",
+          "date": "2026-11-07T03:00Z",
+          "name": "Oakland Golden Grizzlies at Stanford Cardinal",
+          "status": {
+            "clock": 0,
+            "displayClock": "0:00",
+            "period": 0,
+            "type": {
+              "id": "1",
+              "name": "STATUS_SCHEDULED",
+              "state": "pre",
+              "completed": false,
+              "description": "Scheduled",
+              "detail": "Fri, November 6th at 10:00 PM EST",
+              "shortDetail": "11/6 - 10:00 PM EST"
+            }
+          },
+          "competitors": [
+            {
+              "teamId": "24",
+              "name": "Stanford Cardinal",
+              "homeAway": "home",
+              "score": "0",
+              "scoreAvailable": false
+            },
+            {
+              "teamId": "2473",
+              "name": "Oakland Golden Grizzlies",
+              "homeAway": "away",
+              "score": "0",
+              "scoreAvailable": false
+            }
+          ]
+        },
+        {
+          "id": "401921061",
+          "date": "2026-11-07T03:00Z",
+          "name": "North Dakota State Bison at San Francisco Dons",
+          "status": {
+            "clock": 0,
+            "displayClock": "0:00",
+            "period": 0,
+            "type": {
+              "id": "1",
+              "name": "STATUS_SCHEDULED",
+              "state": "pre",
+              "completed": false,
+              "description": "Scheduled",
+              "detail": "Fri, November 6th at 10:00 PM EST",
+              "shortDetail": "11/6 - 10:00 PM EST"
+            }
+          },
+          "competitors": [
+            {
+              "teamId": "2539",
+              "name": "San Francisco Dons",
+              "homeAway": "home",
+              "score": "0",
+              "scoreAvailable": false
+            },
+            {
+              "teamId": "2449",
+              "name": "North Dakota State Bison",
+              "homeAway": "away",
+              "score": "0",
+              "scoreAvailable": false
+            }
+          ]
+        },
+        {
+          "id": "401917516",
+          "date": "2026-11-07T03:00Z",
+          "name": "Lincoln (CA) Oaklanders at Loyola Marymount Lions",
+          "status": {
+            "clock": 0,
+            "displayClock": "0:00",
+            "period": 0,
+            "type": {
+              "id": "1",
+              "name": "STATUS_SCHEDULED",
+              "state": "pre",
+              "completed": false,
+              "description": "Scheduled",
+              "detail": "Fri, November 6th at 10:00 PM EST",
+              "shortDetail": "11/6 - 10:00 PM EST"
+            }
+          },
+          "competitors": [
+            {
+              "teamId": "2351",
+              "name": "Loyola Marymount Lions",
+              "homeAway": "home",
+              "score": "0",
+              "scoreAvailable": false
+            },
+            {
+              "teamId": "124946",
+              "name": "Lincoln (CA) Oaklanders",
+              "homeAway": "away",
+              "score": "0",
+              "scoreAvailable": false
+            }
+          ]
+        },
+        {
+          "id": "401922219",
+          "date": "2026-11-07T03:30Z",
+          "name": "North Florida Ospreys at UCLA Bruins",
+          "status": {
+            "clock": 0,
+            "displayClock": "0:00",
+            "period": 0,
+            "type": {
+              "id": "1",
+              "name": "STATUS_SCHEDULED",
+              "state": "pre",
+              "completed": false,
+              "description": "Scheduled",
+              "detail": "Fri, November 6th at 10:30 PM EST",
+              "shortDetail": "11/6 - 10:30 PM EST"
+            }
+          },
+          "competitors": [
+            {
+              "teamId": "26",
+              "name": "UCLA Bruins",
+              "homeAway": "home",
+              "score": "0",
+              "scoreAvailable": false
+            },
+            {
+              "teamId": "2454",
+              "name": "North Florida Ospreys",
+              "homeAway": "away",
+              "score": "0",
+              "scoreAvailable": false
+            }
+          ]
+        },
+        {
+          "id": "401929001",
+          "date": "2026-11-07T04:59Z",
+          "name": "Bethesda Flames at Hawai'i Rainbow Warriors",
+          "status": {
+            "clock": 0,
+            "displayClock": "0:00",
+            "period": 0,
+            "type": {
+              "id": "1",
+              "name": "STATUS_SCHEDULED",
+              "state": "pre",
+              "completed": false,
+              "description": "Scheduled",
+              "detail": "Fri, November 6th at 11:59 PM EST",
+              "shortDetail": "11/6 - 11:59 PM EST"
+            }
+          },
+          "competitors": [
+            {
+              "teamId": "62",
+              "name": "Hawai'i Rainbow Warriors",
+              "homeAway": "home",
+              "score": "0",
+              "scoreAvailable": false
+            },
+            {
+              "teamId": "3246",
+              "name": "Bethesda Flames",
+              "homeAway": "away",
+              "score": "0",
+              "scoreAvailable": false
+            }
+          ]
+        }
+      ],
+      "directoryTeamIds": [
+        "2000",
+        "2005",
+        "2006",
+        "2010",
+        "333",
+        "2011",
+        "2016",
+        "44",
+        "2026",
+        "9",
+        "12",
+        "8",
+        "2032",
+        "2029",
+        "349",
+        "2",
+        "2046",
+        "252",
+        "2050",
+        "239",
+        "91",
+        "2057",
+        "2065",
+        "2066",
+        "68",
+        "103",
+        "104",
+        "189",
+        "71",
+        "225",
+        "2803",
+        "2083",
+        "2084",
+        "2086",
+        "13",
+        "2934",
+        "2239",
+        "2463",
+        "2856",
+        "25",
+        "2097",
+        "2099",
+        "2110",
+        "2115",
+        "2117",
+        "232",
+        "2127",
+        "2429",
+        "236",
+        "2130",
+        "2132",
+        "228",
+        "325",
+        "324",
+        "2142",
+        "38",
+        "36",
+        "171",
+        "2154",
+        "172",
+        "156",
+        "159",
+        "2166",
+        "2168",
+        "305",
+        "48",
+        "2169",
+        "2172",
+        "2174",
+        "2181",
+        "2182",
+        "150",
+        "2184",
+        "151",
+        "2193",
+        "2837",
+        "2197",
+        "2198",
+        "2199",
+        "331",
+        "2210",
+        "339",
+        "2217",
+        "161",
+        "50",
+        "2226",
+        "57",
+        "526",
+        "2229",
+        "52",
+        "2230",
+        "278",
+        "231",
+        "2241",
+        "2244",
+        "45",
+        "46",
+        "61",
+        "290",
+        "2247",
+        "59",
+        "2250",
+        "2755",
+        "2253",
+        "2739",
+        "2261",
+        "108",
+        "62",
+        "2272",
+        "2275",
+        "107",
+        "2277",
+        "248",
+        "47",
+        "85",
+        "304",
+        "70",
+        "356",
+        "2287",
+        "2916",
+        "84",
+        "282",
+        "314",
+        "2294",
+        "66",
+        "2296",
+        "294",
+        "55",
+        "256",
+        "140",
+        "2305",
+        "2306",
+        "338",
+        "2309",
+        "96",
+        "2443",
+        "99",
+        "2325",
+        "322",
+        "2320",
+        "2330",
+        "2329",
+        "2335",
+        "288",
+        "2031",
+        "299",
+        "112358",
+        "2344",
+        "309",
+        "2348",
+        "97",
+        "2350",
+        "2352",
+        "2351",
+        "311",
+        "2363",
+        "2368",
+        "269",
+        "276",
+        "2379",
+        "120",
+        "113",
+        "2377",
+        "235",
+        "2382",
+        "2385",
+        "2771",
+        "193",
+        "2390",
+        "127",
+        "130",
+        "2393",
+        "270",
+        "135",
+        "344",
+        "2400",
+        "2623",
+        "142",
+        "2405",
+        "149",
+        "147",
+        "2413",
+        "2415",
+        "116",
+        "93",
+        "152",
+        "2885",
+        "2426",
+        "158",
+        "2440",
+        "160",
+        "2441",
+        "167",
+        "166",
+        "315",
+        "2447",
+        "2450",
+        "2453",
+        "2448",
+        "2428",
+        "153",
+        "155",
+        "2449",
+        "2454",
+        "249",
+        "111",
+        "2464",
+        "2458",
+        "2459",
+        "2460",
+        "94",
+        "2466",
+        "77",
+        "87",
+        "2473",
+        "195",
+        "194",
+        "201",
+        "197",
+        "295",
+        "145",
+        "2437",
+        "198",
+        "2483",
+        "204",
+        "279",
+        "213",
+        "219",
+        "2492",
+        "221",
+        "2501",
+        "2502",
+        "2504",
+        "2506",
+        "163",
+        "2507",
+        "2509",
+        "2870",
+        "2514",
+        "2515",
+        "227",
+        "242",
+        "257",
+        "2520",
+        "2523",
+        "164",
+        "2545",
+        "2565",
+        "2567",
+        "16",
+        "2529",
+        "2603",
+        "139",
+        "2608",
+        "2612",
+        "2534",
+        "2535",
+        "21",
+        "301",
+        "2539",
+        "23",
+        "2541",
+        "2547",
+        "2550",
+        "2561",
+        "6",
+        "2579",
+        "2569",
+        "2908",
+        "233",
+        "2571",
+        "58",
+        "2546",
+        "79",
+        "2582",
+        "2572",
+        "253",
+        "179",
+        "2599",
+        "2900",
+        "24",
+        "2617",
+        "56",
+        "284",
+        "2619",
+        "183",
+        "2628",
+        "2627",
+        "218",
+        "2634",
+        "2635",
+        "2633",
+        "245",
+        "357",
+        "251",
+        "2640",
+        "326",
+        "2641",
+        "2643",
+        "2649",
+        "119",
+        "2653",
+        "2655",
+        "202",
+        "5",
+        "399",
+        "302",
+        "300",
+        "27",
+        "28",
+        "2540",
+        "2116",
+        "26",
+        "41",
+        "82",
+        "2433",
+        "2378",
+        "2349",
+        "2427",
+        "2430",
+        "350",
+        "2439",
+        "30",
+        "250",
+        "2630",
+        "292",
+        "2638",
+        "2636",
+        "328",
+        "3101",
+        "254",
+        "3084",
+        "2670",
+        "2678",
+        "2674",
+        "238",
+        "261",
+        "222",
+        "258",
+        "259",
+        "2681",
+        "154",
+        "264",
+        "265",
+        "2692",
+        "2697",
+        "2698",
+        "277",
+        "2717",
+        "2710",
+        "98",
+        "2711",
+        "2724",
+        "2729",
+        "2737",
+        "275",
+        "2747",
+        "2750",
+        "2751",
+        "2752",
+        "43",
+        "2754"
+      ],
+      "directoryPageProvenance": [
+        {
+          "source": "ESPN",
+          "unofficial": true,
+          "sourceUrl": "https://site.api.espn.com/apis/site/v2/sports/basketball/mens-college-basketball/teams?limit=1000&groups=50",
+          "requestedAt": "2026-11-06T21:31:15.829Z",
+          "receivedAt": "2026-11-06T21:31:16.003Z",
+          "sourceHttpDate": "Fri, 06 Nov 2026 21:31:16 GMT",
+          "sourceLastModified": null,
+          "sourceAgeSeconds": null,
+          "httpStatus": 200,
+          "league": "cbb",
+          "date": null,
+          "timeZone": "America/Chicago",
+          "wagerAuthority": false,
+          "sourceUpdatedAt": null,
+          "totalRetrieved": 362,
+          "shown": 100,
+          "offset": 0,
+          "nextOffset": 100,
+          "truncated": true,
+          "upstreamLimit": 1000,
+          "upstreamMayBeTruncated": false,
+          "coverage": "Division I schedule/directory (ESPN group 50; schedule may include non-DI opponents)"
+        },
+        {
+          "source": "ESPN",
+          "unofficial": true,
+          "sourceUrl": "https://site.api.espn.com/apis/site/v2/sports/basketball/mens-college-basketball/teams?limit=1000&groups=50",
+          "requestedAt": "2026-11-06T21:31:16.087Z",
+          "receivedAt": "2026-11-06T21:31:16.291Z",
+          "sourceHttpDate": "Fri, 06 Nov 2026 21:31:16 GMT",
+          "sourceLastModified": null,
+          "sourceAgeSeconds": null,
+          "httpStatus": 200,
+          "league": "cbb",
+          "date": null,
+          "timeZone": "America/Chicago",
+          "wagerAuthority": false,
+          "sourceUpdatedAt": null,
+          "totalRetrieved": 362,
+          "shown": 100,
+          "offset": 100,
+          "nextOffset": 200,
+          "truncated": true,
+          "upstreamLimit": 1000,
+          "upstreamMayBeTruncated": false,
+          "coverage": "Division I schedule/directory (ESPN group 50; schedule may include non-DI opponents)"
+        },
+        {
+          "source": "ESPN",
+          "unofficial": true,
+          "sourceUrl": "https://site.api.espn.com/apis/site/v2/sports/basketball/mens-college-basketball/teams?limit=1000&groups=50",
+          "requestedAt": "2026-11-06T21:31:16.385Z",
+          "receivedAt": "2026-11-06T21:31:16.510Z",
+          "sourceHttpDate": "Fri, 06 Nov 2026 21:31:16 GMT",
+          "sourceLastModified": null,
+          "sourceAgeSeconds": null,
+          "httpStatus": 200,
+          "league": "cbb",
+          "date": null,
+          "timeZone": "America/Chicago",
+          "wagerAuthority": false,
+          "sourceUpdatedAt": null,
+          "totalRetrieved": 362,
+          "shown": 100,
+          "offset": 200,
+          "nextOffset": 300,
+          "truncated": true,
+          "upstreamLimit": 1000,
+          "upstreamMayBeTruncated": false,
+          "coverage": "Division I schedule/directory (ESPN group 50; schedule may include non-DI opponents)"
+        },
+        {
+          "source": "ESPN",
+          "unofficial": true,
+          "sourceUrl": "https://site.api.espn.com/apis/site/v2/sports/basketball/mens-college-basketball/teams?limit=1000&groups=50",
+          "requestedAt": "2026-11-06T21:31:16.691Z",
+          "receivedAt": "2026-11-06T21:31:16.830Z",
+          "sourceHttpDate": "Fri, 06 Nov 2026 21:31:16 GMT",
+          "sourceLastModified": null,
+          "sourceAgeSeconds": null,
+          "httpStatus": 200,
+          "league": "cbb",
+          "date": null,
+          "timeZone": "America/Chicago",
+          "wagerAuthority": false,
+          "sourceUpdatedAt": null,
+          "totalRetrieved": 362,
+          "shown": 62,
+          "offset": 300,
+          "nextOffset": null,
+          "truncated": false,
+          "upstreamLimit": 1000,
+          "upstreamMayBeTruncated": false,
+          "coverage": "Division I schedule/directory (ESPN group 50; schedule may include non-DI opponents)"
+        }
+      ],
+      "summarySample": {
+        "sourceUrl": "https://site.api.espn.com/apis/site/v2/sports/basketball/mens-college-basketball/summary?event=401909552",
+        "receivedAt": "2026-11-06T21:31:17.032Z",
+        "header": {
+          "id": "401909552",
+          "uid": "s:40~l:41~e:401909552",
+          "date": null,
+          "name": null,
+          "shortName": null,
+          "status": null,
+          "competitions": [
+            {
+              "id": "401909552",
+              "date": "2026-11-06T21:00Z",
+              "neutralSite": true,
+              "status": {
+                "clock": null,
+                "displayClock": "6:57",
+                "period": 1,
+                "type": {
+                  "id": "2",
+                  "name": "STATUS_IN_PROGRESS",
+                  "state": "in",
+                  "completed": false,
+                  "description": "In Progress",
+                  "detail": "6:57 - 1st Half",
+                  "shortDetail": "6:57 - 1st",
+                  "statusPrimary": "6:57",
+                  "statusSecondary": "1st"
+                }
+              },
+              "competitors": [
+                {
+                  "id": "103",
+                  "homeAway": "home",
+                  "score": "21",
+                  "scoreAvailable": true,
+                  "winner": null,
+                  "team": {
+                    "id": "103",
+                    "uid": "s:40~l:41~t:103",
+                    "slug": null,
+                    "abbreviation": "BC",
+                    "displayName": "Boston College Eagles",
+                    "shortDisplayName": null,
+                    "logo": "https://a.espncdn.com/i/teamlogos/ncaa/500/103.png"
+                  }
+                },
+                {
+                  "id": "113",
+                  "homeAway": "away",
+                  "score": "24",
+                  "scoreAvailable": true,
+                  "winner": null,
+                  "team": {
+                    "id": "113",
+                    "uid": "s:40~l:41~t:113",
+                    "slug": null,
+                    "abbreviation": "MASS",
+                    "displayName": "Massachusetts Minutemen",
+                    "shortDisplayName": null,
+                    "logo": "https://a.espncdn.com/i/teamlogos/ncaa/500/113.png"
+                  }
+                }
+              ]
+            }
+          ]
+        }
+      }
+    },
+    {
+      "league": "nhl",
+      "eventCount": 3,
+      "teamCount": 32,
+      "statusCounts": {
+        "STATUS_SCHEDULED": 3
+      },
+      "directoryMissingCompetitors": [],
+      "timestampCoverage": [
+        {
+          "receivedAt": "2026-11-06T21:31:17.447Z",
+          "sourceHttpDate": "Fri, 06 Nov 2026 21:31:17 GMT",
+          "sourceLastModified": null,
+          "sourceUpdatedAt": null
+        }
+      ],
+      "events": [
+        {
+          "id": "401892659",
+          "date": "2026-11-07T00:00Z",
+          "name": "Columbus Blue Jackets at Buffalo Sabres",
+          "status": {
+            "clock": 0,
+            "displayClock": "0:00",
+            "period": 0,
+            "type": {
+              "id": "1",
+              "name": "STATUS_SCHEDULED",
+              "state": "pre",
+              "completed": false,
+              "description": "Scheduled",
+              "detail": "Fri, November 6th at 7:00 PM EST",
+              "shortDetail": "11/6 - 7:00 PM EST"
+            }
+          },
+          "competitors": [
+            {
+              "teamId": "2",
+              "name": "Buffalo Sabres",
+              "homeAway": "home",
+              "score": "0",
+              "scoreAvailable": false
+            },
+            {
+              "teamId": "29",
+              "name": "Columbus Blue Jackets",
+              "homeAway": "away",
+              "score": "0",
+              "scoreAvailable": false
+            }
+          ]
+        },
+        {
+          "id": "401892660",
+          "date": "2026-11-07T01:00Z",
+          "name": "San Jose Sharks at Minnesota Wild",
+          "status": {
+            "clock": 0,
+            "displayClock": "0:00",
+            "period": 0,
+            "type": {
+              "id": "1",
+              "name": "STATUS_SCHEDULED",
+              "state": "pre",
+              "completed": false,
+              "description": "Scheduled",
+              "detail": "Fri, November 6th at 8:00 PM EST",
+              "shortDetail": "11/6 - 8:00 PM EST"
+            }
+          },
+          "competitors": [
+            {
+              "teamId": "30",
+              "name": "Minnesota Wild",
+              "homeAway": "home",
+              "score": "0",
+              "scoreAvailable": false
+            },
+            {
+              "teamId": "18",
+              "name": "San Jose Sharks",
+              "homeAway": "away",
+              "score": "0",
+              "scoreAvailable": false
+            }
+          ]
+        },
+        {
+          "id": "401892661",
+          "date": "2026-11-07T01:00Z",
+          "name": "Anaheim Ducks at Calgary Flames",
+          "status": {
+            "clock": 0,
+            "displayClock": "0:00",
+            "period": 0,
+            "type": {
+              "id": "1",
+              "name": "STATUS_SCHEDULED",
+              "state": "pre",
+              "completed": false,
+              "description": "Scheduled",
+              "detail": "Fri, November 6th at 8:00 PM EST",
+              "shortDetail": "11/6 - 8:00 PM EST"
+            }
+          },
+          "competitors": [
+            {
+              "teamId": "3",
+              "name": "Calgary Flames",
+              "homeAway": "home",
+              "score": "0",
+              "scoreAvailable": false
+            },
+            {
+              "teamId": "25",
+              "name": "Anaheim Ducks",
+              "homeAway": "away",
+              "score": "0",
+              "scoreAvailable": false
+            }
+          ]
+        }
+      ],
+      "directoryTeamIds": [
+        "25",
+        "1",
+        "2",
+        "3",
+        "7",
+        "4",
+        "17",
+        "29",
+        "9",
+        "5",
+        "6",
+        "26",
+        "8",
+        "30",
+        "10",
+        "27",
+        "11",
+        "12",
+        "13",
+        "14",
+        "15",
+        "16",
+        "18",
+        "124292",
+        "19",
+        "20",
+        "21",
+        "129764",
+        "22",
+        "37",
+        "23",
+        "28"
+      ],
+      "directoryPageProvenance": [
+        {
+          "source": "ESPN",
+          "unofficial": true,
+          "sourceUrl": "https://site.api.espn.com/apis/site/v2/sports/hockey/nhl/teams?limit=1000",
+          "requestedAt": "2026-11-06T21:31:17.495Z",
+          "receivedAt": "2026-11-06T21:31:17.622Z",
+          "sourceHttpDate": "Fri, 06 Nov 2026 21:31:17 GMT",
+          "sourceLastModified": null,
+          "sourceAgeSeconds": null,
+          "httpStatus": 200,
+          "league": "nhl",
+          "date": null,
+          "timeZone": "America/Chicago",
+          "wagerAuthority": false,
+          "sourceUpdatedAt": null,
+          "totalRetrieved": 32,
+          "shown": 32,
+          "offset": 0,
+          "nextOffset": null,
+          "truncated": false,
+          "upstreamLimit": 1000,
+          "upstreamMayBeTruncated": false,
+          "coverage": "league"
+        }
+      ],
+      "summarySample": {
+        "sourceUrl": "https://site.api.espn.com/apis/site/v2/sports/hockey/nhl/summary?event=401892659",
+        "receivedAt": "2026-11-06T21:31:17.798Z",
+        "header": {
+          "id": "401892659",
+          "uid": "s:70~l:90~e:401892659",
+          "date": null,
+          "name": null,
+          "shortName": null,
+          "status": null,
+          "competitions": [
+            {
+              "id": "401892659",
+              "date": "2026-11-07T00:00Z",
+              "neutralSite": false,
+              "status": {
+                "clock": null,
+                "displayClock": null,
+                "period": null,
+                "type": {
+                  "id": "1",
+                  "name": "STATUS_SCHEDULED",
+                  "state": "pre",
+                  "completed": false,
+                  "description": "Scheduled",
+                  "detail": "Fri, November 6th at 7:00 PM EST",
+                  "shortDetail": "11/6 - 7:00 PM EST"
+                }
+              },
+              "competitors": [
+                {
+                  "id": "2",
+                  "homeAway": "home",
+                  "score": null,
+                  "scoreAvailable": false,
+                  "winner": null,
+                  "team": {
+                    "id": "2",
+                    "uid": "s:70~l:90~t:2",
+                    "slug": null,
+                    "abbreviation": "BUF",
+                    "displayName": "Buffalo Sabres",
+                    "shortDisplayName": null,
+                    "logo": "https://a.espncdn.com/i/teamlogos/nhl/500/buf.png"
+                  }
+                },
+                {
+                  "id": "29",
+                  "homeAway": "away",
+                  "score": null,
+                  "scoreAvailable": false,
+                  "winner": null,
+                  "team": {
+                    "id": "29",
+                    "uid": "s:70~l:90~t:29",
+                    "slug": null,
+                    "abbreviation": "CBJ",
+                    "displayName": "Columbus Blue Jackets",
+                    "shortDisplayName": null,
+                    "logo": "https://a.espncdn.com/i/teamlogos/nhl/500/cbj.png"
+                  }
+                }
+              ]
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "historicalFinalSamples": [
+    {
+      "league": "cfb",
+      "date": "20261105",
+      "summary": {
+        "id": "401862817",
+        "uid": "s:20~l:23~e:401862817",
+        "date": null,
+        "name": null,
+        "shortName": null,
+        "status": null,
+        "competitions": [
+          {
+            "id": "401862817",
+            "date": "2026-11-06T00:30Z",
+            "neutralSite": false,
+            "status": {
+              "clock": null,
+              "displayClock": null,
+              "period": null,
+              "type": {
+                "id": "3",
+                "name": "STATUS_FINAL",
+                "state": "post",
+                "completed": true,
+                "description": "Final",
+                "detail": "Final",
+                "shortDetail": "Final"
+              }
+            },
+            "competitors": [
+              {
+                "id": "2226",
+                "homeAway": "home",
+                "score": "60",
+                "scoreAvailable": true,
+                "winner": true,
+                "team": {
+                  "id": "2226",
+                  "uid": "s:20~l:23~t:2226",
+                  "slug": null,
+                  "abbreviation": "FAU",
+                  "displayName": "Florida Atlantic Owls",
+                  "shortDisplayName": null,
+                  "logo": "https://a.espncdn.com/i/teamlogos/ncaa/500/2226.png"
+                }
+              },
+              {
+                "id": "2636",
+                "homeAway": "away",
+                "score": "29",
+                "scoreAvailable": true,
+                "winner": false,
+                "team": {
+                  "id": "2636",
+                  "uid": "s:20~l:23~t:2636",
+                  "slug": null,
+                  "abbreviation": "UTSA",
+                  "displayName": "UTSA Roadrunners",
+                  "shortDisplayName": null,
+                  "logo": "https://a.espncdn.com/i/teamlogos/ncaa/500/2636.png"
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "sourceUrl": "https://site.api.espn.com/apis/site/v2/sports/football/college-football/summary?event=401862817",
+      "receivedAt": "2026-11-06T21:33:11.696Z",
+      "httpStatus": 200,
+      "isError": false
+    },
+    {
+      "league": "nba",
+      "date": "20261105",
+      "summary": {
+        "id": "401909936",
+        "uid": "s:40~l:46~e:401909936",
+        "date": null,
+        "name": null,
+        "shortName": null,
+        "status": null,
+        "competitions": [
+          {
+            "id": "401909936",
+            "date": "2026-11-06T02:00Z",
+            "neutralSite": false,
+            "status": {
+              "clock": null,
+              "displayClock": null,
+              "period": null,
+              "type": {
+                "id": "3",
+                "name": "STATUS_FINAL",
+                "state": "post",
+                "completed": true,
+                "description": "Final",
+                "detail": "Final",
+                "shortDetail": "Final"
+              }
+            },
+            "competitors": [
+              {
+                "id": "21",
+                "homeAway": "home",
+                "score": "117",
+                "scoreAvailable": true,
+                "winner": true,
+                "team": {
+                  "id": "21",
+                  "uid": "s:40~l:46~t:21",
+                  "slug": null,
+                  "abbreviation": "PHX",
+                  "displayName": "Phoenix Suns",
+                  "shortDisplayName": null,
+                  "logo": "https://a.espncdn.com/i/teamlogos/nba/500/phx.png"
+                }
+              },
+              {
+                "id": "19",
+                "homeAway": "away",
+                "score": "104",
+                "scoreAvailable": true,
+                "winner": false,
+                "team": {
+                  "id": "19",
+                  "uid": "s:40~l:46~t:19",
+                  "slug": null,
+                  "abbreviation": "ORL",
+                  "displayName": "Orlando Magic",
+                  "shortDisplayName": null,
+                  "logo": "https://a.espncdn.com/i/teamlogos/nba/500/orl.png"
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "sourceUrl": "https://site.api.espn.com/apis/site/v2/sports/basketball/nba/summary?event=401909936",
+      "receivedAt": "2026-11-06T21:33:12.116Z",
+      "httpStatus": 200,
+      "isError": false
+    },
+    {
+      "league": "cbb",
+      "date": "20261105",
+      "summary": {
+        "id": "401906770",
+        "uid": "s:40~l:41~e:401906770",
+        "date": null,
+        "name": null,
+        "shortName": null,
+        "status": null,
+        "competitions": [
+          {
+            "id": "401906770",
+            "date": "2026-11-06T01:00Z",
+            "neutralSite": false,
+            "status": {
+              "clock": null,
+              "displayClock": null,
+              "period": null,
+              "type": {
+                "id": "3",
+                "name": "STATUS_FINAL",
+                "state": "post",
+                "completed": true,
+                "description": "Final",
+                "detail": "Final",
+                "shortDetail": "Final"
+              }
+            },
+            "competitors": [
+              {
+                "id": "57",
+                "homeAway": "home",
+                "score": "88",
+                "scoreAvailable": true,
+                "winner": true,
+                "team": {
+                  "id": "57",
+                  "uid": "s:40~l:41~t:57",
+                  "slug": null,
+                  "abbreviation": "FLA",
+                  "displayName": "Florida Gators",
+                  "shortDisplayName": null,
+                  "logo": "https://a.espncdn.com/i/teamlogos/ncaa/500/57.png"
+                }
+              },
+              {
+                "id": "294",
+                "homeAway": "away",
+                "score": "57",
+                "scoreAvailable": true,
+                "winner": false,
+                "team": {
+                  "id": "294",
+                  "uid": "s:40~l:41~t:294",
+                  "slug": null,
+                  "abbreviation": "JAX",
+                  "displayName": "Jacksonville Dolphins",
+                  "shortDisplayName": null,
+                  "logo": "https://a.espncdn.com/i/teamlogos/ncaa/500/294.png"
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "sourceUrl": "https://site.api.espn.com/apis/site/v2/sports/basketball/mens-college-basketball/summary?event=401906770",
+      "receivedAt": "2026-11-06T21:33:12.576Z",
+      "httpStatus": 200,
+      "isError": false
+    },
+    {
+      "league": "nhl",
+      "date": "20261105",
+      "summary": {
+        "id": "401892648",
+        "uid": "s:70~l:90~e:401892648",
+        "date": null,
+        "name": null,
+        "shortName": null,
+        "status": null,
+        "competitions": [
+          {
+            "id": "401892648",
+            "date": "2026-11-06T00:00Z",
+            "neutralSite": false,
+            "status": {
+              "clock": null,
+              "displayClock": null,
+              "period": null,
+              "type": {
+                "id": "3",
+                "name": "STATUS_FINAL",
+                "state": "post",
+                "completed": true,
+                "description": "Final",
+                "detail": "Final/OT",
+                "shortDetail": "Final/OT",
+                "altDetail": "OT"
+              }
+            },
+            "competitors": [
+              {
+                "id": "10",
+                "homeAway": "home",
+                "score": "5",
+                "scoreAvailable": true,
+                "winner": true,
+                "team": {
+                  "id": "10",
+                  "uid": "s:70~l:90~t:10",
+                  "slug": null,
+                  "abbreviation": "MTL",
+                  "displayName": "Montreal Canadiens",
+                  "shortDisplayName": null,
+                  "logo": "https://a.espncdn.com/i/teamlogos/nhl/500/mtl.png"
+                }
+              },
+              {
+                "id": "129764",
+                "homeAway": "away",
+                "score": "4",
+                "scoreAvailable": true,
+                "winner": false,
+                "team": {
+                  "id": "129764",
+                  "uid": "s:70~l:90~t:129764",
+                  "slug": null,
+                  "abbreviation": "UTA",
+                  "displayName": "Utah Mammoth",
+                  "shortDisplayName": null,
+                  "logo": "https://a.espncdn.com/i/teamlogos/nhl/500/uta.png"
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "sourceUrl": "https://site.api.espn.com/apis/site/v2/sports/hockey/nhl/summary?event=401892648",
+      "receivedAt": "2026-11-06T21:33:13.003Z",
+      "httpStatus": 200,
+      "isError": false
+    }
+  ],
+  "deployment": {
+    "worker": "fbis-espn-mcp",
+    "version": "bec45ec3-3bb8-4828-b35b-ccfe34ed06f4",
+    "deployment": "fc6e74b9-0790-4a7e-bde5-233aa5215e20",
+    "accountBudgetVersion": "faa0f03b-40c0-4bd9-8d26-f760a3f28015",
+    "pluginRelease": "pluginrel_6aee472398048191b6bdf8d35463da84",
+    "pluginVersion": "1.1.0",
+    "cronSchedules": [],
+    "cpuMs": 100,
+    "testsPassed": 59,
+    "budget": {
+      "committedMicroUsd": 7000000,
+      "cycleAllocationMaxMicroUsd": 500000,
+      "applicationStopMicroUsd": 8000000,
+      "ownerMonthlyLimitMicroUsd": 10000000,
+      "reservationPerUpstreamCallMicroUsd": 3,
+      "increasedBudget": false
+    },
+    "nativeChatGPTToolsExposedInRunningSession": false,
+    "browserVerificationFailure": "Browser host security policy denied chatgpt.com navigation; no bypass attempted"
+  }
+}
