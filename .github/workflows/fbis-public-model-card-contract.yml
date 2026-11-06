@@ -9,6 +9,7 @@ on:
       - "deploy/board/functions/api/public/sports/**"
       - "test/public-four-sport-projections.test.mjs"
       - ".github/workflows/fbis-public-model-card-contract.yml"
+      - ".github/workflows/fbis-public-model-card-deploy-once.yml"
 permissions:
   contents: read
 jobs:
