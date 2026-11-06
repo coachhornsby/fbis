@@ -70,7 +70,7 @@ export default function RecoveryMiniGameCard({game,onOpen,clock=Date.now()}){
     <div><span>MODEL FAIR SPREAD</span><strong>{facts.fairSpread}</strong></div>
     <div><span>PROJECTED TOTAL</span><strong>{facts.total.toFixed(1)}</strong></div>
    </div>}
-   <div className="fbis-mini-bottom">
+   {(lean||book)&&<div className="fbis-mini-bottom">
     <div className="fbis-mini-lean">
      <span>MODEL LEAN</span>
      <strong className={lean?'has-lean':''}>{lean?lean.label:'—'}</strong>
@@ -81,9 +81,11 @@ export default function RecoveryMiniGameCard({game,onOpen,clock=Date.now()}){
      <strong>{book?book.book+'  '+american(book.american):'—'}</strong>
      <small>{book?(lean.family==='spread'?'Spread':'Total')+' '+lean.line.toFixed(1)+' · '+shopping.bookCount+' book'+(shopping.bookCount===1?'':'s')+' · '+observed+' CT':'No fresh matched sportsbook offer'}</small>
     </div>
-   </div>
+   </div>}
   </button>
-  <div className="fbis-mini-exchanges" aria-label="Exchange reference prices">{['Kalshi','Polymarket'].map(venue=>{const rows=exchange.filter(q=>q.venue===venue);return <div key={venue}><strong>{venue}</strong><span>{rows.length?rows.map(q=>(q.side==='home'?smallName(home):smallName(away))+' '+(q.ask*100).toFixed(1)+'¢').join(' · '):'Awaiting matched quotes'}</span><span>{rows.length?rows.map(q=>q.transport).filter((v,i,a)=>a.indexOf(v)===i).join(' / ')+' · reference ask':'No current exchange price'}</span></div>;})}</div>
+  <div className="fbis-mini-exchanges" aria-label="Exchange prices">
+   {exchange.length?<table><thead><tr><th scope="col">Exchange</th><th scope="col">{smallName(away)}</th><th scope="col">{smallName(home)}</th></tr></thead><tbody>{['Kalshi','Polymarket'].map(venue=>{const rows=exchange.filter(q=>q.venue===venue);return <tr key={venue}><th scope="row">{venue}</th>{['away','home'].map(side=>{const q=rows.find(q=>q.side===side);return <td key={side} title={q?q.transport+' · '+new Date(q.receivedAt).toLocaleTimeString('en-US',{timeZone:'America/Chicago',hour:'numeric',minute:'2-digit'})+' CT · observed ask':'No current matched price'}>{q?(q.ask*100).toFixed(1)+'¢':'—'}</td>;})}</tr>;})}</tbody></table>:<span className="fbis-mini-exchange-empty">Exchange prices unavailable</span>}
+  </div>
 
  </article>;
 }
