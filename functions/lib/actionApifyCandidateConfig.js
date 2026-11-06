@@ -228,7 +228,7 @@ export function cadenceForPhase(phase, sport = "") {
 export function readCandidateConfig(env) {
   const e = env && typeof env === "object" ? env : {};
   const enabledRaw = String(e.ACTION_APIFY_ENABLED ?? "false").trim().toLowerCase();
-  const enabled = enabledRaw === "1" || enabledRaw === "true" || enabledRaw === "yes";
+  const enabled = false; // Owner-retired; old flags cannot reactivate Apify.
 
   let plan = "free";
   let planError = null;
@@ -239,7 +239,7 @@ export function readCandidateConfig(env) {
     plan = "free";
   }
 
-  const configured = Boolean(String(e.APIFY_TOKEN || "").trim());
+  const configured = false; // Credentials do not authorize a retired provider.
   const maxItemsEnv = e.ACTION_APIFY_MAX_ITEMS;
   let maxItems;
   try {

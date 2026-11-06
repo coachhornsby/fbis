@@ -1,3 +1,5 @@
+import { retiredProviderResponse } from '../lib/retiredProviderPolicy.js';
+import { guardProviderFetch } from '../lib/retiredProviderPolicy.js';
 import {retiredOddsCollectorResponse} from "../lib/activeOddsPolicy.js";
 import { startPaidAcquisition, recordAcquisitionRun, captureAcquisitionRaw, recordAcquisitionConsumer } from '../lib/externalAcquisition.js';
 import { authorizeHarvest, unauthorizedBody } from "../lib/auth.js";
@@ -69,6 +71,7 @@ async function upsertCostLedger(db,cost){
  ]);
 }
 export async function onRequestPost(context){
+ return retiredProviderResponse();
  const auth=authorizeHarvest(context.request,context.env);if(!auth.ok)return json(unauthorizedBody(),401);
   return json(retiredOddsCollectorResponse("ACTION_APIFY"),410);
  const url=new URL(context.request.url);let body={};try{body=await context.request.json()}catch{}const mode=String(url.searchParams.get("mode")||body.mode||"start").toLowerCase();
@@ -163,11 +166,11 @@ export async function onRequestPost(context){
  }
  if(!run.apify_run_id)return json({ok:false,status:"missing_apify_run_id",runId:run.id},500);
  const token=String(context.env.APIFY_TOKEN||context.env.APIFY_API_TOKEN||"").trim();if(!token)return json({ok:false,status:"apify_not_configured"},503);
- const rr=await fetch(`https://api.apify.com/v2/actor-runs/${encodeURIComponent(run.apify_run_id)}`,{headers:{Authorization:`Bearer ${token}`}});if(!rr.ok)return json({ok:false,status:"apify_poll_http",http:rr.status},502);const rj=await rr.json(),ar=rj.data||rj,status=String(ar.status||"");await recordAcquisitionRun(context.env,ar);
+ const rr=await guardProviderFetch(globalThis.fetch)(`https://api.apify.com/v2/actor-runs/${encodeURIComponent(run.apify_run_id)}`,{headers:{Authorization:`Bearer ${token}`}});if(!rr.ok)return json({ok:false,status:"apify_poll_http",http:rr.status},502);const rj=await rr.json(),ar=rj.data||rj,status=String(ar.status||"");await recordAcquisitionRun(context.env,ar);
  if(status==="READY"||status==="RUNNING")return json({ok:true,executed:false,status:"actor_running",runId:run.id,apifyRunId:run.apify_run_id},202);
  if(status!=="SUCCEEDED"&&status!=="SUCCEEDED_WITH_WARNINGS"){await finalizeRun(db,run,{status:"failed_daily",errorClass:"daily_actor_failure",errorMessage:`apify-run-${status||"unknown"}`});return json({ok:false,executed:true,status:"failed_daily",runId:run.id,apifyRunId:run.apify_run_id,actorStatus:status},502)}
  const datasetId=ar.defaultDatasetId||run.dataset_id;if(!datasetId){await finalizeRun(db,run,{status:"failed_daily",errorClass:"missing_dataset_id",errorMessage:"Apify succeeded without a dataset id"});return json({ok:false,status:"missing_dataset_id",runId:run.id},502)}
- const dr=await fetch(`https://api.apify.com/v2/datasets/${encodeURIComponent(datasetId)}/items?format=json&clean=true`,{headers:{Authorization:`Bearer ${token}`}});if(!dr.ok)return json({ok:false,status:"apify_dataset_http",http:dr.status},502);
+ const dr=await guardProviderFetch(globalThis.fetch)(`https://api.apify.com/v2/datasets/${encodeURIComponent(datasetId)}/items?format=json&clean=true`,{headers:{Authorization:`Bearer ${token}`}});if(!dr.ok)return json({ok:false,status:"apify_dataset_http",http:dr.status},502);
  const stableCollectedAt=ar.finishedAt||run.started_at||new Date().toISOString();
  const items=await dr.json();
  let archiveKey=null;

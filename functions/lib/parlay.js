@@ -1,3 +1,4 @@
+import { guardProviderFetch } from './retiredProviderPolicy.js';
 /**
  * ParlayAPI integration.
  *
@@ -558,7 +559,7 @@ function creditMeta(res) {
 }
 
 async function parlayFetch(url, apiKey) {
-  return fetch(url, {
+  return guardProviderFetch(globalThis.fetch)(url, {
     headers: {
       "X-API-Key": apiKey,
       Accept: "application/json",
@@ -592,7 +593,7 @@ async function fetchTheOddsJson(sportKey, params, apiKey) {
   for (const [k, v] of Object.entries(params || {})) url.searchParams.set(k, v);
   url.searchParams.set("apiKey", apiKey);
   url.searchParams.set("oddsFormat", "american");
-  const res = await fetch(String(url), { headers: { Accept: "application/json" } });
+  const res = await guardProviderFetch(globalThis.fetch)(String(url), { headers: { Accept: "application/json" } });
   const credits = creditMeta(res);
   if (!res.ok) {
     const text = await res.text();
@@ -766,6 +767,8 @@ function propsRowsToStubEvents(rows = []) {
 }
 
 export async function fetchParlayOdds(sportId, apiKey, cfCache, opts = {}) {
+  return { events: [], meta: { enabled:false, retired:true, error:"PROVIDER_RETIRED_BY_OWNER", cached:false }, canQualify:false, canAuthorizeWager:false };
+
   const sportKey = PARLAY_SPORT[sportId];
   if (!sportKey || (!apiKey && !opts.backupApiKey && !opts.sharpApiKey && !opts.theRundownApiKey)) {
     return { events: [], meta: { enabled: false, remaining: null, cached: false } };

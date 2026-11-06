@@ -1,3 +1,4 @@
+import { guardProviderFetch } from './retiredProviderPolicy.js';
 /**
  * Current Tennis Abstract Elo ratings: SEPARATE research feed, not 2026 match results.
  * Source: https://www.tennisabstract.com/reports/{atp,wta}_elo_ratings.html
@@ -57,12 +58,12 @@ const hash=async data=>[...new Uint8Array(await crypto.subtle.digest('SHA-256',n
 export async function fetchTennisAbstractElo(tour,{fetchImpl=fetch,now=new Date(),apifyToken=null}={}){
  if(!['atp','wta'].includes(tour))throw Error('ELO_TOUR_INVALID');
  const url=tennisAbstractEloUrl(tour);
- const response=await fetchImpl(url,{headers:{accept:'text/html'},signal:AbortSignal.timeout(20000)});
+ const response=await guardProviderFetch(fetchImpl)(url,{headers:{accept:'text/html'},signal:AbortSignal.timeout(20000)});
  let html,acquisitionTransport='DIRECT_HTTPS';
  if(response.ok){
   html=await response.text();
  }else if([403,429].includes(response.status)&&apifyToken){
-  const relay=await fetchImpl('https://api.apify.com/v2/acts/apify~web-fetch/run-sync-get-dataset-items?format=json&timeout=90',{
+  const relay=await guardProviderFetch(fetchImpl)('https://api.apify.com/v2/acts/apify~web-fetch/run-sync-get-dataset-items?format=json&timeout=90',{
    method:'POST',headers:{'authorization':'Bearer '+apifyToken,'content-type':'application/json'},
    body:JSON.stringify({url,formats:['raw']}),signal:AbortSignal.timeout(100000)});
   if(!relay.ok)throw Error('ELO_RELAY_HTTP_'+relay.status);

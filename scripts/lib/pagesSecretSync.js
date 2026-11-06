@@ -1,3 +1,4 @@
+import { isRetiredProviderSecret } from '../../functions/lib/retiredProviderPolicy.js';
 /**
  * Pure helpers for Cloudflare Pages secret sync from GitHub Actions.
  * Empty values must never invoke `wrangler pages secret put`.
@@ -15,7 +16,7 @@ export function shouldPutPagesSecret(value) {
 export async function syncPagesSecretsSkipEmpty(secrets, putFn) {
   const report = { written: [], skipped: [] };
   for (const [name, value] of Object.entries(secrets || {})) {
-    if (!shouldPutPagesSecret(value)) {
+    if (isRetiredProviderSecret(name) || !shouldPutPagesSecret(value)) {
       report.skipped.push(name);
       continue;
     }

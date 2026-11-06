@@ -1,11 +1,14 @@
+import { retiredProviderResponse } from '../lib/retiredProviderPolicy.js';
+import { guardProviderFetch } from '../lib/retiredProviderPolicy.js';
 import {authorizeHarvest,unauthorizedBody} from '../lib/auth.js';
 const json=(body,status=200)=>new Response(JSON.stringify(body),{status,headers:{'content-type':'application/json','cache-control':'no-store'}});
 // Account reads + telemetry only. This route cannot enable acquisitions or alter provider limits.
 export async function onRequestPost({request,env}){
+ return retiredProviderResponse();
  if(!authorizeHarvest(request,env).ok)return json(unauthorizedBody(),401);
  if(!env.DB||!env.APIFY_TOKEN)return json({ok:false,state:'UNKNOWN',reason:'ACCOUNT_READ_NOT_CONFIGURED'},503);
  try{
-   const r=await fetch('https://api.apify.com/v2/users/me/limits',{headers:{authorization:`Bearer ${env.APIFY_TOKEN}`}});
+   const r=await guardProviderFetch(globalThis.fetch)('https://api.apify.com/v2/users/me/limits',{headers:{authorization:`Bearer ${env.APIFY_TOKEN}`}});
    if(!r.ok)return json({ok:false,state:'UNKNOWN',reason:'PROVIDER_ACCOUNT_READ_BLOCKED',http:r.status},503);
    const data=(await r.json()).data,usage=data?.current?.monthlyUsageUsd,limit=data?.limits?.maxMonthlyUsageUsd;
    const start=data?.monthlyUsageCycle?.startAt,endMs=Date.parse(data?.monthlyUsageCycle?.endAt||'');

@@ -1,7 +1,10 @@
+import { retiredProviderResponse } from '../lib/retiredProviderPolicy.js';
+import { guardProviderFetch } from '../lib/retiredProviderPolicy.js';
 import { authorizeHarvest,unauthorizedBody } from '../lib/auth.js';
 import { captureAcquisitionRaw } from '../lib/externalAcquisition.js';
 const json=(body,status=200)=>new Response(JSON.stringify(body),{status,headers:{'content-type':'application/json','cache-control':'no-store'}});
 export async function onRequestPost({request,env}){
+ return retiredProviderResponse();
  if(!authorizeHarvest(request,env).ok)return json(unauthorizedBody(),401);
  const body=await request.json();
  if(body.operation==='capture'){
@@ -9,12 +12,12 @@ export async function onRequestPost({request,env}){
    const owned=id&&await env.DB.prepare('SELECT id FROM external_acquisitions WHERE provider_run_id=?').bind(id).first();
    if(!owned)return json({ok:false,error:'ACQUISITION_NOT_OWNED'},409);
    // Provider run state is read from Apify, never accepted on the caller's assertion.
-   const r=await fetch(`https://api.apify.com/v2/actor-runs/${encodeURIComponent(id)}`,{headers:{authorization:`Bearer ${env.APIFY_TOKEN}`}});
+   const r=await guardProviderFetch(globalThis.fetch)(`https://api.apify.com/v2/actor-runs/${encodeURIComponent(id)}`,{headers:{authorization:`Bearer ${env.APIFY_TOKEN}`}});
    if(!r.ok)return json({ok:false,error:'PROVIDER_READ_BLOCKED'},503);
    const run=(await r.json()).data;
    if(!['SUCCEEDED','SUCCEEDED_WITH_WARNINGS'].includes(run?.status))return json({ok:false,error:'CAPTURE_NOT_COMPLETE'},409);
    // Read immutable provider output. Caller-supplied rows never become raw source truth.
-   const d=await fetch(`https://api.apify.com/v2/datasets/${encodeURIComponent(run.defaultDatasetId)}/items?format=json&clean=true`,{headers:{authorization:`Bearer ${env.APIFY_TOKEN}`}});
+   const d=await guardProviderFetch(globalThis.fetch)(`https://api.apify.com/v2/datasets/${encodeURIComponent(run.defaultDatasetId)}/items?format=json&clean=true`,{headers:{authorization:`Bearer ${env.APIFY_TOKEN}`}});
    if(!d.ok)return json({ok:false,error:'DATASET_READ_BLOCKED'},503);
    const rows=await d.json();
    try{return json({ok:true,...await captureAcquisitionRaw(env,{run,rows})});}catch{return json({ok:false,error:'RAW_CAPTURE_FAILED'},503);}

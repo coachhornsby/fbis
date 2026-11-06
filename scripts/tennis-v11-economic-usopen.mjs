@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import { guardProviderFetch } from '../functions/lib/retiredProviderPolicy.js';
 import fs from "node:fs/promises";
 import path from "node:path";
 import { TennisDeepState, simulateTennisDeepV11 } from "../functions/lib/tennisTwoSidedV11.js";
@@ -26,7 +27,7 @@ function parseCsv(text){
   if(field||row.length){row.push(field);rows.push(row);}
   const h=rows.shift()||[];return rows.filter(r=>r.length>1).map(r=>Object.fromEntries(h.map((k,i)=>[k,r[i]??""])));
 }
-async function fetchText(url){const r=await fetch(url,{headers:{"user-agent":"FBIS tennis economic research"}});if(!r.ok)throw new Error(`${r.status} ${url}`);return r.text()}
+async function fetchText(url){const r=await guardProviderFetch(globalThis.fetch)(url,{headers:{"user-agent":"FBIS tennis economic research"}});if(!r.ok)throw new Error(`${r.status} ${url}`);return r.text()}
 function idOf(r,s){return String(r[`${s}_id`]||r[`${s}_name`]||"").trim()}
 function dateKey(r){return String(r.tourney_date||"")}
 function eventKey(r,t){return `${t}|${r.tourney_id||r.tourney_name}|${dateKey(r)}`}
@@ -122,7 +123,7 @@ let requestCount=0,quotaRemaining=null;
 async function oddsGet(url){
   if(requestCount>=MAX_REQUESTS)throw new Error("research request cap reached");
   requestCount++;
-  const r=await fetch(url,{headers:{"user-agent":"FBIS tennis economic validation/1.0"}});
+  const r=await guardProviderFetch(globalThis.fetch)(url,{headers:{"user-agent":"FBIS tennis economic validation/1.0"}});
   const rem=finite(r.headers.get("x-requests-remaining")); if(rem!=null)quotaRemaining=rem;
   if(rem!=null&&rem<MIN_RESERVE)throw new Error(`quota reserve reached: ${rem}<${MIN_RESERVE}`);
   const body=await r.text();

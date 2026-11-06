@@ -3,6 +3,8 @@
 Operator dashboard for independent projections, Pinnacle pricing, +EV, and forecast grading.
 Hosted on **Cloudflare Pages**. No droplet.
 
+**Current source policy (Nov 6, 2026):** PinnOdds supplies sportsbook markets; Kalshi and Polymarket supply REST/WebSocket exchange data. Apify, Parlay and The Odds API are retired. ESPN, CFBD, CBBD, KenPom, Torvik and existing NFL/NBA/NHL resources remain authorized. See [source policy](docs/source-policy-20261106.md); older architecture descriptions below are historical where they conflict.
+
 Live: **https://fbis-myz.pages.dev/**
 
 FBIS is not a picks site. The loop is:
