@@ -12,7 +12,7 @@ The following existing owner-only Drive archives were retrieved and checked **by
 
 **CBB archive integrity: 30/30 internal files passed.** These archives are verified as complete copies of their recorded snapshots, **not fresh November 6 ratings**.
 
-CFB: `CFB_Final_QA.json` was independently fetched from Drive and read successfully (source generated October 2). Its SHA-256 is `f6c` only if established from the matching file; no matching external manifest exists in the checked repository. **CFB full archive SHA parity is not established.** Existing CFB SportsDataverse manifests identify hashes of separate historical source files; they do not prove this Drive file matches them.
+CFB: `CFB_Final_QA.json` was independently fetched from Drive and read successfully (source generated October 2). Its local SHA-256 was measured, but no matching external file manifest was located in the checked repository. **CFB full archive SHA parity is not established.** Existing CFB SportsDataverse manifests identify hashes of separate historical source files; they do not prove this Drive file matches them.
 
 ## 2. The old 362 vs current 365 CBB programs
 
