@@ -29,6 +29,8 @@ test('owner-model public packet is a strict minimal, non-wager summary',()=>{
 test('private provider-derived or unapproved CFB model never leaks',()=>{
   const changed={...privatePacket,events:[{...event,projection:{...event.projection,modelId:'CBB-KENPOM-RATINGS-v1'}}]};
   assert.equal(publicProjectionSummary(changed,{sport:'cfb',date}).events.length,0);
+  const unverified={...privatePacket,events:[{...event,sourceLabel:'KenPom licensed ratings'}]};
+  assert.equal(publicProjectionSummary(unverified,{sport:'cfb',date}).events.length,0);
   assert.throws(()=>publicProjectionSummary(privatePacket,{sport:'cbb',date}),/PUBLIC_SPORT_NOT_ALLOWED/);
 });
 test('anonymous GET returns cleared model score without cookies, tokens, markets or D1',async()=>{
