@@ -1,0 +1,26 @@
+name: FBIS anonymous model-card contract CI
+on:
+  pull_request:
+    paths:
+      - "src/PublicationApp.jsx"
+      - "src/components/board/PrivateSportProjection.jsx"
+      - "src/lib/publicSportAuto.js"
+      - "functions/lib/publicFourSportProjection.js"
+      - "deploy/board/functions/api/public/sports/**"
+      - "test/public-four-sport-projections.test.mjs"
+      - ".github/workflows/fbis-public-model-card-contract.yml"
+permissions:
+  contents: read
+jobs:
+  safe-read-contract:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4.2.2
+      - uses: actions/setup-node@v4.1.0
+        with:
+          node-version: "22"
+      - run: node --check functions/lib/publicFourSportProjection.js
+      - run: node --check src/lib/publicSportAuto.js
+      - run: node --check 'deploy/board/functions/api/public/sports/[sport]/[date].js'
+      - run: node --test test/public-four-sport-projections.test.mjs test/four-sport-private-recovery.test.mjs
