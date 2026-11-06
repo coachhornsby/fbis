@@ -1,6 +1,7 @@
 import TeamLogo from '../TeamLogo.jsx';
 import {recoveryLeanShopping} from '../../lib/recoveryLeanShopping.js';
 import {recoveryCardFacts} from '../../lib/recoveryCardFacts.js';
+import {exchangeCardRows} from '../../lib/exchangeCardRows.js';
 import './recoveryMiniGameCard.css';
 
 const validColor=(value,fallback)=>{
@@ -28,7 +29,7 @@ export default function RecoveryMiniGameCard({game,onOpen,clock=Date.now()}){
  const shopping=recoveryLeanShopping(game,{now:clock});
  const lean=shopping.lean,book=shopping.book;
  const away=game.away||{},home=game.home||{};
- const exchange=(game.exchangeReferenceQuotes||[]).filter(q=>['Kalshi','Polymarket'].includes(q.venue)&&['home','away'].includes(q.side)&&q.ask>0&&q.ask<1&&Number.isFinite(Date.parse(q.receivedAt))&&clock>=Date.parse(q.receivedAt)&&clock-Date.parse(q.receivedAt)<=(q.transport==='WebSocket'?120000:900000)&&Math.abs(Date.parse(q.eventStart)-Date.parse(game.start))<=60000);
+ const exchangeRows=exchangeCardRows(game,clock);
  const observed=book?new Date(book.observedAt).toLocaleTimeString('en-US',{
   timeZone:'America/Chicago',hour:'numeric',minute:'2-digit'
  }):null;
@@ -84,7 +85,10 @@ export default function RecoveryMiniGameCard({game,onOpen,clock=Date.now()}){
    </div>}
   </button>
   <div className="fbis-mini-exchanges" aria-label="Exchange prices">
-   {exchange.length?<table><thead><tr><th scope="col">Exchange</th><th scope="col">{smallName(away)}</th><th scope="col">{smallName(home)}</th></tr></thead><tbody>{['Kalshi','Polymarket'].map(venue=>{const rows=exchange.filter(q=>q.venue===venue);return <tr key={venue}><th scope="row">{venue}</th>{['away','home'].map(side=>{const q=rows.find(q=>q.side===side);return <td key={side} title={q?q.transport+' · '+new Date(q.receivedAt).toLocaleTimeString('en-US',{timeZone:'America/Chicago',hour:'numeric',minute:'2-digit'})+' CT · observed ask':'No current matched price'}>{q?(q.ask*100).toFixed(1)+'¢':'—'}</td>;})}</tr>;})}</tbody></table>:<span className="fbis-mini-exchange-empty">Exchange prices unavailable</span>}
+   <table><thead><tr><th scope="col"><span className="fbis-mini-sr-only">Exchange</span></th><th scope="col">Market</th><th scope="col">{smallName(away)}</th><th scope="col">{smallName(home)}</th></tr></thead><tbody>{exchangeRows.map(row=><tr key={row.venue+row.family}>
+    {row.family==='moneyline'&&<th scope="rowgroup" rowSpan={3} title={row.venue}><img className="fbis-mini-exchange-logo" src={row.venue==='Kalshi'?'https://kalshi.com/favicon.ico':'https://polymarket.com/images/brand/icon-blue.png'} alt={row.venue} width="32" height="32" loading="lazy"/></th>}
+    <th scope="row">{row.label}</th>{row.cells.map((cell,i)=><td key={i} title={cell.title}>{cell.line&&<span className="fbis-mini-exchange-line">{cell.line}</span>}{cell.price}</td>)}
+   </tr>)}</tbody></table>
   </div>
 
  </article>;

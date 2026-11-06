@@ -172,3 +172,12 @@
 .fbis-shell-main.route-board .fbis-mini-exchanges tbody th{font-weight:600}
 .fbis-shell-main.route-board .fbis-mini-exchanges td{font-size:20px;font-weight:700;color:#fbd279;font-variant-numeric:tabular-nums}
 .fbis-shell-main.route-board .fbis-mini-exchange-empty{display:block;padding:10px 4px;color:#e5e7eb;font-size:16px}
+
+.fbis-shell-main.route-board .fbis-mini-exchanges th:first-child{width:auto;text-align:center}
+.fbis-shell-main.route-board .fbis-mini-exchanges thead th:first-child{width:36px}
+.fbis-shell-main.route-board .fbis-mini-exchanges thead th:nth-child(2){width:28%}
+.fbis-shell-main.route-board .fbis-mini-exchanges tbody th[scope="row"]{text-align:left;font-weight:500}
+.fbis-shell-main.route-board .fbis-mini-exchanges tr:nth-child(3n+1) td,.fbis-shell-main.route-board .fbis-mini-exchanges tr:nth-child(3n+1) th{border-top:1px solid #34404c}
+.fbis-mini-exchange-logo{display:block;width:32px;height:32px;object-fit:contain;margin:auto}
+.fbis-mini-exchange-line{display:block;color:#f3f8ff;font-size:16px;font-weight:500}
+.fbis-mini-sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
