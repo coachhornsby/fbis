@@ -1,5 +1,5 @@
 name: FBIS CFB-CBBD one-time GitHub provider proof
-# One-time diagnostic replay with sanitized provider HTTP status; no schedule.
+# One-time scoped CFBD Texas + CBBD Duke proof; no schedule.
 
 on:
   push:
