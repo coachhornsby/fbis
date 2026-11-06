@@ -30,6 +30,7 @@ function PublicationApp(){
   const [cbbRefreshResult,setCbbRefreshResult]=useState('');
   const [modelPacket,setModelPacket]=useState(null);
   const [sportOffers,setSportOffers]=useState([]);
+  const [exchangeQuotes,setExchangeQuotes]=useState({});
   const [modelStatus,setModelStatus]=useState('IDLE');
   const url=new URL(window.location.href);
   const [sport,setSport]=useState(ACTIVE_SPORTS.includes(url.searchParams.get('sport'))?url.searchParams.get('sport'):'cbb');
@@ -88,9 +89,10 @@ function PublicationApp(){
     },20*60*1000);
     return()=>{active=false;clearInterval(timer);};
   },[date,sport]);
+  useEffect(()=>{let active=true;setExchangeQuotes({});async function read(){if(document.hidden)return;try{const r=await fetch('/api/public/exchange-quotes?'+new URLSearchParams({sport,date}),{cache:'no-store'});const v=await r.json();if(active)setExchangeQuotes(r.ok&&v.ok&&v.sport===sport&&v.date===date?v.byEvent:{});}catch{if(active)setExchangeQuotes({});}}read();const timer=setInterval(read,60000);return()=>{active=false;clearInterval(timer);};},[sport,date]);
   useEffect(()=>{const timer=setInterval(()=>setClock(Date.now()),15000);return()=>clearInterval(timer);},[]);
   useEffect(()=>startScoreboardPolling({refresh:()=>refreshRef.current?.(),isVisible:()=>!document.hidden,isBusy:()=>busyRef.current,lastAttempt:()=>lastAttempt.current,listen:fn=>{document.addEventListener('visibilitychange',fn);window.addEventListener('focus',fn);return()=>{document.removeEventListener('visibilitychange',fn);window.removeEventListener('focus',fn);};}}),[]);
-  const games=(board?.games||[]).filter(g=>g.sport===sport).map(g=>{const g0=clock-Date.parse(g.capturedAt)>SNAPSHOT_MAX_AGE_MS?{...g,status:'unverified',statusDetail:'Saved source capture · current status unverified',statusClock:null}:g;const projected=overlayVerifiedResearchScores(g0,{cbbPacket:privatePacket,sportPacket:modelPacket,clock});const offers=(projected.sport==='cbb'?privateOffers:sportOffers).filter(q=>String(q.eventId||q.canonicalEventId||q.canonical_event_id||q.gameId||'')===String(projected.id));return {...projected,recoveryVerifiedOffers:offers,...(projected.sport==='cbb'?{cbbVerifiedOffers:offers}:{})};});
+  const games=(board?.games||[]).filter(g=>g.sport===sport).map(g=>{const g0=clock-Date.parse(g.capturedAt)>SNAPSHOT_MAX_AGE_MS?{...g,status:'unverified',statusDetail:'Saved source capture · current status unverified',statusClock:null}:g;const projected=overlayVerifiedResearchScores(g0,{cbbPacket:privatePacket,sportPacket:modelPacket,clock});const offers=(projected.sport==='cbb'?privateOffers:sportOffers).filter(q=>String(q.eventId||q.canonicalEventId||q.canonical_event_id||q.gameId||'')===String(projected.id));return {...projected,exchangeReferenceQuotes:exchangeQuotes[String(projected.id)]||[],recoveryVerifiedOffers:offers,...(projected.sport==='cbb'?{cbbVerifiedOffers:offers}:{})};});
   const privateMatched=privatePacket?games.filter(g=>Boolean(privateProjectionFor(g,privatePacket,clock))).length:0;
   const privatePrimary=privatePacket?.events.filter(e=>Boolean(e.primary)).length||0;
   const modelMatches=modelPacket?games.filter(g=>Boolean(privateFourSportProjectionFor(g,modelPacket,clock))).length:0;

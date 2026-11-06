@@ -15,6 +15,7 @@ export const POLY_REST_JOB='services/polymarket-rest-collector/worker.mjs';
 export const POLY_FIXTURE_JOB='functions/lib/polymarketFixtureArchive.js:write';
 const noD1={d1Queries:0,reads:0,writes:0,r2Lists:0};
 export const CERTIFIED_EXECUTION_JOBS=Object.freeze({
+ ['functions/lib/exchangeCardDelivery.js']:Object.freeze({cpuMs:100,units:Object.freeze({...noD1,requests:0,responseBytes:0,r2Reads:3,r2Writes:0,r2Bytes:12582912})}),
  ['functions/api/kalshi-market-stream-sign.js']:Object.freeze({cpuMs:100,units:Object.freeze({...noD1,requests:0,responseBytes:0,r2Reads:0,r2Writes:0,r2Bytes:0})}),
  ['services/kalshi-public-collector/marketSession.mjs']:Object.freeze({cpuMs:100,units:Object.freeze({...noD1,requests:2,responseBytes:16384,r2Reads:5,r2Writes:1,r2Bytes:8388608,wsMessages:128,wsBytes:1048576,wsSends:1,wsSendBytes:16384,doDurationMs:30000})}),
  ['services/polymarket-rest-collector/fixtures.mjs']:Object.freeze({cpuMs:100,units:Object.freeze({...noD1,requests:1,responseBytes:4194304,r2Reads:0,r2Writes:0,r2Bytes:0})}),
