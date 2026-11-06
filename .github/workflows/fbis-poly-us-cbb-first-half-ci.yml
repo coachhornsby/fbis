@@ -65,5 +65,19 @@ jobs:
           }catch(e){console.log('FBIS_CBB_GAME_PROBE '+JSON.stringify({state:'UNAVAILABLE',reason:e.name||'ERROR'}));}
           finally{clearTimeout(timer)}
           NODE
+      - name: Probe exact slug filter on existing budget-approved events path
+        run: |
+          node --input-type=module <<'NODE'
+          const u=new URL('https://gateway.polymarket.us/v1/events');
+          u.searchParams.set('slug','cbb-yngst-ohiost-2026-11-06');u.searchParams.set('limit','2');
+          const ac=new AbortController(),timer=setTimeout(()=>ac.abort(),12000);
+          try{
+            const r=await fetch(u,{signal:ac.signal,headers:{accept:'application/json'}});
+            if(!r.ok)throw Error('HTTP_'+r.status);
+            const body=await r.json(),events=Array.isArray(body.events)?body.events:[];
+            console.log('FBIS_EXACT_SLUG_PROBE '+JSON.stringify({http:r.status,events:events.length,items:events.map(e=>({slug:e.slug,marketCount:e.markets?.length||0,has1h:e.markets?.some(x=>x.sportsMarketType==='basketball_team_first_half_total')}))}));
+          }catch(e){console.log('FBIS_EXACT_SLUG_PROBE '+JSON.stringify({error:e.message}));}
+          finally{clearTimeout(timer)}
+          NODE
       - name: Build existing Pages board without deployment
         run: npm run build --prefix deploy/board
