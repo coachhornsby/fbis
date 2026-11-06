@@ -248,6 +248,20 @@
         "r2Writes": 0,
         "r2Bytes": 12582912
       }
+    },
+    "services/exchangeDiagnostics.mjs": {
+      "worstCaseMicroUsd": 3,
+      "maxUnits": {
+        "d1Queries": 0,
+        "reads": 0,
+        "writes": 0,
+        "r2Lists": 0,
+        "requests": 0,
+        "responseBytes": 0,
+        "r2Reads": 0,
+        "r2Writes": 1,
+        "r2Bytes": 16384
+      }
     }
   }
 }

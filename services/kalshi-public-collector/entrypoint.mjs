@@ -1,3 +1,4 @@
+import {recordExchangeDiagnostic} from '../exchangeDiagnostics.mjs';
 // Deploy only the controlled handlers. Legacy helper exports are testable in
 // index.js but must not become named Worker entrypoints.
 import {DurableObject} from 'cloudflare:workers';
@@ -13,7 +14,7 @@ export class KalshiMarketPriceSession extends DurableObject{
   try{const {env,lease}=await reserveJobExecution(this.env,KALSHI_STREAM_JOB,{reservationId:'kalshi-market-ws-'+slot,
    network:{origin:'https://fbis-myz.pages.dev',path:'/api/kalshi-market-stream-sign',method:'POST'}});
    return await runKalshiMarketSession(env,lease);
-  }catch(e){return {ok:false,code:String(e.message||'KALSHI_MARKET_STREAM_STOPPED')};}finally{this.running=false;}
+  }catch(e){await recordExchangeDiagnostic(this.env,'kalshi-ws',{error:e.message});return {ok:false,code:String(e.message||'KALSHI_MARKET_STREAM_STOPPED')};}finally{this.running=false;}
  }
  async alarm(){await this.ctx.storage.deleteAlarm();}
 }
@@ -27,6 +28,6 @@ export default{
     network:{origin:'https://fbis-myz.pages.dev',path:'/api/kalshi-collector-internal',method:'POST'}});
    const sports=['nfl','cfb','nba','cbb','nhl'];
    return relaySignedPages(scoped,{scope:'markets',sport:sports[Math.floor(minute/2)%sports.length],fetchImpl:scoped.FBIS_JOB_FETCH});
-  })().catch(()=>({ok:false,code:'KALSHI_REST_STOPPED'})));
+  })().catch(error=>recordExchangeDiagnostic(env,'kalshi-rest',{error:error.message})));
  }
 };
