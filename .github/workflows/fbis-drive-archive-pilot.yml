@@ -1,0 +1,29 @@
+name: FBIS Drive Archive Pilot
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: fbis-drive-archive-pilot
+  cancel-in-progress: false
+
+jobs:
+  archive-pilot:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install bounded OAuth client
+        run: python -m pip install --disable-pip-version-check "google-auth>=2.35,<3" "requests>=2.31,<3"
+      - name: Run synthetic archive write, manifest, and independent readback
+        env:
+          GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID }}
+          GOOGLE_CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }}
+          GOOGLE_REFRESH_TOKEN: ${{ secrets.GOOGLE_REFRESH_TOKEN }}
+        run: python scripts/fbis_drive_archive_pilot.py
