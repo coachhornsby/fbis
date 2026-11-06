@@ -5,7 +5,8 @@ compatibility_flags = ["nodejs_compat"]
 workers_dev = false
 preview_urls = false
 
-# One rotating sport REST poll per two minutes; bounded market WS per minute.
+# Budget-gated signed REST: legacy GAME series on even minutes, one NBA/CBB
+# spread/total/team-total series on odd minutes. Bounded WS per minute.
 # No account credentials. No D1, no betting decisions or venue execution.
 [triggers]
 crons = ["* * * * *"]
