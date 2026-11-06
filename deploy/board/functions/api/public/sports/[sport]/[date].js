@@ -20,4 +20,3 @@ export async function onRequestGet({env,params}){
     return json({state:'PUBLIC_RESEARCH_ONLY',sport,date,packet:summary});
   }catch{return json({state:'MODEL_UNAVAILABLE'},503);}
 }
-export async function onRequest(){return json({state:'METHOD_NOT_ALLOWED'},405);}
