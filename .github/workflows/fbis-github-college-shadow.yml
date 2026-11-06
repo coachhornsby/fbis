@@ -1,0 +1,69 @@
+name: FBIS GitHub College Source Shadow — PR dry run, manual live opt-in
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/fbis-github-college-shadow.yml"
+      - "scripts/github_college_shadow.py"
+      - "test/github_college_shadow_test.py"
+
+  workflow_dispatch:
+    inputs:
+      network_capture:
+        description: "Explicitly authorize two bounded provider requests"
+        required: true
+        type: boolean
+        default: false
+      year:
+        description: "CFB calendar season year; CBB ending season year = year + 1"
+        required: true
+        default: "2026"
+      week:
+        description: "CFB week to request"
+        required: true
+        default: "10"
+      cbb_team:
+        description: "CBB team filter (required to bound result size)"
+        required: true
+        default: "Duke"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: fbis-github-college-shadow
+  cancel-in-progress: false
+
+jobs:
+  shadow:
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+    env:
+      PYTHONDONTWRITEBYTECODE: "1"
+      CFBD_CBBD_KEY: ${{ github.event_name == 'workflow_dispatch' && secrets.CFBD_CBBD_KEY || secrets.CFBD_API_KEY || secrets.CBBD_API_KEY || '' }}
+    steps:
+      - uses: actions/checkout@v4.2.2
+      - uses: actions/setup-python@v5.6.0
+        with:
+          python-version: "3.12"
+      - name: Offline contract tests
+        run: python -m unittest discover -s test -p github_college_shadow_test.py -v
+      - name: Bounded source capture (default dry-run)
+        shell: bash
+        env:
+          FBIS_NETWORK_CAPTURE: ${{ inputs.network_capture }}
+          FBIS_CAPTURE_YEAR: ${{ inputs.year || '2026' }}
+          FBIS_CAPTURE_WEEK: ${{ inputs.week || '10' }}
+          FBIS_CAPTURE_TEAM: ${{ inputs.cbb_team || 'Duke' }}
+        run: |
+          args=(--year "$FBIS_CAPTURE_YEAR" --week "$FBIS_CAPTURE_WEEK" --cbb-team "$FBIS_CAPTURE_TEAM")
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" && "$FBIS_NETWORK_CAPTURE" == "true" ]]; then args+=(--network); fi
+          python scripts/github_college_shadow.py "${args[@]}"
+      - name: Upload non-sensitive validation receipt only (7 days)
+        if: always()
+        uses: actions/upload-artifact@v4.6.2
+        with:
+          name: fbis-github-college-shadow-${{ github.run_id }}
+          path: artifacts/github-college-shadow/receipt.json
+          retention-days: 7
+          if-no-files-found: warn
