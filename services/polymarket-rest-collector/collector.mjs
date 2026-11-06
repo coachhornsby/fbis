@@ -4,6 +4,37 @@ import {ROSTER_SPORTS,stageBoundedStreamCandidates} from '../../functions/lib/bo
 import {fixtureKey,validateFixtureManifest} from '../../functions/lib/polymarketFixtureArchive.js';
 import {POLY_US_API,matchPolymarketUsEvent,polymarketUsMarketOffers,polymarketUsCanonicalSide} from '../../functions/lib/polymarketUs.js';
 export const restKey=sport=>'market-sources/polymarket-us/bounded-rest-v1/'+sport;
+
+/** Translate source-confirmed full-game contracts into a display identity.
+ * A spread/total can never borrow a line or side from another market. */
+export function verifiedFullGameDisplayBinding(offer,fixture){
+ if(!fixture||offer?.raw?.contractLong!==true||offer.period!=='full_game')return null;
+ const id=offer.sourceOutcomeId;
+ if(typeof id!=='string'||!id.length||id.length>160)return null;
+ const base={version:1,contractLong:true,period:'full_game',sourceOutcomeId:id};
+ if(offer.marketFamily==='moneyline'){
+  const side=polymarketUsCanonicalSide(offer,fixture,offer.league);
+  return side==='home'||side==='away'?{...base,side,line:null}:null;
+ }
+ if(offer.marketFamily==='spread'){
+  const side=polymarketUsCanonicalSide(offer,fixture,offer.league);
+  if(!['away','home'].includes(side))return null;
+  const text=String(offer.raw?.providerSide?.description||'').trim();
+  const result=text.match(/\s([+-]\d+(?:\.\d+)?)$/);
+  const line=result?Number(result[1]):NaN;
+  if(!Number.isFinite(line)||Math.abs(line)>1000||
+    (Number.isFinite(Number(offer.line))&&offer.line!=null&&Math.abs(Math.abs(Number(offer.line))-Math.abs(line))>0.001))return null;
+  return {...base,side,line};
+ }
+ if(offer.marketFamily==='total'){
+  const label=String(offer.raw?.providerSide?.description||offer.side||'').trim().toLowerCase();
+  const side=/^over(?:\s|$)/.test(label)?'over':/^under(?:\s|$)/.test(label)?'under':null;
+  const line=Number(offer.line);
+  if(!side||offer.line==null||!Number.isFinite(line)||line<=0||line>1000)return null;
+  return {...base,side,line};
+ }
+ return null;
+}
 // Official public endpoint: https://docs.polymarket.us/api-reference/events/get-events
 export async function collectBoundedPolymarketRest(env,{sport,slot=Math.floor(Date.now()/60000),now=Date.now(),fetchImpl=fetch}={}){
  if(!ROSTER_SPORTS.includes(sport)||!Number.isSafeInteger(slot)||Math.abs(slot-Math.floor(now/60000))>1)throw Error('INVALID_REST_SCOPE');
@@ -26,13 +57,16 @@ export async function collectBoundedPolymarketRest(env,{sport,slot=Math.floor(Da
    const fixture=manifest.fixtures.find(g=>g.id===match.id);
    // Only bounded full-game positive contracts. Extra markets are reported as
    // partial coverage rather than silently enlarging a job or scanning history.
-   for(const market of event.markets.slice(0,8)){
+   // Inspect up to 24 markets from the already bounded response; no new calls.
+   // Never stage contracts with unverifiable side, threshold, or period.
+   for(const market of event.markets.slice(0,24)){
     if(!Array.isArray(market.marketSides)||market.marketSides.length>4)throw Error('PROVIDER_SIDE_CAPACITY');
     const offers=polymarketUsMarketOffers({...event,markets:[market]},sport,{canonicalId:match.id,capturedAt:new Date(now).toISOString(),maxMarkets:1});
     for(const offer of offers){
-     if(offer.raw?.contractLong!==true||!['moneyline','spread','total'].includes(offer.marketFamily))continue;
-     const side=polymarketUsCanonicalSide(offer,fixture,offer.league);
-     candidates.push({sport,source_market_id:offer.sourceMarketId,canonical_event_id:match.id,market_family:offer.marketFamily,event_start_time:fixture.start,collected_at:new Date(now).toISOString(),...(offer.marketFamily==='moneyline'&&offer.period==='full_game'&&side?{displayBinding:{version:1,contractLong:true,period:'full_game',side,sourceOutcomeId:offer.sourceOutcomeId,line:null}}:{})});
+     if(!['moneyline','spread','total'].includes(offer.marketFamily))continue;
+     const displayBinding=verifiedFullGameDisplayBinding(offer,fixture);
+     if(!displayBinding)continue;
+     candidates.push({sport,source_market_id:offer.sourceMarketId,canonical_event_id:match.id,market_family:offer.marketFamily,event_start_time:fixture.start,collected_at:new Date(now).toISOString(),displayBinding});
     }
    }
   }

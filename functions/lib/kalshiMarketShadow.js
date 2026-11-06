@@ -8,7 +8,7 @@
  */
 export const KALSHI_PUBLIC_BASE = "https://external-api.kalshi.com/trade-api/v2";
 export const KALSHI_SHADOW_SERIES = Object.freeze({
-  cbb:"KXNCAAMBGAME", nhl:"KXNHLGAME", nfl: "KXNFLGAME", cfb: "KXNCAAFGAME", cfb_spread:"KXNCAAFSPREAD", cfb_total:"KXNCAAFTOTAL", mlb: "KXMLBGAME", nba: "KXNBAGAME",
+  cbb:"KXNCAAMBGAME", cbb_spread:"KXNCAAMBSPREAD", cbb_total:"KXNCAAMBTOTAL", cbb_team_total:"KXNCAAMBTEAMTOTAL", nhl:"KXNHLGAME", nfl:"KXNFLGAME", cfb:"KXNCAAFGAME", cfb_spread:"KXNCAAFSPREAD", cfb_total:"KXNCAAFTOTAL", mlb:"KXMLBGAME", nba:"KXNBAGAME", nba_spread:"KXNBASPREAD", nba_total:"KXNBATOTAL", nba_team_total:"KXNBATEAMTOTAL",
   atp: "KXATPMATCH", wta: "KXWTAMATCH",
   atp_challenger: "KXATPCHALLENGERMATCH",
   itf_men: "KXITFMATCH", itf_women: "KXITFWMATCH",

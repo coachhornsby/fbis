@@ -23,11 +23,15 @@ export default{
  async scheduled(event,env,ctx){
   const minute=Math.floor((event?.scheduledTime||Date.now())/60000);
   ctx.waitUntil(env.MARKET_SESSION.getByName('bounded-market-price-v1').run(minute));
-  if(minute%2===0)ctx.waitUntil((async()=>{
+  // Preserve existing main-game cadence on even minutes; use the same signed
+  // budget-gated relay on odd minutes for verified basketball line families.
+  ctx.waitUntil((async()=>{
    const scoped=await beginJobExecution(env,KALSHI_RELAY_JOB,{reservationId:'kalshi-rest-'+minute,
     network:{origin:'https://fbis-myz.pages.dev',path:'/api/kalshi-collector-internal',method:'POST'}});
-   const sports=['nfl','cfb','nba','cbb','nhl'];
-   const result=await relaySignedPages(scoped,{scope:'markets',sport:sports[Math.floor(minute/2)%sports.length],fetchImpl:scoped.FBIS_JOB_FETCH});
+   const games=['nfl','cfb','nba','cbb','nhl'];
+   const lines=['nba_spread','nba_total','nba_team_total','cbb_spread','cbb_total','cbb_team_total'];
+   const sport=minute%2===0?games[Math.floor(minute/2)%games.length]:lines[Math.floor(minute/2)%lines.length];
+   const result=await relaySignedPages(scoped,{scope:'markets',sport,fetchImpl:scoped.FBIS_JOB_FETCH});
    if(!result.ok)await recordExchangeDiagnostic(env,'kalshi-rest',result);return result;
   })().catch(error=>recordExchangeDiagnostic(env,'kalshi-rest',{error:error.message})));
  }

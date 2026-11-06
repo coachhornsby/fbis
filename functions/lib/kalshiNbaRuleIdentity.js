@@ -1,5 +1,6 @@
 // Explicit venue-label aliases; no ticker-only inference or expiration-as-tipoff.
 const names={ATL:'Atlanta',BOS:'Boston',BKN:'Brooklyn',CHA:'Charlotte',CHI:'Chicago',CLE:'Cleveland',DAL:'Dallas',DEN:'Denver',DET:'Detroit',GS:'Golden State',GSW:'Golden State',HOU:'Houston',IND:'Indiana',LAC:'Los Angeles C',LAL:'Los Angeles L',MEM:'Memphis',MIA:'Miami',MIL:'Milwaukee',MIN:'Minnesota',NO:'New Orleans',NOP:'New Orleans',NY:'New York',NYK:'New York',OKC:'Oklahoma City',ORL:'Orlando',PHI:'Philadelphia',PHX:'Phoenix',POR:'Portland',SAC:'Sacramento',SA:'San Antonio',SAS:'San Antonio',TOR:'Toronto',UTAH:'Utah',UTA:'Utah',WSH:'Washington',WAS:'Washington'};
+export const nbaCityForAbbr=abbr=>names[String(abbr||'').toUpperCase()]||null;
 const clean=x=>String(x||'').toLowerCase().replace(/[^a-z0-9]+/g,' ').trim();
 const months={Jan:'01',Feb:'02',Mar:'03',Apr:'04',May:'05',Jun:'06',Jul:'07',Aug:'08',Sep:'09',Oct:'10',Nov:'11',Dec:'12'};
 const day=start=>new Intl.DateTimeFormat('en-CA',{timeZone:'America/Chicago',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date(start));

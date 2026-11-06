@@ -194,3 +194,12 @@
 .fbis-shell-main.route-board .fbis-mini-exchanges thead .team-logo-fallback.fbis-mini-market-team-logo{
  font-size:12px!important;font-weight:850;letter-spacing:0
 }
+
+.fbis-shell-main.route-board .fbis-mini-team-total-prices{display:flex;flex-direction:column;gap:6px}
+.fbis-shell-main.route-board .fbis-mini-team-total-prices>div{
+ display:flex;align-items:center;justify-content:space-between;gap:5px;
+ font-size:16px;line-height:1.25;color:#f3f8ff
+}
+.fbis-shell-main.route-board .fbis-mini-team-total-prices>div+div{border-top:1px solid #34404c;padding-top:5px}
+.fbis-shell-main.route-board .fbis-mini-team-total-prices span{font-size:16px;font-weight:700;white-space:nowrap}
+.fbis-shell-main.route-board .fbis-mini-team-total-prices strong{font-size:16px;font-weight:850;color:#fbd279;white-space:nowrap}
