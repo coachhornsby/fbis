@@ -1,0 +1,31 @@
+name: FBIS Bounded D1 to Google Drive Archive
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: fbis-bounded-d1-drive-pilot
+  cancel-in-progress: false
+
+jobs:
+  copy-restore:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+      - name: Install OAuth and HTTP libraries
+        run: python -m pip install --disable-pip-version-check "google-auth>=2.35,<3" "requests>=2.31,<3"
+      - name: Bounded source read, Drive archive and independent restore
+        env:
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID }}
+          GOOGLE_CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }}
+          GOOGLE_REFRESH_TOKEN: ${{ secrets.GOOGLE_REFRESH_TOKEN }}
+        run: python scripts/fbis_drive_archive_bounded_d1.py
