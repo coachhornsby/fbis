@@ -1,3 +1,4 @@
+import {recordExchangeDiagnostic} from '../exchangeDiagnostics.mjs';
 import {DurableObject} from 'cloudflare:workers';
 import {reserveJobExecution,beginJobExecution} from '../account-budget/jobScope.mjs';
 import {POLY_STREAM_JOB as JOB} from '../account-budget/executionJobs.mjs';
@@ -15,7 +16,7 @@ export class PolymarketMarketStreamRecovered extends DurableObject{
   try{
    const {env,lease}=await reserveJobExecution(this.env,JOB,{reservationId:'polyus-stream-'+slot,network:{origin:'https://fbis-myz.pages.dev',path:'/api/polymarket-stream-sign',method:'POST'}});
    return {ok:true,...await runBoundedStream(env,lease)};
-  }catch{return {ok:false,code:'BOUNDED_STREAM_STOPPED'};}
+  }catch(error){await recordExchangeDiagnostic(this.env,'polymarket-ws',{error:error.message});return {ok:false,code:'BOUNDED_STREAM_STOPPED'};}
   finally{this.running=false;}
  }
  // Legacy alarms never obtain a lease, perform collection or reschedule.
