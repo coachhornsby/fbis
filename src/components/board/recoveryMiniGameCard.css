@@ -181,3 +181,16 @@
 .fbis-mini-exchange-logo{display:block;width:32px;height:32px;object-fit:contain;margin:auto}
 .fbis-mini-exchange-line{display:block;color:#f3f8ff;font-size:16px;font-weight:500}
 .fbis-mini-sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
+
+/* Team emblems replace abbreviation headers; the shared TeamLogo component
+   displays its existing abbreviation fallback when an emblem is unavailable. */
+.fbis-shell-main.route-board .fbis-mini-exchanges thead th.fbis-mini-market-team{
+ text-align:center;vertical-align:middle;padding:6px 2px
+}
+.fbis-shell-main.route-board .fbis-mini-exchanges thead .fbis-mini-market-team-logo{
+ display:inline-flex;align-items:center;justify-content:center;
+ vertical-align:middle;margin:0 auto;max-width:100%
+}
+.fbis-shell-main.route-board .fbis-mini-exchanges thead .team-logo-fallback.fbis-mini-market-team-logo{
+ font-size:12px!important;font-weight:850;letter-spacing:0
+}

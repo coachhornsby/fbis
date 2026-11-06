@@ -20,3 +20,22 @@ test('Kalshi and all exchange price rows are unaffected', () => {
   assert.ok(component.includes('row.cells.map((cell,i)=>'));
   assert.ok(component.includes('className="fbis-mini-exchange-logo"'));
 });
+
+test('exchange table labels away and home columns with actual TeamLogo images', () => {
+  assert.equal((component.match(/className="fbis-mini-market-team-logo"/g) || []).length, 2);
+  assert.ok(component.includes('<TeamLogo team={away} size={30} tone="light" className="fbis-mini-market-team-logo"/>'));
+  assert.ok(component.includes('<TeamLogo team={home} size={30} tone="light" className="fbis-mini-market-team-logo"/>'));
+  assert.ok(component.includes('aria-label={displayName(away)}'));
+  assert.ok(component.includes('aria-label={displayName(home)}'));
+  const logoComponent = readFileSync('src/components/TeamLogo.jsx', 'utf8');
+  assert.ok(logoComponent.includes('team-logo-fallback'));
+  assert.ok(logoComponent.includes('onError={() => setFailed(true)}'));
+});
+
+test('projected score section shows team names without duplicate abbreviations', () => {
+  assert.ok(component.includes('<strong title={displayName(away)}>{displayName(away)}</strong>'));
+  assert.ok(component.includes('<strong title={displayName(home)}>{displayName(home)}</strong>'));
+  assert.ok(!component.includes('smallName('));
+  assert.ok(!component.includes('<span>{smallName(away)}</span>'));
+  assert.ok(!component.includes('<span>{smallName(home)}</span>'));
+});
