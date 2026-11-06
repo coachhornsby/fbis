@@ -34,7 +34,9 @@ export async function publishBoundedStreamRoster(env,{now=Date.now(),reservation
   if(rows.length)validateStreamRoster({...value,capturedAt:new Date(now).toISOString(),expiresAt:new Date(now+900000).toISOString(),roster:rows},now);
   candidates.push(...rows);sources.push({sport,status:rows.length?'CURRENT':'STALE',selected:rows.length});
  }
- const manifest=candidates.length?buildStreamRosterManifest(candidates,{now}):{version:2,source:'Polymarket US',capturedAt:new Date(now).toISOString(),roster:[],complete:false,canQualify:false,canAuthorizeWager:false};
+ // Controlled live pilot: 20 subscribed markets reduces message pressure after
+ // the observed 50-market lease expiration; no added network calls or spending.
+ const manifest=candidates.length?buildStreamRosterManifest(candidates,{now,maxSelected:20}):{version:2,source:'Polymarket US',capturedAt:new Date(now).toISOString(),roster:[],complete:false,canQualify:false,canAuthorizeWager:false};
  manifest.expiresAt=new Date(Math.min(now+900000,...manifest.roster.map(r=>Date.parse(r.collected_at)+900000))).toISOString();
  manifest.sources=sources;manifest.coverageScope='BOUNDED_CAPTURED_CANDIDATES_ONLY';manifest.complete=false;
  const saved=await env.ARCHIVE.put(STREAM_ROSTER_KEY,JSON.stringify(manifest),writeOptions(previous));
