@@ -41,7 +41,7 @@ test('CBB school names join exact canonical schools with paired published rules,
 test('card delivery policy permits the exact bounded R2 snapshot fanout without D1',async()=>{
  const {CERTIFIED_EXECUTION_JOBS}=await import('../services/account-budget/executionJobs.mjs');
  const units=CERTIFIED_EXECUTION_JOBS['functions/lib/exchangeCardDelivery.js'].units;
- assert.equal(units.r2Reads,7); // fixture + Kalshi game + Kalshi WS + 3 line-family snapshots + Polymarket
+ assert.equal(units.r2Reads,8); // fixture + Kalshi game + Kalshi WS + 3 full-game families + CBB 1H total + Polymarket
  assert.equal(units.d1Queries,0);
  assert.equal(units.r2Writes,0);
  assert.equal(units.requests,0);
