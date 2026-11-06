@@ -5,6 +5,7 @@ import {loadBoundedPolymarketSnapshot,selectBoundedPolymarketOffers} from './bou
 import {validateFixtureManifest,fixtureKey} from './polymarketFixtureArchive.js';
 import {KALSHI_SHADOW_SERIES} from './kalshiMarketShadow.js';
 import {matchedKalshiBasketballLineQuotes} from './kalshiBasketballLineQuotes.js';
+import {matchedKalshiCbbFirstHalfTotals} from './kalshiFirstHalfTotalQuotes.js';
 export const EXCHANGE_CARD_JOB='functions/lib/exchangeCardDelivery.js';
 const norm=x=>String(x||'').normalize('NFKD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/[^a-z0-9]+/g,' ').trim();
 const fresh=(t,now,age)=>Number.isFinite(Date.parse(t))&&Date.parse(t)<=now&&now-Date.parse(t)<=age;
@@ -39,9 +40,12 @@ export async function readExchangeCardQuotes(original,{sport,date,now=Date.now()
   read('kalshi/public-shadow/v1/sports/'+sport+'.json'),
   read('kalshi/public-shadow/v1/market-ws/latest.json'),
   loadBoundedPolymarketSnapshot(original,{now:new Date(now)}),
-  ...derivativeSports.map(key=>read('kalshi/public-shadow/v1/sports/'+key+'.json'))
+  ...derivativeSports.map(key=>read('kalshi/public-shadow/v1/sports/'+key+'.json')),
+  ...(sport==='cbb'?[read('kalshi/public-shadow/v1/sports/cbb_1h_total.json')]:[])
  ]);
  const byEvent=matchedKalshiCardQuotes(fixtures,snapshot,stream,{sport,now});
+ const firstHalfSnapshot=sport==='cbb'?derivativeSnapshots[derivativeSports.length]:null;
+ if(sport==='cbb')for(const [id,quotes] of Object.entries(matchedKalshiCbbFirstHalfTotals(fixtures,firstHalfSnapshot,{now})))(byEvent[id]??=[]).push(...quotes);
  derivativeSports.forEach((sourceSport,i)=>{
   const matched=matchedKalshiBasketballLineQuotes(fixtures,derivativeSnapshots[i],{sourceSport,now});
   for(const [id,quotes] of Object.entries(matched))(byEvent[id]??=[]).push(...quotes);
@@ -56,7 +60,7 @@ export async function readExchangeCardQuotes(original,{sport,date,now=Date.now()
  };
  const marketSources={
   Kalshi:{moneyline:inspect(snapshot),spread:inspect(derivativeSnapshots[0]),
-   total:inspect(derivativeSnapshots[1]),team_total:inspect(derivativeSnapshots[2])},
+   total:inspect(derivativeSnapshots[1]),team_total:inspect(derivativeSnapshots[2]),first_half_total:inspect(firstHalfSnapshot)},
   Polymarket:{state:poly.ok?'CAPTURED':poly.code||'NOT_CAPTURED',
    capturedAt:poly.ok?poly.capturedAt:null}
  };
