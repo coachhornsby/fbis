@@ -83,9 +83,25 @@ export async function collectBoundedPolymarketRest(env,{sport,slot=Math.floor(Da
    for(const market of markets.slice(0,24)){
     if(!Array.isArray(market.marketSides)||market.marketSides.length>4)throw Error('PROVIDER_SIDE_CAPACITY');
     const offers=polymarketUsMarketOffers({...event,markets:[market]},sport,{canonicalId:match.id,capturedAt:new Date(now).toISOString(),maxMarkets:1});
+    // US 1H totals use one YES instrument: Over is long, Under is short.
+    // Stage a single slug only when BOTH provider-authored sides agree on
+    // the identical line; the NO reference cost comes from 1 - YES bid.
+    if(sport==='cbb'&&offers.some(o=>o.period==='first_half')){
+     const long=offers.find(o=>verifiedCbbFirstHalfTotalBinding(o,fixture)?.side==='over');
+     const short=offers.find(o=>o.period==='first_half'&&o.marketFamily==='total'&&
+       o.raw?.contractLong===false&&/^under$/i.test(String(o.raw?.providerSide?.description||'').trim())&&
+       o.line===long?.line&&o.sourceMarketId===long?.sourceMarketId&&
+       typeof o.sourceOutcomeId==='string'&&o.sourceOutcomeId.length>0&&o.sourceOutcomeId.length<=160);
+     if(!long||!short)continue;
+     const displayBinding={...verifiedCbbFirstHalfTotalBinding(long,fixture),
+       oppositeSide:'under',oppositeSourceOutcomeId:short.sourceOutcomeId};
+     candidates.push({sport,source_market_id:long.sourceMarketId,canonical_event_id:match.id,
+       market_family:'total',event_start_time:fixture.start,collected_at:new Date(now).toISOString(),displayBinding});
+     continue;
+    }
     for(const offer of offers){
      if(!['moneyline','spread','total'].includes(offer.marketFamily))continue;
-     const displayBinding=verifiedFullGameDisplayBinding(offer,fixture)||verifiedCbbFirstHalfTotalBinding(offer,fixture);
+     const displayBinding=verifiedFullGameDisplayBinding(offer,fixture);
      if(!displayBinding)continue;
      candidates.push({sport,source_market_id:offer.sourceMarketId,canonical_event_id:match.id,market_family:offer.marketFamily,event_start_time:fixture.start,collected_at:new Date(now).toISOString(),displayBinding});
     }
