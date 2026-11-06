@@ -15,6 +15,7 @@ export const POLY_REST_JOB='services/polymarket-rest-collector/worker.mjs';
 export const POLY_FIXTURE_JOB='functions/lib/polymarketFixtureArchive.js:write';
 const noD1={d1Queries:0,reads:0,writes:0,r2Lists:0};
 export const CERTIFIED_EXECUTION_JOBS=Object.freeze({
+ ['services/espn-mcp/oauth.mjs']:Object.freeze({cpuMs:100,units:Object.freeze({...noD1,requests:0,responseBytes:0,r2Reads:0,r2Writes:0,r2Bytes:0,doDurationMs:1000})}),
  ['services/espn-mcp/worker.mjs']:Object.freeze({cpuMs:100,units:Object.freeze({...noD1,requests:1,responseBytes:4194304,r2Reads:0,r2Writes:0,r2Bytes:0})}),
  ['services/exchangeDiagnostics.mjs']:Object.freeze({cpuMs:100,units:Object.freeze({...noD1,requests:0,responseBytes:0,r2Reads:0,r2Writes:1,r2Bytes:16384})}),
  // Bounded card read: 1 fixture manifest + 1 Kalshi game + 1 Kalshi WS +

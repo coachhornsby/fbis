@@ -1,0 +1,201 @@
+{
+  "startedAt": "2026-11-06T22:13:15.677Z",
+  "checks": [
+    {
+      "name": "OAuth discovery",
+      "ok": true
+    },
+    {
+      "name": "Resource discovery",
+      "ok": true
+    },
+    {
+      "name": "Dynamic client registration",
+      "ok": true,
+      "httpStatus": 201
+    },
+    {
+      "name": "Owner sign-in page",
+      "ok": true,
+      "httpStatus": 200
+    },
+    {
+      "name": "CSRF rejection",
+      "ok": true,
+      "httpStatus": 400
+    },
+    {
+      "name": "Invalid owner key rejected",
+      "ok": true
+    },
+    {
+      "name": "Owner authorization",
+      "ok": true,
+      "httpStatus": 303
+    },
+    {
+      "name": "State and issuer preserved",
+      "ok": true
+    },
+    {
+      "name": "Invalid PKCE rejected",
+      "ok": true,
+      "httpStatus": 400
+    },
+    {
+      "name": "Code exchange",
+      "ok": true,
+      "httpStatus": 200
+    },
+    {
+      "name": "Code replay rejected",
+      "ok": true,
+      "httpStatus": 400
+    },
+    {
+      "name": "Unauthenticated tool discovery",
+      "ok": true
+    },
+    {
+      "name": "Unauthenticated data denied",
+      "ok": true,
+      "httpStatus": 401
+    },
+    {
+      "name": "OAuth access reaches MCP",
+      "ok": true,
+      "httpStatus": 200,
+      "version": "1.2.0"
+    },
+    {
+      "name": "Existing bearer connection retained",
+      "ok": true
+    },
+    {
+      "name": "cfb OAuth scoreboard",
+      "ok": true,
+      "league": "cfb",
+      "httpStatus": 200,
+      "events": 5,
+      "receivedAt": "2026-11-06T22:13:27.429Z",
+      "sourceHttpDate": "Fri, 06 Nov 2026 22:13:27 GMT",
+      "sourceUpdatedAt": null,
+      "isError": false
+    },
+    {
+      "name": "nba OAuth scoreboard",
+      "ok": true,
+      "league": "nba",
+      "httpStatus": 200,
+      "events": 9,
+      "receivedAt": "2026-11-06T22:13:27.587Z",
+      "sourceHttpDate": "Fri, 06 Nov 2026 22:13:27 GMT",
+      "sourceUpdatedAt": null,
+      "isError": false
+    },
+    {
+      "name": "cbb OAuth scoreboard",
+      "ok": true,
+      "league": "cbb",
+      "httpStatus": 200,
+      "events": 72,
+      "receivedAt": "2026-11-06T22:13:27.736Z",
+      "sourceHttpDate": "Fri, 06 Nov 2026 22:13:27 GMT",
+      "sourceUpdatedAt": null,
+      "isError": false
+    },
+    {
+      "name": "nhl OAuth scoreboard",
+      "ok": true,
+      "league": "nhl",
+      "httpStatus": 200,
+      "events": 3,
+      "receivedAt": "2026-11-06T22:13:27.949Z",
+      "sourceHttpDate": "Fri, 06 Nov 2026 22:13:27 GMT",
+      "sourceUpdatedAt": null,
+      "isError": false
+    },
+    {
+      "name": "Refresh rotation",
+      "ok": true,
+      "httpStatus": 200
+    },
+    {
+      "name": "Refresh replay rejected",
+      "ok": true,
+      "httpStatus": 400
+    },
+    {
+      "name": "Revoke test grant",
+      "ok": true,
+      "httpStatus": 200
+    },
+    {
+      "name": "Revoked refresh rejected",
+      "ok": true,
+      "httpStatus": 400
+    }
+  ],
+  "failures": [],
+  "sports": [
+    {
+      "league": "cfb",
+      "httpStatus": 200,
+      "events": 5,
+      "receivedAt": "2026-11-06T22:13:27.429Z",
+      "sourceHttpDate": "Fri, 06 Nov 2026 22:13:27 GMT",
+      "sourceUpdatedAt": null,
+      "isError": false
+    },
+    {
+      "league": "nba",
+      "httpStatus": 200,
+      "events": 9,
+      "receivedAt": "2026-11-06T22:13:27.587Z",
+      "sourceHttpDate": "Fri, 06 Nov 2026 22:13:27 GMT",
+      "sourceUpdatedAt": null,
+      "isError": false
+    },
+    {
+      "league": "cbb",
+      "httpStatus": 200,
+      "events": 72,
+      "receivedAt": "2026-11-06T22:13:27.736Z",
+      "sourceHttpDate": "Fri, 06 Nov 2026 22:13:27 GMT",
+      "sourceUpdatedAt": null,
+      "isError": false
+    },
+    {
+      "league": "nhl",
+      "httpStatus": 200,
+      "events": 3,
+      "receivedAt": "2026-11-06T22:13:27.949Z",
+      "sourceHttpDate": "Fri, 06 Nov 2026 22:13:27 GMT",
+      "sourceUpdatedAt": null,
+      "isError": false
+    }
+  ],
+  "completedAt": "2026-11-06T22:13:28.624Z",
+  "release": {
+    "version": "1.2.0",
+    "testsPassed": 73,
+    "workerVersion": "605fad4c-3596-4876-a400-7913feff80d1",
+    "workerDeployment": "f3163348-8dfd-4f15-aa0f-503acb1ec61a",
+    "budgetWorkerVersion": "33d83fa5-c773-4e51-809c-71c12ece9786",
+    "migration": "espn-oauth-v1",
+    "nativeChatGPTConnectionComplete": false,
+    "requiresOwnerConnectionAndConsent": true,
+    "modelsChanged": false,
+    "wagerAuthorityChanged": false,
+    "budgetCeilingsChanged": false,
+    "scheduledPolling": false,
+    "testGrantRevoked": true
+  },
+  "limitations": [
+    "HTTP OAuth flow and live data retrieval verified; the owner still must create/install the native ChatGPT web connection and authorize it.",
+    "Existing ZIP plugin remains unchanged and desktop-only; native web registration is separate.",
+    "Owner signs in using the existing connection key from the original private plugin ZIP. No new owner credentials are created or printed.",
+    "Application budget gates are preserved; they are not provider billing hard caps.",
+    "Revocation prevents refresh; existing access tokens expire within one hour."
+  ]
+}

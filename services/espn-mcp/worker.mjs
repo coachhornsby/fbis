@@ -1,3 +1,4 @@
+import {oauthRoute,authorized,unauthorized,SCOPE} from './oauth.mjs';
 import {requireJobAdmission} from '../account-budget/admission.mjs';
 import {createExecutionLease, executionFetch} from '../account-budget/execution.mjs';
 export const JOB='services/espn-mcp/worker.mjs';
@@ -10,7 +11,7 @@ export const TOOLS=[
  {name:'espn_summary',description:'ESPN game header, teams, scores, status, scoring plays and team statistics. Requires numeric ESPN event ID.',inputSchema:{type:'object',properties:{league,event:{type:'string',pattern:'^[0-9]{6,15}$'}},required:['league','event'],additionalProperties:false}},
  {name:'espn_teams',description:'ESPN team identity directory with pagination and explicit coverage metadata. College directory coverage is explicitly labeled; ESPN may include other divisions.',inputSchema:{type:'object',properties:{league,...pagination},required:['league'],additionalProperties:false}},
  {name:'fbis_espn_status',description:'ESPN connector configuration; no upstream request.',inputSchema:{type:'object',properties:{},additionalProperties:false}}
-].map(t=>({...t,annotations:{readOnlyHint:true,destructiveHint:false,idempotentHint:true,openWorldHint:true}}));
+].map(t=>({...t,securitySchemes:[{type:'oauth2',scopes:[SCOPE]}],_meta:{securitySchemes:[{type:'oauth2',scopes:[SCOPE]}]},annotations:{readOnlyHint:true,destructiveHint:false,idempotentHint:true,openWorldHint:true}}));
 const json=(value,status=200)=>new Response(JSON.stringify(value),{status,headers:{'content-type':'application/json','cache-control':'no-store'}});
 const result=(id,value)=>json({jsonrpc:'2.0',id,result:value});
 const rpcError=(id,code,message)=>json({jsonrpc:'2.0',id,error:{code,message}});
@@ -36,10 +37,9 @@ export function requestSpec(name,a){
  else {url.searchParams.set('limit','1000');if(a.league==='cfb')url.searchParams.set('groups','80');if(a.league==='cbb')url.searchParams.set('groups','50');}
  return {url,action,date,offset,limit};
 }
-async function authorized(req,env){const h=req.headers.get('authorization');if(!h?.startsWith('Bearer ')||!env.ESPN_TOKEN_SHA256)return false;const bytes=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(h.slice(7)));const hash=Array.from(new Uint8Array(bytes),x=>x.toString(16).padStart(2,'0')).join('');let diff=hash.length^env.ESPN_TOKEN_SHA256.length;for(let i=0;i<hash.length;i++)diff|=hash.charCodeAt(i)^env.ESPN_TOKEN_SHA256.charCodeAt(i);return diff===0;}
 export async function callTool(name,a,env,{fetchImpl=fetch,admit=requireJobAdmission}={}){
  const spec=requestSpec(name,a);
- if(!spec)return content({source:'ESPN unofficial public API',version:'1.1.0',readOnly:true,scheduledPolling:false,wagerAuthority:false,budgetBindingConfigured:!!env.FBIS_ACCOUNT_BUDGET,timeZone:'America/Chicago',leagues:Object.keys(LEAGUES)});
+ if(!spec)return content({source:'ESPN unofficial public API',version:'1.2.0',readOnly:true,scheduledPolling:false,wagerAuthority:false,budgetBindingConfigured:!!env.FBIS_ACCOUNT_BUDGET,timeZone:'America/Chicago',leagues:Object.keys(LEAGUES)});
  const {url,action,date,offset,limit}=spec;const requestedAt=new Date().toISOString();let receivedAt=null,httpStatus=null;
  try{
   const admission=await admit(env,JOB,crypto.randomUUID());
@@ -67,8 +67,9 @@ export async function callTool(name,a,env,{fetchImpl=fetch,admit=requireJobAdmis
  }catch(e){return content({source:'ESPN',sourceUrl:url.toString(),league:a.league,requestedAt,receivedAt,httpStatus,error:e?.name==='TimeoutError'||e?.name==='AbortError'?'UPSTREAM_TIMEOUT':e.message||'CONNECTOR_FAILURE',wagerAuthority:false},true);}
 }
 export default {async fetch(req,env){
+ const oauth=await oauthRoute(req,env);if(oauth)return oauth;
  if(new URL(req.url).pathname!=='/mcp')return new Response('Not found',{status:404});
- if(!await authorized(req,env))return new Response('Unauthorized',{status:401});
+ if(req.method==='GET'&&!await authorized(req,env))return unauthorized();
  if(req.method==='GET')return new Response(null,{status:405,headers:{allow:'POST'}});
  if(req.method!=='POST')return new Response(null,{status:405,headers:{allow:'POST'}});
  if(Number(req.headers.get('content-length')||0)>16384)return new Response('Request too large',{status:413});
@@ -76,9 +77,10 @@ export default {async fetch(req,env){
  if(!m||Array.isArray(m)||m.jsonrpc!=='2.0'||typeof m.method!=='string')return rpcError(null,-32600,'Invalid request');
  if(m.id==null&&m.method.startsWith('notifications/'))return new Response(null,{status:202});
  if(m.id==null)return rpcError(null,-32600,'Request id required');
- if(m.method==='initialize')return result(m.id,{protocolVersion:'2025-03-26',capabilities:{tools:{}},serverInfo:{name:'FBIS ESPN',version:'1.1.0'}});
+ if(m.method==='initialize')return result(m.id,{protocolVersion:'2025-03-26',capabilities:{tools:{}},serverInfo:{name:'FBIS ESPN',version:'1.2.0'}});
  if(m.method==='ping')return result(m.id,{});
  if(m.method==='tools/list')return result(m.id,{tools:TOOLS});
  if(m.method!=='tools/call')return rpcError(m.id,-32601,'Method not found');
+ if(!await authorized(req,env))return unauthorized();
  try{return result(m.id,await callTool(m.params?.name,m.params?.arguments??{},env));}catch(e){return rpcError(m.id,-32602,e.message);}
 }};

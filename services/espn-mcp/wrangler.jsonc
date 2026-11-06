@@ -1,11 +1,46 @@
 {
- "name":"fbis-espn-mcp",
- "main":"worker.mjs",
- "compatibility_date":"2026-11-06",
- "workers_dev":true,
- "preview_urls":false,
- "vars":{"CLOUDFLARE_ACCOUNT_ID":"2fdc80b8d99070adcef12f7a785c3fc1"},
- "durable_objects":{"bindings":[{"name":"FBIS_ACCOUNT_BUDGET","class_name":"AccountBudget","script_name":"fbis-account-budget"}]},
- "limits":{"cpu_ms":100},
- "observability":{"enabled":true,"head_sampling_rate":0.01,"logs":{"enabled":true,"invocation_logs":true},"traces":{"enabled":true,"head_sampling_rate":0.01}}
+  "name": "fbis-espn-mcp",
+  "main": "entrypoint.mjs",
+  "compatibility_date": "2026-11-06",
+  "workers_dev": true,
+  "preview_urls": false,
+  "vars": {
+    "CLOUDFLARE_ACCOUNT_ID": "2fdc80b8d99070adcef12f7a785c3fc1"
+  },
+  "durable_objects": {
+    "bindings": [
+      {
+        "name": "FBIS_ACCOUNT_BUDGET",
+        "class_name": "AccountBudget",
+        "script_name": "fbis-account-budget"
+      },
+      {
+        "name": "ESPN_OAUTH_STATE",
+        "class_name": "EspnOAuthState"
+      }
+    ]
+  },
+  "limits": {
+    "cpu_ms": 100
+  },
+  "observability": {
+    "enabled": true,
+    "head_sampling_rate": 0.01,
+    "logs": {
+      "enabled": true,
+      "invocation_logs": true
+    },
+    "traces": {
+      "enabled": true,
+      "head_sampling_rate": 0.01
+    }
+  },
+  "migrations": [
+    {
+      "tag": "espn-oauth-v1",
+      "new_sqlite_classes": [
+        "EspnOAuthState"
+      ]
+    }
+  ]
 }

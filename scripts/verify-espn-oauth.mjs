@@ -1,0 +1,36 @@
+// One-shot live OAuth verification. Credentials remain in memory and never enter the report.
+import {writeFile} from 'node:fs/promises';
+const origin='https://fbis-espn-mcp.coachhornsby.workers.dev',resource=origin+'/mcp';
+const key=process.env.FBIS_ESPN_MCP_TOKEN;if(!key)throw Error('FBIS_ESPN_MCP_TOKEN required');
+const date=process.env.FBIS_ESPN_DATE||new Intl.DateTimeFormat('en-CA',{timeZone:'America/Chicago',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date()).replaceAll('-','');
+const report={date,startedAt:new Date().toISOString(),checks:[],failures:[]};
+const record=(name,ok,detail={})=>{report.checks.push({name,ok,...detail});if(!ok)report.failures.push(name);};
+const send=async(path,options={})=>fetch(origin+path,{...options,redirect:'manual',signal:AbortSignal.timeout(20000)});
+const form=(path,data,headers={})=>send(path,{method:'POST',headers:{'content-type':'application/x-www-form-urlencoded',...headers},body:new URLSearchParams(data)});
+let access,refresh,client_id;
+try{
+ const meta=await(await send('/.well-known/oauth-authorization-server')).json();record('OAuth discovery',meta.issuer===origin&&meta.registration_endpoint===origin+'/register'&&meta.code_challenge_methods_supported.includes('S256'));
+ const prm=await(await send('/.well-known/oauth-protected-resource')).json();record('Resource discovery',prm.resource===resource&&prm.authorization_servers[0]===origin);
+ const response=await send('/register',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({redirect_uris:['https://chatgpt.com/connector_platform_oauth_redirect'],token_endpoint_auth_method:'none',grant_types:['authorization_code','refresh_token'],response_types:['code']})});const registration=await response.json();client_id=registration.client_id;record('Dynamic client registration',response.status===201&&!!client_id,{httpStatus:response.status});if(!client_id)throw Error('REGISTRATION_FAILED');
+ const verifier=crypto.randomUUID().replaceAll('-','')+crypto.randomUUID().replaceAll('-','');const hash=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(verifier));const challenge=Buffer.from(hash).toString('base64url');
+ const params={client_id,redirect_uri:registration.redirect_uris[0],response_type:'code',resource,scope:'espn:read',code_challenge_method:'S256',code_challenge:challenge,state:crypto.randomUUID()};
+ const login=await send('/authorize?'+new URLSearchParams(params));const html=await login.text();const request=html.match(/name="request" value="([^"]+)"/)?.[1];const cookie=login.headers.get('set-cookie')?.split(';')[0];record('Owner sign-in page',login.status===200&&!!request&&!!cookie,{httpStatus:login.status});if(!request||!cookie)throw Error('SIGN_IN_PAGE_FAILED');
+ const csrf=await form('/authorize',{request,owner_key:key},{origin:'https://invalid.example',cookie});record('CSRF rejection',csrf.status===400,{httpStatus:csrf.status});
+ const badOwner=await form('/authorize',{request,owner_key:'invalid-test-key'},{origin,cookie});record('Invalid owner key rejected',!badOwner.headers.has('location')&&(await badOwner.text()).includes('not accepted'));
+ const approve=await form('/authorize',{request,owner_key:key},{origin,cookie});record('Owner authorization',approve.status===303,{httpStatus:approve.status});if(approve.status!==303)throw Error('OWNER_AUTHORIZATION_FAILED');const callback=new URL(approve.headers.get('location'));record('State and issuer preserved',callback.searchParams.get('state')===params.state&&callback.searchParams.get('iss')===origin);
+ const exchange={grant_type:'authorization_code',client_id,code:callback.searchParams.get('code'),redirect_uri:params.redirect_uri,resource,code_verifier:verifier};
+ const badPkce=await form('/token',{...exchange,code_verifier:'invalid'});record('Invalid PKCE rejected',badPkce.status===400,{httpStatus:badPkce.status});
+ const tokenResponse=await form('/token',exchange);const t=await tokenResponse.json();access=t.access_token;refresh=t.refresh_token;record('Code exchange',tokenResponse.status===200&&!!access&&!!refresh&&t.scope==='espn:read',{httpStatus:tokenResponse.status});if(!access)throw Error('CODE_EXCHANGE_FAILED');
+ const replay=await form('/token',exchange);record('Code replay rejected',replay.status===400,{httpStatus:replay.status});
+ async function rpc(method,params,token=access){const r=await send('/mcp',{method:'POST',headers:{'content-type':'application/json',...(token?{authorization:'Bearer '+token}:{})},body:JSON.stringify({jsonrpc:'2.0',id:1,method,params})});if(r.status!==200)return {httpStatus:r.status};const x=await r.json();if(x.error)return {httpStatus:r.status,error:x.error};return {httpStatus:r.status,...x.result};}
+ const discovery=await rpc('tools/list',{},null);record('Unauthenticated tool discovery',discovery.tools?.length===4&&discovery.tools.every(x=>x.securitySchemes[0].scopes[0]==='espn:read'));
+ const denied=await rpc('tools/call',{name:'fbis_espn_status'},null);record('Unauthenticated data denied',denied.httpStatus===401,{httpStatus:denied.httpStatus});
+ const source=await rpc('tools/call',{name:'fbis_espn_status'});const data=source.content?JSON.parse(source.content[0].text):{};record('OAuth access reaches MCP',source.httpStatus===200&&data.version==='1.2.0'&&data.readOnly===true,{httpStatus:source.httpStatus,version:data.version});
+ const legacy=await rpc('tools/call',{name:'fbis_espn_status'},key);record('Existing bearer connection retained',legacy.httpStatus===200&&!!legacy.content);
+ report.sports=[];
+ for(const league of ['cfb','nba','cbb','nhl']){const x=await rpc('tools/call',{name:'espn_scoreboard',arguments:{league,date,limit:1}});const p=x.content?JSON.parse(x.content[0].text):{};const row={league,httpStatus:p.httpStatus??x.httpStatus,events:p.totalRetrieved,receivedAt:p.receivedAt,sourceHttpDate:p.sourceHttpDate,sourceUpdatedAt:p.sourceUpdatedAt,isError:!!x.isError};report.sports.push(row);record(league+' OAuth scoreboard',x.httpStatus===200&&!x.isError&&Array.isArray(p.data?.events),row);}
+ const oldRefresh=refresh;const rotate=await form('/token',{grant_type:'refresh_token',client_id,resource,refresh_token:refresh});const next=await rotate.json();if(next.refresh_token)refresh=next.refresh_token;record('Refresh rotation',rotate.status===200&&!!next.access_token&&refresh!==oldRefresh,{httpStatus:rotate.status});
+ const replayRefresh=await form('/token',{grant_type:'refresh_token',client_id,resource,refresh_token:oldRefresh});record('Refresh replay rejected',replayRefresh.status===400,{httpStatus:replayRefresh.status});
+ const revoke=await form('/revoke',{client_id,token:refresh});record('Revoke test grant',revoke.status===200,{httpStatus:revoke.status});const revoked=await form('/token',{grant_type:'refresh_token',client_id,resource,refresh_token:refresh});record('Revoked refresh rejected',revoked.status===400,{httpStatus:revoked.status});
+}catch(e){report.failures.push(e.message);}
+finally{report.completedAt=new Date().toISOString();await writeFile(process.env.FBIS_ESPN_OAUTH_REPORT||'/tmp/fbis-espn-oauth-verification.json',JSON.stringify(report,null,2));for(const c of report.checks)console.log(c.name+': '+(c.ok?'PASS':'FAIL'));console.log('Failures: '+report.failures.length);if(report.failures.length)process.exitCode=1;}
