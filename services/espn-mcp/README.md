@@ -2,6 +2,33 @@
 
 The private `fbis-espn` plugin now connects to `fbis-espn-mcp` rather than the shared source hub. The old shared Worker and its PinnOdds/Torvik connections remain unchanged. The ESPN Worker has no models, wagering logic, market data writes or scheduled handler. OAuth adds a separate, bounded authentication-state Durable Object.
 
+## Release 1.3.0: ATP/WTA tennis, November 6, 2026
+
+Two read-only tools extend the existing server and `espn:read` scope without replacing the native web plugin or its OAuth grants:
+
+- `espn_tennis_scoreboard`: `tour` (`atp`/`wta`), optional `date` (YYYYMMDD), `match_type` (`singles` default, `doubles`, `all`), `tournament_id`, `offset`, `limit`. Default page size 25; maximum 100.
+- `espn_tennis_match`: `tour`, `date`, `tournament_id` (such as `13-2026`) and `competition_id` (such as `186500`). Reads one match from the same dated tournament scoreboard; it does not imply a separately validated summary API.
+
+Both use exactly one bounded ESPN GET under the existing certified scoreboard job: no additional budget allowance, collectors, polling, D1/R2 writes, model changes or wager authority. OAuth clients, keys, CSRF checks, scopes, state namespace and budget policy are unchanged. The existing seven team-sport APIs retain their schemas and behavior.
+
+### Tennis data contract
+
+ESPN tennis `events` represent tournaments. Their `groupings[].competitions[]` contain the matches. A tournament date or status must never become a match date or status. The new tools return competition-level date, status, round, court, source player IDs, winner flags, set-game scores and tiebreak values. They preserve numeric zero values. Singles competitors remain athletes; doubles competitors retain their two individual roster players and separate team ID. Player IDs are cross-checked across source fields/official ESPN player-card links; unresolved or conflicting identities are reported in rejection counts rather than replaced with invented players.
+
+The explicit/default date filters matches in America/Chicago. ESPN receives a single YYYYMMDD date lookup, which selects tournaments and can include all their rounds across several days. The tool filters competitions by their own dates and exposes source tournament count, competition count, rejected draws/dates, provider calendar zones, source URL and fetch/source timestamps. **Coverage is limited to tournaments included by ESPN's date lookup.** It is not a complete Challenger/ITF calendar or global player directory. A late Chicago-day match in a tournament omitted by that ESPN calendar-date response is outside this result.
+
+Testing found ESPN tennis range queries unreliable: `dates=20261106-20261107` returned an unrelated ATP tournament and no WTA tournaments despite valid daily responses. Range queries are therefore not used. This was an HTTP-200 semantic failure, not a provider HTTP error. All production verification uses the supported single-date path.
+
+Unknown match times retain `timeVerified=false`. No venue-based surface inference, official-rank claim or tournament-seed reinterpretation occurs. Missing surface, status, provider score and provider update times remain null. `setsWon` is only derived from explicit ESPN set-winner flags for live/final matches, and its source is labeled. Pregame values are not presented as live scores. Per-side statistics are returned only when present in the source. Today's verified scoreboards did not include serve/return statistics.
+
+### Verification and ChatGPT connection
+
+All 85 targeted tests passed. Production passed 24 tennis checks plus the 25-check OAuth/team-sport regression. November 6 results at verification were ATP 4 singles / 4 doubles and WTA 13 singles / 9 doubles. Match details, participant IDs, dates, final set scores, pagination and NBA regression passed. The native existing `fbis_espn_status` call returned version 1.3.0 and tennis capability through the authenticated ChatGPT plugin.
+
+The running chat's imported tool list still contains the previous four tools. Refresh the **connected native ESPN web plugin** to import the two new tools, then start a new chat if necessary. The old downloadable desktop package is separate and does not control this web tool snapshot. No connection-key rotation or re-creation is required. Native invocation of the new tennis tools remains pending that refresh; direct authenticated MCP calls to both new tools are verified.
+
+Use `node scripts/verify-espn-tennis.mjs` for one-shot validation, supplying the existing key through protected `FBIS_ESPN_MCP_TOKEN`. Optional inputs: `FBIS_ESPN_DATE`, `FBIS_ESPN_TENNIS_REPORT`. Reports contain no credentials. Existing OAuth verification now expects six tools and version 1.3.0.
+
 ## Release 1.2.1: browser form submission repair, November 6, 2026
 
 A real Chrome form submission reproduced `invalid_request` before checking the entered key. The authorization HTML inherited `Referrer-Policy: no-referrer`, which causes basic HTML form POST requests to carry an opaque/null Origin. The strict same-origin POST check therefore rejected a legitimate browser request. The earlier HTTP smoke test set Origin explicitly and missed the browser behavior.

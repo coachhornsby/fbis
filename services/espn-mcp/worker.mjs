@@ -1,3 +1,4 @@
+import {TENNIS_TOOLS,tennisRequestSpec,tennisPayload} from './tennis.mjs';
 import {oauthRoute,authorized,unauthorized,SCOPE} from './oauth.mjs';
 import {requireJobAdmission} from '../account-budget/admission.mjs';
 import {createExecutionLease, executionFetch} from '../account-budget/execution.mjs';
@@ -10,6 +11,7 @@ export const TOOLS=[
  {name:'espn_scoreboard',description:'ESPN schedules, scores, team IDs and game statuses. Explicit YYYYMMDD date, default America/Chicago today. Paginated compact events, no model or wager authority.',inputSchema:{type:'object',properties:{league,date:{type:'string',pattern:'^[0-9]{8}$'},...pagination},required:['league'],additionalProperties:false}},
  {name:'espn_summary',description:'ESPN game header, teams, scores, status, scoring plays and team statistics. Requires numeric ESPN event ID.',inputSchema:{type:'object',properties:{league,event:{type:'string',pattern:'^[0-9]{6,15}$'}},required:['league','event'],additionalProperties:false}},
  {name:'espn_teams',description:'ESPN team identity directory with pagination and explicit coverage metadata. College directory coverage is explicitly labeled; ESPN may include other divisions.',inputSchema:{type:'object',properties:{league,...pagination},required:['league'],additionalProperties:false}},
+ ...TENNIS_TOOLS,
  {name:'fbis_espn_status',description:'ESPN connector configuration; no upstream request.',inputSchema:{type:'object',properties:{},additionalProperties:false}}
 ].map(t=>({...t,securitySchemes:[{type:'oauth2',scopes:[SCOPE]}],_meta:{securitySchemes:[{type:'oauth2',scopes:[SCOPE]}]},annotations:{readOnlyHint:true,destructiveHint:false,idempotentHint:true,openWorldHint:true}}));
 const json=(value,status=200)=>new Response(JSON.stringify(value),{status,headers:{'content-type':'application/json','cache-control':'no-store'}});
@@ -26,6 +28,7 @@ export function requestSpec(name,a){
  const tool=TOOLS.find(t=>t.name===name);if(!tool)throw Error('UNKNOWN_TOOL');
  if(!a||typeof a!=='object'||Array.isArray(a)||Object.keys(a).some(k=>!Object.hasOwn(tool.inputSchema.properties,k)))throw Error('INVALID_ARGUMENTS');
  if(name==='fbis_espn_status')return null;
+ if(name.startsWith('espn_tennis_'))return tennisRequestSpec(name,a);
  if(!Object.hasOwn(LEAGUES,a.league))throw Error('SUPPORTED_LEAGUE_REQUIRED');
  const [sport,league]=LEAGUES[a.league];const action=name==='espn_scoreboard'?'scoreboard':name==='espn_teams'?'teams':'summary';
  const url=new URL(`https://site.api.espn.com/apis/site/v2/sports/${sport}/${league}/${action}`);
@@ -39,7 +42,7 @@ export function requestSpec(name,a){
 }
 export async function callTool(name,a,env,{fetchImpl=fetch,admit=requireJobAdmission}={}){
  const spec=requestSpec(name,a);
- if(!spec)return content({source:'ESPN unofficial public API',version:'1.2.1',readOnly:true,scheduledPolling:false,wagerAuthority:false,budgetBindingConfigured:!!env.FBIS_ACCOUNT_BUDGET,timeZone:'America/Chicago',leagues:Object.keys(LEAGUES)});
+ if(!spec)return content({source:'ESPN unofficial public API',version:'1.3.0',readOnly:true,scheduledPolling:false,wagerAuthority:false,budgetBindingConfigured:!!env.FBIS_ACCOUNT_BUDGET,timeZone:'America/Chicago',leagues:Object.keys(LEAGUES),tennis:{supported:true,tours:['atp','wta'],tools:TENNIS_TOOLS.map(t=>t.name),source:'ESPN tournament scoreboards',coverage:'ESPN-listed matches; not complete Challenger/ITF coverage'}});
  const {url,action,date,offset,limit}=spec;const requestedAt=new Date().toISOString();let receivedAt=null,httpStatus=null;
  try{
   const admission=await admit(env,JOB,crypto.randomUUID());
@@ -50,10 +53,11 @@ export async function callTool(name,a,env,{fetchImpl=fetch,admit=requireJobAdmis
   const request=executionFetch(bounded,fetchImpl,{origin:url.origin,path:url.pathname});
   const r=await request(url,{headers:{accept:'application/json'},signal:AbortSignal.timeout(9000)});
   receivedAt=new Date().toISOString();httpStatus=r.status;
-  const provenance={source:'ESPN',unofficial:true,sourceUrl:url.toString(),requestedAt,receivedAt,sourceHttpDate:r.headers.get('date'),sourceLastModified:r.headers.get('last-modified'),sourceAgeSeconds:r.headers.get('age'),httpStatus,league:a.league,date:date??null,timeZone:'America/Chicago',wagerAuthority:false};
+  const provenance={source:'ESPN',unofficial:true,sourceUrl:url.toString(),requestedAt,receivedAt,sourceHttpDate:r.headers.get('date'),sourceLastModified:r.headers.get('last-modified'),sourceAgeSeconds:r.headers.get('age'),httpStatus,league:a.league,tour:spec.tour,date:date??null,timeZone:'America/Chicago',wagerAuthority:false};
   if(!r.ok){await r.body?.cancel();return content({...provenance,error:'UPSTREAM_HTTP_ERROR'},true);}
   if(!r.headers.get('content-type')?.includes('json')){await r.body?.cancel();return content({...provenance,error:'UPSTREAM_NON_JSON'},true);}
   const data=await r.json();const base={...provenance,sourceUpdatedAt:data.lastUpdated??data.meta?.lastUpdated??null};
+  if(spec.tennis){const p=tennisPayload(data,spec);return content({...base,...p},!!p.error);}
   if(action==='summary'){
    if(!data.header?.id||!Array.isArray(data.header?.competitions)||!data.header.competitions.length)return content({...base,error:'UPSTREAM_SUMMARY_SCHEMA_INVALID'},true);
    if(String(data.header.id)!==a.event)return content({...base,error:'UPSTREAM_EVENT_ID_MISMATCH'},true);
@@ -77,7 +81,7 @@ export default {async fetch(req,env){
  if(!m||Array.isArray(m)||m.jsonrpc!=='2.0'||typeof m.method!=='string')return rpcError(null,-32600,'Invalid request');
  if(m.id==null&&m.method.startsWith('notifications/'))return new Response(null,{status:202});
  if(m.id==null)return rpcError(null,-32600,'Request id required');
- if(m.method==='initialize')return result(m.id,{protocolVersion:'2025-03-26',capabilities:{tools:{}},serverInfo:{name:'FBIS ESPN',version:'1.2.1'}});
+ if(m.method==='initialize')return result(m.id,{protocolVersion:'2025-03-26',capabilities:{tools:{}},serverInfo:{name:'FBIS ESPN',version:'1.3.0'}});
  if(m.method==='ping')return result(m.id,{});
  if(m.method==='tools/list')return result(m.id,{tools:TOOLS});
  if(m.method!=='tools/call')return rpcError(m.id,-32601,'Method not found');
