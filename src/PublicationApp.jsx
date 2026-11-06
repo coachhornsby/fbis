@@ -1,3 +1,4 @@
+import {loadCbbSnapshot,clearCbbSnapshot} from './lib/privateCbbAuto.js';
 import PrivateSportProjection from './components/board/PrivateSportProjection.jsx';
 import {loadPublicSportSnapshot,clearPublicSportSnapshot} from './lib/publicSportAuto.js';
 import {privateFourSportProjectionFor} from '../functions/lib/privateFourSportProjection.js';
@@ -62,8 +63,10 @@ function PublicationApp(){
   // The current CBB packet is derived from licensed KenPom ratings. Never place
   // that private packet on the anonymous board without verified display rights.
   useEffect(()=>{
-    setPrivatePacket(null);setPrivateOffers([]);setPrivateStatus('PUBLIC_CBB_NOT_AVAILABLE');
-    setCbbRefreshBusy(false);setCbbRefreshResult('');
+    let active=true;setPrivatePacket(null);setPrivateOffers([]);setPrivateStatus('LOADING');
+    if(sport!=='cbb')return;
+    loadCbbSnapshot(date).then(r=>{if(active){setPrivatePacket(r.packet);setPrivateOffers(r.offers);setPrivateStatus('LOADED');}}).catch(e=>{if(active)setPrivateStatus(e.message||'PRIVATE_DATA_UNAVAILABLE');});
+    return()=>{active=false;};
   },[date,sport]);
   useEffect(()=>{
     let active=true,loaded=null,lastStatus=null;
@@ -115,6 +118,7 @@ function PublicationApp(){
     {sport!=='cbb'&&<section className="publication-controls" aria-label="Private sport projections" role="status">
       <span>{modelPacket?`${modelMatches} verified ${sport.toUpperCase()} research projections matched to game cards on ${date} · ${clock>=Date.parse(modelPacket.expiresAt)?'HISTORICAL / EXPIRED':'RESEARCH ONLY'}`:modelStatus==='LOADING'?`Checking public ${sport.toUpperCase()} model snapshot…`:modelStatus==='NO_PUBLIC_MODEL_SNAPSHOT'?`No generated ${sport.toUpperCase()} model snapshot for ${date}`:`Current ${sport.toUpperCase()} model output unavailable.`}</span>
     </section>}
+    {sport==='cbb'&&!privatePacket&&<section className="publication-controls" role="status"><strong>{privateStatus==='PRIVATE_SIGN_IN_REQUIRED'?'Sign in to view your private CBB projections':privateStatus==='NO_CBB_SNAPSHOT'?'Today’s CBB projection packet is unavailable':'Checking private CBB projection access'}</strong>{privateStatus==='PRIVATE_SIGN_IN_REQUIRED'&&<a href={'/api/private/cbb/'+date} target="_blank" rel="noreferrer">Open owner sign-in</a>}</section>}
     <section aria-label="Game cards"><DecisionBoard compactRecovery clock={clock} key={date+sport} games={games} renderCardExtra={g=>g.sport==='cbb'?null:<PrivateSportProjection game={g} packet={modelPacket} clock={clock}/>}/></section>
     <footer className="publication-footer">Four priority sports: CBB, NFL, NBA and CFB. Live scores use bounded ESPN requests; public FBIS-owned model summaries come from private R2 through a sanitized anonymous read route, never D1. KenPom-derived CBB forecasts remain private; player props, wagers and broad provider collectors remain paused. Bounded exchange market reads and private research refresh are active; no model is an approved wager.</footer>
   </main>;

@@ -29,3 +29,11 @@ test('NBA city labels require exact paired settlement rules, same local game dat
  for(const fixtures of [[{...g,start:'2026-11-08T03:00:00Z'}],[{...g,away_abbr:'LAL'}],[g,{...g,id:'duplicate'}]])assert.deepEqual(matchedKalshiCardQuotes(fixtures,s,null,{sport:'nba',now}),{});
  assert.deepEqual(matchedKalshiCardQuotes([g],{...s,records:records.slice(0,1)},null,{sport:'nba',now}),{});
 });
+
+test('CBB school names join exact canonical schools with paired published rules, not generic mascots',()=>{
+ const g={id:'college',sport:'cbb',home_name:'UCLA Bruins',away_name:'North Florida Ospreys',start:'2026-11-07T03:30:00Z'};
+ const make=(name,suffix)=>({...market,sport:'cbb',seriesTicker:'KXNCAAMBGAME',ticker:'KXNCAAMBGAME-26NOV06UNFUCLA-'+suffix,eventTicker:'KXNCAAMBGAME-26NOV06UNFUCLA',title:name+' wins',yesLabel:name,occurrenceAt:'2026-11-07T06:30:00Z',rulesPrimary:'If '+name+" wins the North Florida vs UCLA men's college basketball game originally scheduled for Nov 6, 2026, then the market resolves to Yes."});
+ const records=[make('North Florida','UNF'),make('UCLA','UCLA')],s={...snapshot,sport:'cbb',seriesTicker:'KXNCAAMBGAME',paginationComplete:false,records};
+ assert.equal(matchedKalshiCardQuotes([g],s,null,{sport:'cbb',now}).college.length,2);
+ for(const game of [{...g,start:'2026-11-08T03:30:00Z'},{...g,home_name:'Baylor Bears'},{...g,away_name:'Ospreys'}])assert.deepEqual(matchedKalshiCardQuotes([game],s,null,{sport:'cbb',now}),{});
+});
