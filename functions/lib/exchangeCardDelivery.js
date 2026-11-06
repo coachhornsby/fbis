@@ -23,7 +23,7 @@ export function matchedKalshiCardQuotes(fixtures,snapshot,stream,{sport,now=Date
   const tick=ticks.get(m.ticker),live=tick&&fresh(tick.receivedAt,now,120000)&&price(tick.yesAsk);
   const ask=live?tick.yesAsk:m.yesAskDollars,receivedAt=live?tick.receivedAt:m.fetchedAt;
   if(!price(ask)||!fresh(receivedAt,now,live?120000:900000))continue;
-  (byEvent[g.id]??=[]).push({venue:'Kalshi',side:home?'home':'away',ask,receivedAt,eventStart:g.start,transport:live?'WebSocket':'REST',marketId:m.ticker,canAuthorizeWager:false});
+  (byEvent[g.id]??=[]).push({venue:'Kalshi',marketFamily:'moneyline',line:null,side:home?'home':'away',ask,receivedAt,eventStart:g.start,transport:live?'WebSocket':'REST',marketId:m.ticker,canAuthorizeWager:false});
  }
  return byEvent;
 }
@@ -36,6 +36,6 @@ export async function readExchangeCardQuotes(original,{sport,date,now=Date.now()
  const [snapshot,stream,poly]=await Promise.all([read('kalshi/public-shadow/v1/sports/'+sport+'.json'),read('kalshi/public-shadow/v1/market-ws/latest.json'),loadBoundedPolymarketSnapshot(original,{now:new Date(now)})]);
  const byEvent=matchedKalshiCardQuotes(fixtures,snapshot,stream,{sport,now});
  const selected=selectBoundedPolymarketOffers(poly,fixtures.map(g=>({id:g.id,sport,start:g.start})),sport);
- for(const [id,offers] of selected.byId)for(const o of offers){if(o.marketFamily!=='moneyline')continue;(byEvent[id]??=[]).push({venue:'Polymarket',side:o.side,ask:o.contractPrice,receivedAt:o.collectedAt,eventStart:fixtures.find(g=>g.id===id).start,transport:'WebSocket',marketId:o.sourceMarketId,canAuthorizeWager:false});}
+ for(const [id,offers] of selected.byId)for(const o of offers){if(!['moneyline','spread','total'].includes(o.marketFamily))continue;if(o.marketFamily!=='moneyline'&&(typeof o.line!=='number'||!Number.isFinite(o.line)))continue;(byEvent[id]??=[]).push({venue:'Polymarket',marketFamily:o.marketFamily,line:o.marketFamily==='moneyline'?null:o.line,side:o.side,ask:o.contractPrice,receivedAt:o.collectedAt,eventStart:fixtures.find(g=>g.id===id).start,transport:'WebSocket',marketId:o.sourceMarketId,canAuthorizeWager:false});}
  return {ok:true,sport,date,byEvent,capturedAt:new Date(now).toISOString(),referenceOnly:true,canAuthorizeWager:false};
 }
