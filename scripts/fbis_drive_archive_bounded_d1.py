@@ -95,7 +95,7 @@ def main():
     token = os.environ.get("CLOUDFLARE_API_TOKEN")
     if not account or not token:
         fail("CLOUDFLARE_SECRETS_NOT_CONFIGURED")
-    if not re.fullmatch(r"[0-9a-f-]{36}", account):
+    if not re.fullmatch(r"[0-9a-fA-F]{32}", account):
         fail("INVALID_CLOUDFLARE_ACCOUNT_ID")
     schema_rows, cost_schema = cloudflare_query(
         "SELECT sql FROM sqlite_master WHERE type='table' AND name='normalized_market_observations'",
