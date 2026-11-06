@@ -4,15 +4,14 @@ const root='kalshi/public-shadow/v1/sports/';
 const sports=['nba','nfl','cfb','cbb','nhl'];
 const age=(t,now)=>{const v=Date.parse(t||'');return Number.isFinite(v)&&v<=now?now-v:Infinity;};
 export async function runKalshiMarketSession(env,lease,{fetchImpl=fetch,now=Date.now,setTimer=setTimeout,clearTimer=clearTimeout}={}){
- const start=now(),tickers=new Set();
+ const start=now(),tickers=new Set(),groups=[];
  for(const sport of sports){
   const o=await env.ARCHIVE.get(root+sport+'.json');if(!o)continue;
   const v=await o.json();
   if(v?.ok!==true||v.sport!==sport||age(v.capturedAt,start)>1800000||!Array.isArray(v.records)||v.records.length>4000)continue;
-  for(const r of v.records){if(tickers.size>=50)break;
-   if(r?.sport===sport&&typeof r.ticker==='string'&&/^[A-Z0-9.-]{1,150}$/.test(r.ticker)&&age(r.fetchedAt||v.capturedAt,start)<=1800000)tickers.add(r.ticker);
-  }
+  groups.push(v.records.filter(r=>r?.sport===sport&&typeof r.ticker==='string'&&/^[A-Z0-9.-]{1,150}$/.test(r.ticker)&&age(r.fetchedAt||v.capturedAt,start)<=1800000).sort((a,b)=>(Date.parse(a.occurrenceAt)||Infinity)-(Date.parse(b.occurrenceAt)||Infinity)).slice(0,50));
  }
+ for(let index=0;index<50&&tickers.size<50;index++)for(const group of groups){if(tickers.size>=50)break;if(group[index])tickers.add(group[index].ticker);}
  if(!tickers.size)return {ok:false,code:'NO_FRESH_KALSHI_TICKERS'};
  const signed=await env.FBIS_JOB_FETCH('https://fbis-myz.pages.dev/api/kalshi-market-stream-sign',{
   method:'POST',headers:{'x-fbis-kalshi-relay-token':env.FBIS_KALSHI_RELAY_TOKEN}});
