@@ -19,7 +19,12 @@ export function validateStreamRoster(value,now=Date.now()){
   if(b){
    const allowed=row.market_family==='moneyline'?['home','away','draw']:row.market_family==='spread'?['home','away']:['over','under'];
    if(b.version!==1||b.contractLong!==true||!['full_game','first_half'].includes(b.period)||(b.period==='first_half'&&(row.sport!=='cbb'||row.market_family!=='total'))||!allowed.includes(b.side)||typeof b.sourceOutcomeId!=='string'||!b.sourceOutcomeId.length||b.sourceOutcomeId.length>160||(row.market_family!=='moneyline'&&(!Number.isFinite(b.line)||Math.abs(b.line)>10000)))throw Error('INVALID_DISPLAY_BINDING');
-   displayBinding={version:1,contractLong:true,period:b.period,side:b.side,sourceOutcomeId:b.sourceOutcomeId,line:row.market_family==='moneyline'?null:b.line};
+   if(b.oppositeSide!=null&&(row.sport!=='cbb'||row.market_family!=='total'||b.period!=='first_half'||
+     b.side!=='over'||b.oppositeSide!=='under'||typeof b.oppositeSourceOutcomeId!=='string'||
+     !b.oppositeSourceOutcomeId.length||b.oppositeSourceOutcomeId.length>160))throw Error('INVALID_OPPOSITE_SIDE');
+   displayBinding={version:1,contractLong:true,period:b.period,side:b.side,sourceOutcomeId:b.sourceOutcomeId,
+     line:row.market_family==='moneyline'?null:b.line,
+     ...(b.oppositeSide==='under'?{oppositeSide:'under',oppositeSourceOutcomeId:b.oppositeSourceOutcomeId}:{})};
   }
   seen.add(slug);return {...(displayBinding?{displayBinding}:{}),sport:row.sport,source_market_id:slug,canonical_event_id:row.canonical_event_id,market_family:row.market_family,event_start_time:new Date(start).toISOString(),collected_at:new Date(collected).toISOString()};
  });
