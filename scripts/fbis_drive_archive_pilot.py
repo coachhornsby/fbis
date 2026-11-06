@@ -4,7 +4,6 @@ import hashlib
 import json
 import os
 import sys
-from datetime import datetime, timezone
 from google.oauth2.credentials import Credentials
 from google.auth.transport.requests import Request
 import requests
@@ -59,7 +58,7 @@ class Drive:
         response = self.request(
             "GET", BASE,
             params={"q": q, "fields": "nextPageToken,files(id,name,mimeType,parents,trashed)",
-                    "page_size": 100, "spaces": "drive"},
+                    "pageSize": 100, "spaces": "drive"},
         ).json()
         if response.get("nextPageToken"):
             fail("DUPLICATE_SCAN_PAGINATION")
