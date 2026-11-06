@@ -31,6 +31,8 @@ jobs:
             try{body=JSON.parse(text);}catch{throw Error('NON_JSON_HTTP_'+response.status);}
             const report={http:response.status,ok:body?.ok,code:body?.code||null,
               gameCount:Object.keys(body?.byEvent||{}).length,matchedQuoteCounts:body?.matchedQuoteCounts||{},
+              polymarketFirstHalf:(Object.values(body?.byEvent||{}).flat().filter(x=>x.venue==='Polymarket'&&x.period==='first_half').length),
+              sampleFirstHalf:Object.entries(body?.byEvent||{}).flatMap(([id,rows])=>(rows||[]).filter(x=>x.venue==='Polymarket'&&x.period==='first_half').slice(0,2).map(x=>({eventId:id,side:x.side,line:x.line,transport:x.transport}))).slice(0,5),
               firstHalfState:body?.marketSources?.Kalshi?.first_half_total?.state??'MISSING_STATUS',
               polymarketState:body?.marketSources?.Polymarket?.state??'MISSING_STATUS',
               readOnly:body?.referenceOnly,canAuthorizeWager:body?.canAuthorizeWager};
