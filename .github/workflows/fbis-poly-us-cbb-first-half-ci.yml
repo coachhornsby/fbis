@@ -49,5 +49,21 @@ jobs:
           }catch(e){console.log('FBIS_PERIOD_PROBE '+JSON.stringify({status:'FETCH_UNAVAILABLE',reason:e.name||'ERROR'}));}
           finally{clearTimeout(timer)}
           NODE
+      - name: Probe the documented CBB game event by slug, bounded to one public GET
+        run: |
+          node --input-type=module <<'NODE'
+          const slug='cbb-yngst-ohiost-2026-11-06',url='https://gateway.polymarket.us/v1/events/slug/'+slug;
+          const ac=new AbortController(),timer=setTimeout(()=>ac.abort(),12000);
+          try{
+            const response=await fetch(url,{signal:ac.signal,headers:{accept:'application/json'}});
+            if(!response.ok){console.log('FBIS_CBB_GAME_PROBE '+JSON.stringify({http:response.status}));process.exit(0);}
+            const data=await response.json();const event=data.event||data,rows=Array.isArray(event.markets)?event.markets:[];
+            const types=[...new Set(rows.map(x=>String(x.sportsMarketType)+' | '+String(x.sportsMarketTypeV2)))];
+            const hits=rows.filter(x=>/first|half|period/i.test(String(x.sportsMarketType)+' '+String(x.sportsMarketTypeV2))).slice(0,14);
+            console.log('FBIS_CBB_GAME_PROBE '+JSON.stringify({http:response.status,slug:event.slug,marketCount:rows.length,types:types.slice(0,35),
+              candidates:hits.map(x=>({type:x.sportsMarketType,v2:x.sportsMarketTypeV2,line:x.line,sideDescriptions:(x.marketSides||[]).slice(0,2).map(z=>({description:z.description,long:z.long}))}))}));
+          }catch(e){console.log('FBIS_CBB_GAME_PROBE '+JSON.stringify({state:'UNAVAILABLE',reason:e.name||'ERROR'}));}
+          finally{clearTimeout(timer)}
+          NODE
       - name: Build existing Pages board without deployment
         run: npm run build --prefix deploy/board
