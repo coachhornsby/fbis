@@ -1,24 +1,14 @@
 /**
- * FBIS active market-source policy (2026-10-14).
- * Three approved active market feeds:
- *   PinnOdds — sportsbook quotes/reference research.
- *   Polymarket US + WebSocket — exchange market observations.
- *   PrizePicks GitHub Mirror — ONE existing free pick'em feed.
- * All other sportsbook/paid odds collectors are retired.
- * Historical observations are retained unchanged for audit/CLV.
- * Market-source permission is distinct from bet/execution authorization.
+ * Owner-approved market sources, 2026-11-06.
+ * Statistics/model inputs remain a separate source policy.
+ * Historical records are retained; market permission grants no wager authority.
  */
 export const ACTIVE_ODDS_PROVIDER = "PinnOdds";
-export const ACTIVE_MARKET_SOURCES=Object.freeze(["PinnOdds","Polymarket US","Polymarket US WebSocket","PrizePicks GitHub Mirror"]);
-export const ACTIVE_MARKET_FEEDS = Object.freeze([
-  "PinnOdds",
-  "Polymarket US",
-  "Polymarket US WebSocket",
-  "PrizePicks GitHub Mirror",
-]);
+export const ACTIVE_MARKET_SOURCES=Object.freeze(["PinnOdds","Kalshi","Kalshi REST","Kalshi WebSocket","Polymarket","Polymarket REST","Polymarket WebSocket","Polymarket US","Polymarket US WebSocket"]);
+export const ACTIVE_MARKET_FEEDS = ACTIVE_MARKET_SOURCES;
 export const RETIRED_ODDS_PROVIDERS = Object.freeze([
  "Parlay","TheOdds","SharpAPI","TheRundown","ACTION",
- "PrizePicks paid/Apify","Kalshi","ESPN sportsbook reference",
+ "Apify","PrizePicks paid/Apify","PrizePicks GitHub Mirror","ESPN sportsbook reference",
 ]);
 export function isActiveOddsProvider(value) {
  return String(value??"").trim().toLowerCase()==="pinnodds";

@@ -1,8 +1,9 @@
+import { guardProviderFetch } from '../functions/lib/retiredProviderPolicy.js';
 import {mkdirSync,writeFileSync} from 'node:fs';
 import {createHash} from 'node:crypto';
 import {sanitizeSchedulePage,sanitizeTaskPage} from './lib/apifyAuditSanitizer.mjs';
 const token=process.env.APIFY_TOKEN;if(!token)throw Error('APIFY_TOKEN required');
-const get=async path=>{const r=await fetch('https://api.apify.com/v2/'+path,{headers:{authorization:`Bearer ${token}`}});if(!r.ok)return {http:r.status};const j=await r.json();return j.data??j;};
+const get=async path=>{const r=await guardProviderFetch(globalThis.fetch)('https://api.apify.com/v2/'+path,{headers:{authorization:`Bearer ${token}`}});if(!r.ok)return {http:r.status};const j=await r.json();return j.data??j;};
 const [rawSchedules,rawTasks]=await Promise.all([get('schedules?limit=100'),get('actor-tasks?limit=100')]);
 const report={capturedAt:new Date().toISOString(),readOnly:true,limits:await get('users/me/limits'),usage:await get('users/me/usage/monthly'),schedules:sanitizeSchedulePage(rawSchedules),tasks:sanitizeTaskPage(rawTasks),runs:[],errors:[]};
 for(let offset=0;offset<1000;offset+=100){

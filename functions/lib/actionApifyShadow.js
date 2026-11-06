@@ -1,3 +1,4 @@
+import { guardProviderFetch } from './retiredProviderPolicy.js';
 import { startPaidAcquisition, recordAcquisitionRun, captureAcquisitionRaw } from './externalAcquisition.js';
 /**
  * Action Network via Apify — SHADOW MARKET INTELLIGENCE only.
@@ -1378,7 +1379,7 @@ export async function runActionApifyShadow(env, opts = {}) {
       const pollWaitSecs = Math.min(60, remainingSecs);
       const pollUrl =
         `https://api.apify.com/v2/actor-runs/${encodeURIComponent(runId)}?waitForFinish=${pollWaitSecs}`;
-      const pollRes = await fetchImpl(pollUrl, { headers: authHeaders });
+      const pollRes = await guardProviderFetch(fetchImpl)(pollUrl, { headers: authHeaders });
       if (!pollRes.ok) {
         const bodyText = await pollRes.text().catch(() => "");
         return {
@@ -1424,7 +1425,7 @@ export async function runActionApifyShadow(env, opts = {}) {
     items=captured.rows;
   }else{
   const dsUrl = `https://api.apify.com/v2/datasets/${datasetId}/items?format=json&clean=true`;
-  const dsRes = await fetchImpl(dsUrl, { headers: { Authorization: `Bearer ${token}` } });
+  const dsRes = await guardProviderFetch(fetchImpl)(dsUrl, { headers: { Authorization: `Bearer ${token}` } });
   if (!dsRes.ok) {
     return {
       ok: false,

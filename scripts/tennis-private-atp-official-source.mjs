@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import { guardProviderFetch } from '../functions/lib/retiredProviderPolicy.js';
 // Read only official ATP rankings HTML and preserve official player-link IDs.
 // Records identity and candidate headshot URLs; NO image GET/download/authorization.
 import {createHash} from 'node:crypto';
@@ -9,11 +10,11 @@ const api=app+'/api/tennis-private-portrait-atp-source';
 const auth={'x-harvest-secret':token};
 const timeout=ms=>AbortSignal.timeout(ms);
 async function rawHtml(url){
- const direct=await fetch(url,{headers:{accept:'text/html','user-agent':'FBIS-private-tennis-source-audit/1.0'},signal:timeout(18000)}).catch(()=>null);
+ const direct=await guardProviderFetch(globalThis.fetch)(url,{headers:{accept:'text/html','user-agent':'FBIS-private-tennis-source-audit/1.0'},signal:timeout(18000)}).catch(()=>null);
  if(direct?.ok){const raw=await direct.text();if(raw.length>350000&&raw.length<3000000)return raw;}
  if(!apify)throw Error('ATP_OFFICIAL_SOURCE_UNAVAILABLE_NO_RELAY');
  const endpoint='https://api.apify.com/v2/acts/apify~web-fetch/run-sync-get-dataset-items?format=json&timeout=90';
- const relay=await fetch(endpoint,{method:'POST',headers:{authorization:'Bearer '+apify,'content-type':'application/json'},
+ const relay=await guardProviderFetch(globalThis.fetch)(endpoint,{method:'POST',headers:{authorization:'Bearer '+apify,'content-type':'application/json'},
    body:JSON.stringify({url,formats:['raw']}),signal:timeout(110000)});
  if(!relay.ok)throw Error('ATP_WEB_FETCH_HTTP_'+relay.status);
  const j=await relay.json(),item=j?.[0];
@@ -22,7 +23,7 @@ async function rawHtml(url){
   item.raw.length>3000000)throw Error('ATP_OFFICIAL_RAW_SOURCE_EVIDENCE_INVALID');
  return item.raw;
 }
-const response=await fetch(api,{headers:auth,signal:timeout(15000)});
+const response=await guardProviderFetch(globalThis.fetch)(api,{headers:auth,signal:timeout(15000)});
 if(!response.ok)throw Error('ATP_MANIFEST_HTTP_'+response.status);
 const manifest=await response.json();
 if(!manifest.ok||manifest.cohortId!=='tennis-elo-private-20261019-1074'||manifest.players?.length!==559)
@@ -55,7 +56,7 @@ let linked=0,rejected=0;
 const all=[...found.values()];
 for(let i=0;i<all.length;i+=60){
  const rows=all.slice(i,i+60);
- const r=await fetch(api,{method:'POST',headers:{...auth,'content-type':'application/json'},
+ const r=await guardProviderFetch(globalThis.fetch)(api,{method:'POST',headers:{...auth,'content-type':'application/json'},
   body:JSON.stringify({rows}),signal:timeout(45000)});
  const j=await r.json();
  if(![200,207].includes(r.status)||j.received!==rows.length)throw Error('ATP_ID_RECEIPT_UNVERIFIED_'+r.status);

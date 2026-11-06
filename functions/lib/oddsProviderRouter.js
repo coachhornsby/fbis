@@ -1,21 +1,6 @@
-/**
- * Odds provider pool / router.
- *
- * Conceptual order (stop at first fresh+complete result):
- *   Parlay → TheOdds → SharpAPI → TheRundown → NO MARKET DATA
- *
- * Providers are intentional production redundancy. Absence of any one is a
- * safe degrade; absence of all valid market data is fail-closed.
- * Never fabricate or invent odds. Prefer conserving quota: do not query
- * backups when a preferred provider already returned fresh complete data.
- */
+/** Active sportsbook router: PinnOdds only. Exchanges use dedicated REST/WS collectors. */
 
-export const ODDS_PROVIDER_ORDER = Object.freeze([
-  "parlay",
-  "theodds",
-  "sharpapi",
-  "therundown",
-]);
+export const ODDS_PROVIDER_ORDER = Object.freeze(["pinnodds"]);
 
 /**
  * @typedef {object} OddsProviderStatus
@@ -47,12 +32,7 @@ export const ODDS_PROVIDER_ORDER = Object.freeze([
  */
 
 export function providerConfigured(credentials = {}) {
-  return {
-    parlay: Boolean(credentials.parlayApiKey),
-    theodds: Boolean(credentials.theOddsApiKey),
-    sharpapi: Boolean(credentials.sharpApiKey),
-    therundown: Boolean(credentials.theRundownApiKey),
-  };
+  return { pinnodds: Boolean(credentials.pinnoddsApiKey), parlay:false, theodds:false, sharpapi:false, therundown:false };
 }
 
 /** @deprecated alias — prefer providerConfigured */
@@ -89,7 +69,7 @@ export function isProviderUnavailable(result) {
  * @param {number} [opts.maxAgeMs]
  */
 export async function resolveOddsProviders(opts = {}) {
-  const order = opts.order || ODDS_PROVIDER_ORDER;
+  const order = (opts.order || ODDS_PROVIDER_ORDER).filter(provider => ODDS_PROVIDER_ORDER.includes(provider));
   const configured = opts.configured || {};
   const fetchers = opts.fetchers || {};
   const quotaReserve = opts.quotaReserve && typeof opts.quotaReserve === "object" ? opts.quotaReserve : {};
@@ -217,7 +197,7 @@ export function shouldSyncPagesSecret(value) {
 }
 
 export function planOddsSecretSync(secrets = {}) {
-  const names = ["SHARPAPI_API_KEY", "THERUNDOWN_API_KEY", "THEODDS_API_KEY"];
+  const names = ["PINNODDS_API_KEY"];
   const plan = [];
   for (const name of names) {
     const decision = shouldSyncPagesSecret(secrets[name]);
@@ -235,7 +215,7 @@ export function planOddsSecretSync(secrets = {}) {
  */
 export function canQualifyFromOddsResolution(resolution) {
   if (!resolution || resolution.failClosed || !resolution.ok) return false;
-  if (!resolution.provider || !Array.isArray(resolution.events) || resolution.events.length === 0) {
+  if (!ODDS_PROVIDER_ORDER.includes(resolution.provider) || !Array.isArray(resolution.events) || resolution.events.length === 0) {
     return false;
   }
   return true;
