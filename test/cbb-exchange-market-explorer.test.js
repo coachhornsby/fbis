@@ -37,8 +37,8 @@ test('per-game market view shows only exact matched offers and no made-up prices
   {venue:'Polymarket',marketFamily:'moneyline',side:'home',ask:null,receivedAt:new Date(now-1500).toISOString(),canAuthorizeWager:false,transport:'WebSocket'}
  ],G2:[{venue:'Kalshi',marketFamily:'total',side:'under',ask:0.23,receivedAt:new Date(now-1500).toISOString(),canAuthorizeWager:false}]}};
  const rows=exchangeGameMarkets(payload,{id:'G1'},{now});
- assert.equal(rows.length,2);assert.equal(rows[0].period,'game');assert.equal(rows[1].period,'1h');
- assert.equal(rows[1].venue,'Kalshi');assert.equal(rows[1].american,Math.round(100*(1-0.46)/0.46));
+ assert.equal(rows.length,2);assert.equal(rows[0].period,'1h');assert.equal(rows[1].period,'game');
+ assert.equal(rows[0].venue,'Kalshi');assert.equal(rows[0].american,Math.round(100*(1-0.46)/0.46));
  assert.equal(formatAmericanFromCost(0.6),'-150');
  assert.deepEqual(exchangeGameMarkets({...payload,canAuthorizeWager:true},{id:'G1'},{now}),[]);
 });
