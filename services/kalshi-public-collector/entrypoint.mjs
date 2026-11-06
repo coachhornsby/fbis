@@ -27,7 +27,8 @@ export default{
    const scoped=await beginJobExecution(env,KALSHI_RELAY_JOB,{reservationId:'kalshi-rest-'+minute,
     network:{origin:'https://fbis-myz.pages.dev',path:'/api/kalshi-collector-internal',method:'POST'}});
    const sports=['nfl','cfb','nba','cbb','nhl'];
-   return relaySignedPages(scoped,{scope:'markets',sport:sports[Math.floor(minute/2)%sports.length],fetchImpl:scoped.FBIS_JOB_FETCH});
+   const result=await relaySignedPages(scoped,{scope:'markets',sport:sports[Math.floor(minute/2)%sports.length],fetchImpl:scoped.FBIS_JOB_FETCH});
+   if(!result.ok)await recordExchangeDiagnostic(env,'kalshi-rest',result);return result;
   })().catch(error=>recordExchangeDiagnostic(env,'kalshi-rest',{error:error.message})));
  }
 };
