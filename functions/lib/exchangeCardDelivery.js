@@ -4,6 +4,7 @@ import {beginJobExecution} from '../../services/account-budget/jobScope.mjs';
 import {loadBoundedPolymarketSnapshot,selectBoundedPolymarketOffers} from './boundedPolymarketBoard.js';
 import {validateFixtureManifest,fixtureKey} from './polymarketFixtureArchive.js';
 import {KALSHI_SHADOW_SERIES} from './kalshiMarketShadow.js';
+import {matchedKalshiBasketballLineQuotes} from './kalshiBasketballLineQuotes.js';
 export const EXCHANGE_CARD_JOB='functions/lib/exchangeCardDelivery.js';
 const norm=x=>String(x||'').normalize('NFKD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/[^a-z0-9]+/g,' ').trim();
 const fresh=(t,now,age)=>Number.isFinite(Date.parse(t))&&Date.parse(t)<=now&&now-Date.parse(t)<=age;
@@ -33,8 +34,18 @@ export async function readExchangeCardQuotes(original,{sport,date,now=Date.now()
  const manifest=validateFixtureManifest(await read(fixtureKey(sport)),now);
  if(manifest.sport!==sport)throw Error('FIXTURE_SPORT_MISMATCH');
  const fixtures=manifest.fixtures.filter(g=>new Intl.DateTimeFormat('en-CA',{timeZone:'America/Chicago',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date(g.start))===date);
- const [snapshot,stream,poly]=await Promise.all([read('kalshi/public-shadow/v1/sports/'+sport+'.json'),read('kalshi/public-shadow/v1/market-ws/latest.json'),loadBoundedPolymarketSnapshot(original,{now:new Date(now)})]);
+ const derivativeSports=['nba','cbb'].includes(sport)?[sport+'_spread',sport+'_total',sport+'_team_total']:[];
+ const [snapshot,stream,poly,...derivativeSnapshots]=await Promise.all([
+  read('kalshi/public-shadow/v1/sports/'+sport+'.json'),
+  read('kalshi/public-shadow/v1/market-ws/latest.json'),
+  loadBoundedPolymarketSnapshot(original,{now:new Date(now)}),
+  ...derivativeSports.map(key=>read('kalshi/public-shadow/v1/sports/'+key+'.json'))
+ ]);
  const byEvent=matchedKalshiCardQuotes(fixtures,snapshot,stream,{sport,now});
+ derivativeSports.forEach((sourceSport,i)=>{
+  const matched=matchedKalshiBasketballLineQuotes(fixtures,derivativeSnapshots[i],{sourceSport,now});
+  for(const [id,quotes] of Object.entries(matched))(byEvent[id]??=[]).push(...quotes);
+ });
  const selected=selectBoundedPolymarketOffers(poly,fixtures.map(g=>({id:g.id,sport,start:g.start})),sport);
  for(const [id,offers] of selected.byId)for(const o of offers){if(!['moneyline','spread','total'].includes(o.marketFamily))continue;if(o.marketFamily!=='moneyline'&&(typeof o.line!=='number'||!Number.isFinite(o.line)))continue;(byEvent[id]??=[]).push({venue:'Polymarket',marketFamily:o.marketFamily,line:o.marketFamily==='moneyline'?null:o.line,side:o.side,ask:o.contractPrice,receivedAt:o.collectedAt,eventStart:fixtures.find(g=>g.id===id).start,transport:'WebSocket',marketId:o.sourceMarketId,canAuthorizeWager:false});}
  return {ok:true,sport,date,byEvent,capturedAt:new Date(now).toISOString(),referenceOnly:true,canAuthorizeWager:false};
