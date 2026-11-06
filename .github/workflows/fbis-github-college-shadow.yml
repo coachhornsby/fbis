@@ -1,6 +1,12 @@
-name: FBIS GitHub College Source Shadow — manual, no Cloudflare
+name: FBIS GitHub College Source Shadow — PR dry run, manual live opt-in
 
 on:
+  pull_request:
+    paths:
+      - ".github/workflows/fbis-github-college-shadow.yml"
+      - "scripts/github_college_shadow.py"
+      - "test/github_college_shadow_test.py"
+
   workflow_dispatch:
     inputs:
       network_capture:
@@ -34,7 +40,7 @@ jobs:
     timeout-minutes: 6
     env:
       PYTHONDONTWRITEBYTECODE: "1"
-      CFBD_CBBD_KEY: ${{ secrets.CFBD_CBBD_KEY }}
+      CFBD_CBBD_KEY: ${{ github.event_name == 'workflow_dispatch' && secrets.CFBD_CBBD_KEY || '' }}
     steps:
       - uses: actions/checkout@v4.2.2
       - uses: actions/setup-python@v5.6.0
@@ -46,12 +52,12 @@ jobs:
         shell: bash
         env:
           FBIS_NETWORK_CAPTURE: ${{ inputs.network_capture }}
-          FBIS_CAPTURE_YEAR: ${{ inputs.year }}
-          FBIS_CAPTURE_WEEK: ${{ inputs.week }}
-          FBIS_CAPTURE_TEAM: ${{ inputs.cbb_team }}
+          FBIS_CAPTURE_YEAR: ${{ inputs.year || '2026' }}
+          FBIS_CAPTURE_WEEK: ${{ inputs.week || '10' }}
+          FBIS_CAPTURE_TEAM: ${{ inputs.cbb_team || 'Duke' }}
         run: |
           args=(--year "$FBIS_CAPTURE_YEAR" --week "$FBIS_CAPTURE_WEEK" --cbb-team "$FBIS_CAPTURE_TEAM")
-          if [[ "$FBIS_NETWORK_CAPTURE" == "true" ]]; then args+=(--network); fi
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" && "$FBIS_NETWORK_CAPTURE" == "true" ]]; then args+=(--network); fi
           python scripts/github_college_shadow.py "${args[@]}"
       - name: Upload non-sensitive validation receipt only (7 days)
         if: always()
