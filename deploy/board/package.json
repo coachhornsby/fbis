@@ -2,6 +2,6 @@
   "name": "fbis-static-board-release",
   "private": true,
   "scripts": {
-    "build": "cd ../.. && npm ci --no-audit --no-fund && node --test test/cbb-private-access-route.test.mjs test/cbb-private-operator-refresh.test.mjs test/cbb-workers-redirect-mode.test.mjs test/nfl-automatic-projection-form.test.mjs test/four-sport-private-recovery.test.mjs test/recovery-lean-shopping.test.mjs && node --check scripts/recover-four-sport-once.mjs && node --check scripts/recover-cbb-once.mjs && npm run build:publication"
+    "build": "cd ../.. && npm ci --no-audit --no-fund && node --test test/cbb-private-access-route.test.mjs test/cbb-private-operator-refresh.test.mjs test/cbb-workers-redirect-mode.test.mjs test/nfl-automatic-projection-form.test.mjs test/public-four-sport-projections.test.mjs test/four-sport-private-recovery.test.mjs test/recovery-lean-shopping.test.mjs && node --check scripts/recover-four-sport-once.mjs && node --check scripts/recover-cbb-once.mjs && npm run build:publication"
   }
 }
