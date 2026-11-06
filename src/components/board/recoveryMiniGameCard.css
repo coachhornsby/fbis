@@ -30,20 +30,20 @@
  box-shadow:0 12px 32px rgba(0,0,0,.38)
 }
 .fbis-shell-main.route-board .fbis-mini-header{
- display:flex;align-items:center;gap:8px;padding:10px 12px 8px;
- font-size:10px;font-weight:850;letter-spacing:.035em;color:#bed6ef;
+ display:flex;align-items:center;flex-wrap:wrap;gap:8px;padding:12px;
+ font-size:16px;font-weight:850;letter-spacing:.035em;color:#e5e7eb;
 }
 .fbis-shell-main.route-board .fbis-mini-sport{
  border:1px solid rgba(112,198,249,.47);border-radius:6px;
- padding:3px 7px;color:#a1dfff;background:rgba(18,71,113,.44);
- font-size:10px;font-weight:950;letter-spacing:.06em
+ padding:3px 7px;color:#e5e7eb;background:rgba(18,71,113,.44);
+ font-size:16px;font-weight:950;letter-spacing:.06em
 }
 .fbis-shell-main.route-board .fbis-mini-time{min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .fbis-shell-main.route-board .fbis-mini-status{
  margin-left:auto;flex-shrink:0;
  color:#ffbdad;border:1px solid rgba(255,160,134,.28);
  background:rgba(100,36,29,.3);border-radius:20px;padding:3px 6px;
- font-size:9px;font-weight:900;
+ font-size:16px;font-weight:900;
 }
 .fbis-shell-main.route-board .fbis-mini-status.live-model{
  color:#92ebd5;border-color:rgba(62,232,178,.35);background:rgba(13,110,86,.18)
@@ -68,20 +68,20 @@
  flex-shrink:0;max-width:53px;max-height:53px;
 }
 .fbis-shell-main.route-board .fbis-mini-team strong{
- display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;
- overflow:hidden;max-width:100%;max-height:34px;
- font-size:12px;font-weight:900;line-height:1.23;letter-spacing:-.018em;
+ display:block;overflow-wrap:anywhere;
+ overflow:visible;max-width:100%;max-height:none;
+ font-size:16px;font-weight:900;line-height:1.23;letter-spacing:-.018em;
  text-shadow:0 1px 4px rgba(0,0,0,.55);
 }
 .fbis-shell-main.route-board .fbis-mini-team>span:last-child{
- color:#c3d5e8;font-size:10px;font-weight:800;letter-spacing:.08em
+ color:#e5e7eb;font-size:16px;font-weight:800;letter-spacing:.08em
 }
 .fbis-shell-main.route-board .fbis-mini-center{
  display:flex;align-items:center;justify-content:center;flex-direction:column;
  min-width:0;text-align:center;gap:3px;align-self:stretch
 }
 .fbis-shell-main.route-board .fbis-mini-center>span{
- color:#72d8ff;font-size:9px;font-weight:900;letter-spacing:.055em
+ color:#e5e7eb;font-size:16px;font-weight:900;letter-spacing:.055em
 }
 .fbis-shell-main.route-board .fbis-mini-center>strong{
  color:#fff;white-space:nowrap;font-weight:950;
@@ -89,10 +89,10 @@
  font-variant-numeric:tabular-nums;text-shadow:0 2px 8px rgba(0,0,0,.72)
 }
 .fbis-shell-main.route-board .fbis-mini-center>strong b{
- padding:0 2px;color:#69d4ff;font-size:.7em
+ padding:0 2px;color:#e5e7eb;font-size:.7em
 }
 .fbis-shell-main.route-board .fbis-mini-center>small{
- color:#a9c1da;font-size:8px;font-weight:800;letter-spacing:.07em
+ color:#e5e7eb;font-size:16px;font-weight:800;letter-spacing:.07em
 }
 .fbis-shell-main.route-board .fbis-mini-bottom{
  display:grid;grid-template-columns:1fr 1fr;min-width:0;
@@ -106,30 +106,30 @@
  border-left:1px solid rgba(102,161,195,.3)
 }
 .fbis-shell-main.route-board .fbis-mini-bottom span{
- font-size:9px;font-weight:900;letter-spacing:.065em;color:#91b9d3
+ font-size:16px;font-weight:900;letter-spacing:.065em;color:#e5e7eb
 }
 .fbis-shell-main.route-board .fbis-mini-lean strong,
 .fbis-shell-main.route-board .fbis-mini-book strong{
- display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
- font-variant-numeric:tabular-nums;font-size:clamp(14px,1.35vw,20px);
- line-height:1.2;font-weight:950;color:#dde9f6;
+ display:block;overflow-wrap:anywhere;white-space:normal;
+ font-variant-numeric:tabular-nums;font-size:clamp(18px,1.35vw,20px);
+ line-height:1.2;font-weight:950;color:#e5e7eb;
 }
 .fbis-shell-main.route-board .fbis-mini-lean strong.has-lean{color:#54e9bd}
 .fbis-shell-main.route-board .fbis-mini-book strong{color:#fbd279}
 .fbis-shell-main.route-board .fbis-mini-bottom small{
- overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
- color:#9eb1c8;font-size:9px;line-height:1.35
+ overflow-wrap:anywhere;white-space:normal;
+ color:#e5e7eb;font-size:16px;line-height:1.5
 }
 .fbis-shell-main.route-board .fbis-mini-footer{
- display:flex;justify-content:space-between;gap:10px;align-items:center;
+ display:flex;flex-wrap:wrap;justify-content:space-between;gap:10px;align-items:center;
  padding:6px 11px;background:#08111d;border-top:1px solid rgba(102,143,181,.16);
- color:#70869f;font-size:8px;letter-spacing:.015em;
+ color:#e5e7eb;font-size:16px;letter-spacing:.015em;
 }
 .fbis-shell-main.route-board .fbis-mini-footer span{
- min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+ min-width:0;white-space:normal;overflow-wrap:anywhere;
 }
 .fbis-shell-main.route-board .fbis-mini-footer span:last-child{
- flex-shrink:0;color:#91a7ba
+ flex-shrink:0;color:#e5e7eb
 }
 @media(max-width:1150px){
  .fbis-shell-main.route-board .db-grid.fbis-mini-grid{grid-template-columns:repeat(2,minmax(0,1fr))!important}
@@ -140,19 +140,26 @@
  .fbis-shell-main.route-board .fbis-mini-card{min-height:0}
  .fbis-shell-main.route-board .fbis-mini-body{min-height:105px}
  .fbis-shell-main.route-board .fbis-mini-center>strong{font-size:35px}
- .fbis-shell-main.route-board .fbis-mini-team strong{font-size:12px}
+ .fbis-shell-main.route-board .fbis-mini-team strong{font-size:16px}
  .fbis-shell-main.route-board .fbis-mini-bottom>div{padding:9px 10px 10px}
  .fbis-shell-main.route-board .fbis-mini-lean strong,
  .fbis-shell-main.route-board .fbis-mini-book strong{font-size:16px}
 }
 @media(max-width:350px){
  .fbis-shell-main.route-board .fbis-mini-header{gap:4px;padding:8px}
- .fbis-shell-main.route-board .fbis-mini-sport{font-size:8px}
- .fbis-shell-main.route-board .fbis-mini-status{font-size:8px}
+ .fbis-shell-main.route-board .fbis-mini-sport{font-size:16px}
+ .fbis-shell-main.route-board .fbis-mini-status{font-size:16px}
  .fbis-shell-main.route-board .fbis-mini-body{padding:9px 6px;grid-template-columns:minmax(0,1fr) minmax(100px,1.1fr) minmax(0,1fr)}
  .fbis-shell-main.route-board .fbis-mini-center>strong{font-size:28px}
- .fbis-shell-main.route-board .fbis-mini-team strong{font-size:10px}
+ .fbis-shell-main.route-board .fbis-mini-team strong{font-size:16px}
 }
 @media(prefers-reduced-motion:reduce){
  .fbis-shell-main.route-board .fbis-mini-card{transform:none!important;transition:none!important}
 }
+
+.fbis-shell-main.route-board .fbis-mini-model-facts{display:grid;grid-template-columns:1fr 1fr;background:#101b26;border-bottom:1px solid #34404c}
+.fbis-shell-main.route-board .fbis-mini-model-facts>div{min-width:0;padding:12px}
+.fbis-shell-main.route-board .fbis-mini-model-facts>div+div{border-left:1px solid #34404c}
+.fbis-shell-main.route-board .fbis-mini-model-facts span{display:block;font-size:16px;line-height:1.4;color:#e5e7eb}
+.fbis-shell-main.route-board .fbis-mini-model-facts strong{display:block;margin-top:5px;font-size:22px;line-height:1.3;color:#fbd279;overflow-wrap:anywhere}
+@media(max-width:400px){.fbis-shell-main.route-board .fbis-mini-body{grid-template-columns:minmax(0,1fr) 112px minmax(0,1fr);gap:3px}.fbis-shell-main.route-board .fbis-mini-footer{display:block}.fbis-shell-main.route-board .fbis-mini-footer span{display:block;margin:5px 0}}
