@@ -136,7 +136,7 @@ export async function loadPolymarketUsBoardOffers(db,games=[],sport,{now=new Dat
     typeof r.source_outcome_id==='string'&&r.source_outcome_id===String(payload.providerOutcomeId||'')&&
     raw?.bestAsk!=null&&r.contract_price!=null&&
     Math.abs(raw.bestAsk-Number(r.contract_price))<0.00001&&
-    temporal.status==='CURRENT';
+    temporal.status==='CURRENT'&&cbbOrientationOk;
   arr.push({
     source:r.source,marketFamily:family,side:family==='total'&&/^(over|under)\b/i.test(side)?side.match(/^(over|under)/i)[1].toLowerCase():side,period,deliveryStore,
     historicalReference,line:binding?.line!=null?binding.line:family==='spread'&&payload?.contractLong===false&&payload?.sideSpecificLine!==true&&r.line!=null?-Number(r.line):r.line,contractPrice:r.contract_price==null?null:Number.isFinite(display)?display:null,
