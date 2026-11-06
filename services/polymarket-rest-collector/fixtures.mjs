@@ -8,7 +8,7 @@ export async function refreshExchangeFixtures(original,{sport,slot,now=Date.now(
  const path='/apis/site/v2/sports/'+paths[sport]+'/scoreboard';
  const env=await beginJobExecution(original,FIXTURE_REFRESH_JOB,{reservationId:'exchange-fixtures-'+sport+'-'+slot,fetchImpl,network:{origin:'https://site.api.espn.com',path}});
  const date=boardDate(new Date(now).toISOString());
- const response=await env.FBIS_JOB_FETCH('https://site.api.espn.com'+path+'?dates='+date.replaceAll('-','')+'&limit=499'+(sport==='cfb'?'&groups=80':''));
+ const response=await env.FBIS_JOB_FETCH('https://site.api.espn.com'+path+'?dates='+date.replaceAll('-','')+'&limit=499'+(sport==='cfb'?'&groups=80':sport==='cbb'?'&groups=50':''));
  if(!response.ok)throw Error('FIXTURE_SOURCE_HTTP_'+response.status);
  const payload=await response.json();
  const games=scoreboardGames(payload,{sport,date,capturedAt:new Date(now).toISOString()});

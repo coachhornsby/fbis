@@ -40,6 +40,7 @@ jobs:
           node --check functions/lib/kalshiCollegeRuleIdentity.js
           node --check functions/lib/cbbCardSummary.js
           node --check src/lib/cbbCardAuto.js
+          node --check services/polymarket-rest-collector/fixtures.mjs
           node --test test/retired-provider-policy.test.js test/retired-provider-pages.test.mjs test/odds-provider-router.test.js
           node --test test/recovery-card-facts.test.mjs test/exchange-card-delivery.test.mjs test/cbb-exchange-identity.test.mjs test/cbb-card-summary.test.mjs
           node --test test/exchange-relay-pages.test.mjs test/kalshi-market-stream.test.mjs test/exchange-cycle-allocation.test.mjs test/polymarket-stream-broker.test.js test/kalshi-signed-collector.test.js test/job-execution-budget.test.mjs test/account-budget-admission.test.mjs
