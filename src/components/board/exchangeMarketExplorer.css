@@ -1,0 +1,33 @@
+/* Existing FBIS navy/gold card treatment. Readable 14px+ controls; no pale-blue labels. */
+.fbis-market-explorer{border-color:#cba85b;margin:14px 0;background:#071625}
+.fbis-market-explorer>summary{background:#14283d;color:#f4d58d;font-size:17px;line-height:1.5}
+.fbis-market-explorer>summary span{color:#e5eaf1;font-size:14px}
+.market-explorer-body{padding:15px}
+.market-explorer-note{font-size:14px;color:#ddd6bf!important;line-height:1.5}
+.market-explorer-controls{display:flex;gap:12px;align-items:flex-end;flex-wrap:wrap;margin:12px 0}
+.market-explorer-pills{display:flex;flex-wrap:wrap;gap:6px}
+.market-explorer-pills button,.market-explorer-more,.market-explorer-footer button{
+ border:1px solid #8b9bab;background:#1b2c3c;color:#fff;font-weight:750;
+ border-radius:7px;padding:10px 13px;font-size:14px;cursor:pointer}
+.market-explorer-pills button.selected{border-color:#e1b754;background:#705525;color:#fff}
+.market-explorer-pills button:focus-visible,.market-explorer-footer button:focus-visible,.market-explorer-family select:focus-visible{outline:3px solid #f8d57e;outline-offset:2px}
+.market-explorer-family{display:flex;flex-direction:column;color:#fff;gap:4px;font-weight:700;font-size:14px}
+.market-explorer-family select{background:#1b2c3c;border:1px solid #8b9bab;border-radius:6px;color:#fff;font-size:15px;padding:9px}
+.market-explorer-coverage{display:flex;flex-wrap:wrap;gap:8px;margin:10px 0;font-size:14px}
+.market-explorer-coverage>span{background:#142b40;border:1px solid #53677b;border-radius:7px;padding:8px;color:#fff}
+.market-explorer-table th,.market-explorer-table td{font-size:14px;line-height:1.5;padding:11px}
+.market-explorer-table th{background:#20354b;color:#ffe1a1;white-space:nowrap}
+.market-explorer-table td span{font-size:13px;color:#dbe4ed}
+.market-explorer-table td strong{font-size:15px;color:#fff}
+.market-explorer-table td:nth-child(2) strong,.market-explorer-table td:nth-child(3) strong{font-size:17px;color:#f8d580}
+.market-explorer-table .market-explorer-stale{color:#ffcf88}
+.market-explorer-table .market-explorer-captured{color:#a7e5b9}
+.market-explorer-footer{display:flex;gap:12px;flex-wrap:wrap;align-items:center;justify-content:space-between;padding-top:12px;border-top:1px solid #42576d;color:#fff;font-size:14px}
+.market-explorer-footer button:disabled{opacity:.5;cursor:default}
+@media(max-width:630px){
+ .market-explorer-controls{align-items:stretch}
+ .market-explorer-pills{width:100%}
+ .market-explorer-pills button{flex:1;padding:10px 6px}
+ .market-explorer-table table{min-width:720px}
+ .fbis-market-explorer>summary span{float:none;display:block}
+}
