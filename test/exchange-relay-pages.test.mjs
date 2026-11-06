@@ -1,3 +1,4 @@
+import {readFileSync} from 'node:fs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {webcrypto} from 'node:crypto';
@@ -23,3 +24,5 @@ test('valid service token cannot bypass paused account admission or expose signi
  assert.equal((await k.json()).code,'ACCOUNT_BUDGET_STOP');
  const body=await p.json();assert.equal(body.error,'account-budget-stop');assert.equal(body.headers,undefined);
 });
+
+test('production Pages declares the account identifier required by signer and read admission',()=>{const config=readFileSync(new URL('../deploy/board/wrangler.toml',import.meta.url),'utf8');assert.match(config,/CLOUDFLARE_ACCOUNT_ID\s*=\s*"2fdc80b8d99070adcef12f7a785c3fc1"/);});
