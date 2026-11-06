@@ -215,3 +215,32 @@ test("CFB checkpoint survives beyond four hours within twelve-page alternating c
  assert.equal(snap.pagesFetched,10);
  assert.equal(snap.records.length,10);
 });
+
+test("CBB opt-in audit counts paired outcomes but retains every qualification block",async()=>{
+ const e=await env(),now=new Date("2026-11-06T19:00:00Z");
+ const eventTicker="KXNCAAMBGAME-26NOV06UNFUCLA";
+ const teams=["North Florida","UCLA"];
+ const records=teams.map((team,i)=>({
+  sport:"cbb",ticker:eventTicker+"-"+(i?"UCLA":"UNF"),eventTicker,
+  title:team+" wins",yesLabel:team,status:"active",
+  rulesPrimary:"If "+team+" wins the North Florida vs UCLA men's college basketball game originally scheduled for Nov 6, 2026, then the market resolves to Yes.",
+  fetchedAt:now.toISOString(),matchStatus:"UNMATCHED",marketFamily:"UNVERIFIED",
+ }));
+ e.ARCHIVE.items.set(BASE+"sports/cbb.json",JSON.stringify({
+  ok:true,sport:"cbb",seriesTicker:"KXNCAAMBGAME",capturedAt:now.toISOString(),
+  records,paginationComplete:true,
+ }));
+ const result=await kalshiCoverageReport(e,{now,sport:"cbb"});
+ assert.equal(result.sports.length,1);
+ assert.equal(result.sports[0].recordsReviewed,2);
+ assert.equal(result.sports[0].twoOutcomeCandidates,1);
+ assert.equal(result.sports[0].independentFixtureCandidates,0);
+ assert.equal(result.sports[0].fullyQualifiedMarkets,0);
+ assert.equal(result.sports[0].canAuthorizeWager,false);
+ assert.equal(result.sports[0].reasons.INDEPENDENT_FIXTURE_AND_EVENT_EVIDENCE_MISSING,2);
+ const initial=await kalshiCoverageReport(e,{now});
+ assert.deepEqual(initial.sports.map(s=>s.sport),["nfl","cfb"]);
+ const response=await onRequestGet({request:new Request("https://fbis.example/api/kalshi-coverage-report?sport=cbb"),env:e});
+ assert.equal(response.status,200);
+ assert.equal((await response.json()).sports[0].twoOutcomeCandidates,1);
+});
