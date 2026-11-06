@@ -31,7 +31,8 @@ export function validateStreamRoster(value,now=Date.now()){
 }
 // Batch producers supply already matched contracts; no provider calls or SQL.
 // Fair selection prevents a large single-sport slate filling every slot.
-export function buildStreamRosterManifest(candidates,{now=Date.now()}={}){
+export function buildStreamRosterManifest(candidates,{now=Date.now(),maxSelected=50}={}){
+ if(!Number.isSafeInteger(maxSelected)||maxSelected<1||maxSelected>50)throw Error('INVALID_ROSTER_SELECTION_CAP');
  if(!Array.isArray(candidates)||!candidates.length||candidates.length>1000)throw Error('BOUNDED_ROSTER_INPUT_REQUIRED');
  const rows=new Map();
  for(const candidate of candidates){
@@ -42,8 +43,8 @@ export function buildStreamRosterManifest(candidates,{now=Date.now()}={}){
  }
  const groups=new Map([...SPORTS].map(s=>[s,[...rows.values()].filter(r=>r.sport===s).sort((a,b)=>((s==='cbb')?(Number(b.market_family==='total'&&b.displayBinding?.period==='first_half')-Number(a.market_family==='total'&&a.displayBinding?.period==='first_half')):0)||a.event_start_time.localeCompare(b.event_start_time)||a.source_market_id.localeCompare(b.source_market_id))]));
  const roster=[];let offset=0;
- while(roster.length<Math.min(50,rows.size)){
-  for(const sport of SPORTS){if(roster.length>=50)break;const row=groups.get(sport)[offset];if(row)roster.push(row);}
+ while(roster.length<Math.min(maxSelected,rows.size)){
+  for(const sport of SPORTS){if(roster.length>=maxSelected)break;const row=groups.get(sport)[offset];if(row)roster.push(row);}
   offset++;
  }
  return {version:2,source:'Polymarket US',capturedAt:new Date(now).toISOString(),expiresAt:new Date(now+900000).toISOString(),roster,coverage:Object.fromEntries([...groups].map(([sport,list])=>[sport,{eligible:list.length,selected:roster.filter(r=>r.sport===sport).length,uncovered:list.length-roster.filter(r=>r.sport===sport).length}])),complete:rows.size===roster.length,canQualify:false,canAuthorizeWager:false};
