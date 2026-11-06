@@ -3,7 +3,7 @@
 import {publicProjectionSummary} from '../../../../../../../functions/lib/publicFourSportProjection.js';
 const headers={'content-type':'application/json; charset=utf-8','cache-control':'public, max-age=60, stale-while-revalidate=120','x-content-type-options':'nosniff'};
 const json=(value,status=200)=>new Response(JSON.stringify(value),{status,headers});
-const validDate=s=>/^\\d{4}-\\d{2}-\\d{2}$/.test(s)&&Number.isFinite(Date.parse(s+'T12:00:00Z'))&&new Date(s+'T12:00:00Z').toISOString().slice(0,10)===s;
+const validDate=s=>/^\d{4}-\d{2}-\d{2}$/.test(s)&&Number.isFinite(Date.parse(s+'T12:00:00Z'))&&new Date(s+'T12:00:00Z').toISOString().slice(0,10)===s;
 export async function onRequestGet({env,params}){
   const sport=String(params?.sport||''),date=String(params?.date||'');
   if(!['nfl','nba','cfb'].includes(sport)||!validDate(date))return json({state:'UNSUPPORTED_PUBLIC_MODEL'},400);
