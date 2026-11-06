@@ -84,9 +84,6 @@ export default function RecoveryMiniGameCard({game,onOpen,clock=Date.now()}){
    </div>
   </button>
   <div className="fbis-mini-exchanges" aria-label="Exchange reference prices">{['Kalshi','Polymarket'].map(venue=>{const rows=exchange.filter(q=>q.venue===venue);return <div key={venue}><strong>{venue}</strong><span>{rows.length?rows.map(q=>(q.side==='home'?smallName(home):smallName(away))+' '+(q.ask*100).toFixed(1)+'¢').join(' · '):'Awaiting matched quotes'}</span><span>{rows.length?rows.map(q=>q.transport).filter((v,i,a)=>a.indexOf(v)===i).join(' / ')+' · reference ask':'No current exchange price'}</span></div>;})}</div>
-  <footer className="fbis-mini-footer">
-   <span>{fresh?(model.modelId||'FBIS')+' · '+(model.attribution||'research'):'No verified current forecast'}</span>
-   <span>RESEARCH · NO WAGER APPROVAL</span>
-  </footer>
+
  </article>;
 }
