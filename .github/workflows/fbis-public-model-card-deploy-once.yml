@@ -42,4 +42,5 @@ jobs:
           test -f deploy/board/dist/index.html || { echo "MISSING_STATIC_BOARD"; exit 1; }
           test -f 'deploy/board/functions/api/public/sports/[sport]/[date].js' || { echo "MISSING_PUBLIC_MODEL_ROUTE"; exit 1; }
       - name: One-shot bounded Pages release (does not turn on GitHub auto-deploy)
-        run: npx wrangler pages deploy deploy/board/dist --project-name fbis --branch main --commit-hash "${GITHUB_SHA}"
+        working-directory: deploy/board
+        run: npx wrangler pages deploy dist --project-name fbis --branch main --commit-hash "${GITHUB_SHA}"
