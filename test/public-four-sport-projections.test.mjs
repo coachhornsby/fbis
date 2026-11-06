@@ -3,11 +3,11 @@ import assert from 'node:assert/strict';
 import {publicProjectionSummary,validatePublicProjectionSummary} from '../functions/lib/publicFourSportProjection.js';
 import {onRequestGet} from '../deploy/board/functions/api/public/sports/[sport]/[date].js';
 
-const date='2026-11-07';
-const generatedAt='2026-11-07T12:00:00Z';
-const expiresAt='2026-11-08T06:00:00Z';
-const event={eventId:'401234567',date,start:'2026-11-08T01:00:00Z',homeId:'cfb-1',awayId:'cfb-2',
-  sourceCapturedAt:'2026-11-07T11:55:00Z',canAuthorizeWager:false,
+const date='2099-11-07';
+const generatedAt='2099-11-07T12:00:00Z';
+const expiresAt='2099-11-08T06:00:00Z';
+const event={eventId:'401234567',date,start:'2099-11-08T01:00:00Z',homeId:'cfb-1',awayId:'cfb-2',
+  sourceCapturedAt:'2099-11-07T11:55:00Z',canAuthorizeWager:false,
   sourceLabel:'ESPN verified 2026 team scoring form',
   projection:{homeScore:27.5,awayScore:20.5,margin:7,total:48,
     modelId:'CFB-SCORE-FORM-RESEARCH',modelVersion:'v1.3-score-form'}};
