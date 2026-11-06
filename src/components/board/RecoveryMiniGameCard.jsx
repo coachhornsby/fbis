@@ -86,7 +86,7 @@ export default function RecoveryMiniGameCard({game,onOpen,clock=Date.now()}){
   </button>
   <div className="fbis-mini-exchanges" aria-label="Exchange prices">
    <table><thead><tr><th scope="col"><span className="fbis-mini-sr-only">Exchange</span></th><th scope="col">Market</th><th scope="col">{smallName(away)}</th><th scope="col">{smallName(home)}</th></tr></thead><tbody>{exchangeRows.map(row=><tr key={row.venue+row.family}>
-    {row.family==='moneyline'&&<th scope="rowgroup" rowSpan={3} title={row.venue}><img className="fbis-mini-exchange-logo" src={row.venue==='Kalshi'?'https://kalshi.com/favicon.ico':'https://polymarket.com/images/brand/icon-blue.png'} alt={row.venue} width="32" height="32" loading="lazy"/></th>}
+    {row.family==='moneyline'&&<th scope="rowgroup" rowSpan={3} title={row.venue}><img className="fbis-mini-exchange-logo" src={row.venue==='Kalshi'?'https://kalshi.com/favicon.ico':'/brands/polymarket.png'} alt={row.venue} width="32" height="32" loading="lazy"/></th>}
     <th scope="row">{row.label}</th>{row.cells.map((cell,i)=><td key={i} title={cell.title}>{cell.line&&<span className="fbis-mini-exchange-line">{cell.line}</span>}{cell.price}</td>)}
    </tr>)}</tbody></table>
   </div>
