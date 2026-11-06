@@ -9,7 +9,10 @@ export const PUBLIC_MODEL_IDS=Object.freeze({
 });
 const permitted=sport=>PRIVATE_RECOVERY_SPORTS.includes(sport)&&Boolean(PUBLIC_MODEL_IDS[sport]);
 function summaryEvent(e,sport){
-  if(e.projection.modelId!==PUBLIC_MODEL_IDS[sport])return null;
+  // The recovery producer uses ESPN-derived form/box scores only for these ids.
+  // An altered or unverifiable source label cannot be silently made public.
+  if(e.projection.modelId!==PUBLIC_MODEL_IDS[sport]||
+    !/^ESPN (verified|actual) /.test(String(e.sourceLabel||'')))return null;
   return {eventId:e.eventId,date:e.date,start:e.start,homeId:e.homeId,awayId:e.awayId,
     sourceCapturedAt:e.sourceCapturedAt,canAuthorizeWager:false,
     projection:{homeScore:e.projection.homeScore,awayScore:e.projection.awayScore,
