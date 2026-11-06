@@ -1,0 +1,36 @@
+name: FBIS Polymarket US CBB period-field probe — once
+on:
+  push:
+    branches: [fix/polymarket-us-cbb-first-half-period-20261106]
+    paths: ['.github/workflows/fbis-poly-us-period-probe-20261106.yml']
+permissions: {contents: read}
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 4
+    steps:
+      - uses: actions/checkout@v4.2.2
+      - uses: actions/setup-node@v4.1.0
+        with: {node-version: '22'}
+      - name: One public read, bounded sample, no stored payload or credentials
+        run: |
+          node --input-type=module <<'NODE'
+          const u=new URL('https://gateway.polymarket.us/v1/events');
+          for(const [k,v] of Object.entries({tagSlug:'cbb',active:'true',closed:'false',limit:'20',offset:'0'}))u.searchParams.set(k,v);
+          const ac=new AbortController();const timer=setTimeout(()=>ac.abort(),12000);
+          try {
+            const res=await fetch(u,{signal:ac.signal,headers:{accept:'application/json'}});
+            if(!res.ok)throw Error('PUBLIC_HTTP_'+res.status);
+            const json=await res.json();
+            const events=Array.isArray(json.events)?json.events:[];
+            const types={};const samples=[];let total=0;
+            for(const e of events.slice(0,20))for(const m of (Array.isArray(e.markets)?e.markets:[]).slice(0,200)){
+              total++;const type=String(m.sportsMarketType||''),v2=String(m.sportsMarketTypeV2||'');
+              const key=type+' | '+v2;types[key]=(types[key]||0)+1;
+              if(/first|half|period/i.test(key)&&samples.length<12)samples.push({
+                type,v2,line:m.line,sideDescriptions:(m.marketSides||[]).map(s=>({description:s.description,long:s.long})).slice(0,4)
+              });
+            }
+            console.log(JSON.stringify({http:res.status,events:events.length,markets:total,types,samples,complete:false,executable:false}));
+          }finally{clearTimeout(timer)}
+          NODE
