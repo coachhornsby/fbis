@@ -1,0 +1,44 @@
+name: FBIS Polymarket US CBB 1H — bounded production release
+on:
+  push:
+    branches: [main]
+    paths: ['.github/workflows/fbis-poly-us-cbb-first-half-release-20261106.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: fbis-poly-us-cbb-first-half-release
+  cancel-in-progress: false
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 18
+    env:
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4.2.2
+      - uses: actions/setup-node@v4.1.0
+        with:
+          node-version: '22'
+      - name: Install pinned dependencies
+        run: npm ci --ignore-scripts --no-audit --no-fund
+      - name: Verify source and budget-limited runtime
+        run: |
+          node --test test/polymarket-us-cbb-first-half-route.test.mjs test/polymarket-bounded-session.test.mjs test/polymarket-rest-boundary.test.mjs test/exchange-family-binding.test.mjs test/exchange-card-delivery.test.mjs
+          node --check services/polymarket-rest-collector/worker.mjs
+          node --check services/polymarket-us-stream/boundedWorker.mjs
+      - name: Check Cloudflare credentials and static assets
+        run: |
+          test -n "${CLOUDFLARE_ACCOUNT_ID:-}" || exit 1
+          test -n "${CLOUDFLARE_API_TOKEN:-}" || exit 1
+          test -f deploy/board/functions/api/public/exchange-quotes.js || exit 1
+      - name: Build Pages board
+        run: npm run build --prefix deploy/board
+      - name: Release existing Polymarket REST collector
+        run: npx wrangler deploy --config wrangler.polymarket-rest-collector.toml --keep-vars
+      - name: Release existing Polymarket bounded market stream
+        run: npx wrangler deploy --config wrangler.polymarket-us-stream.toml --keep-vars
+      - name: Publish existing Pages board once
+        working-directory: deploy/board
+        run: npx wrangler pages deploy dist --project-name fbis --branch main --commit-hash "${GITHUB_SHA}"
