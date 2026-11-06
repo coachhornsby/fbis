@@ -4,9 +4,10 @@ compatibility_date = "2026-10-01"
 workers_dev = false
 preview_urls = false
 [triggers]
-crons = []
+crons = ["*/2 * * * *"]
 [vars]
 CLOUDFLARE_ACCOUNT_ID = "2fdc80b8d99070adcef12f7a785c3fc1"
+FBIS_POLYMARKET_TAGS_JSON = '{"nfl":["nfl"],"cfb":["cfb"],"nba":["nba"],"cbb":["cbb"],"nhl":["nhl"]}'
 [[r2_buckets]]
 binding = "ARCHIVE"
 bucket_name = "fbis-archive"

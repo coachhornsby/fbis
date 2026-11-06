@@ -6,8 +6,8 @@ const OWNER='budgeted-markets-v1';
 const json=(body,status=200)=>Response.json(body,{status,headers:{'cache-control':'no-store'}});
 export class PolymarketMarketStreamRecovered extends DurableObject{
  constructor(ctx,env){super(ctx,env);this.running=false;}
- async run(slot=Math.floor(Date.now()/900000)){
-  const current=Math.floor(Date.now()/900000);
+ async run(slot=Math.floor(Date.now()/60000)){
+  const current=Math.floor(Date.now()/60000);
   if(!Number.isSafeInteger(slot)||(slot!==current&&slot!==current-1))return {ok:false,code:'INVALID_STREAM_SLOT'};
   if(this.ctx.id.toString()!==this.env.PM_STREAM.idFromName(OWNER).toString())return {ok:false,code:'LEGACY_OWNER_RETIRED'};
   if(this.running)return {ok:false,code:'SESSION_ALREADY_RUNNING'};
@@ -25,7 +25,7 @@ export class PolymarketMarketStreamRecovered extends DurableObject{
 export default{
  async scheduled(event,env,ctx){
   // The DO owns concurrency and admission; public requests cannot start it.
-  ctx.waitUntil(env.PM_STREAM.getByName(OWNER).run(Math.floor((event?.scheduledTime||Date.now())/900000)));
+  ctx.waitUntil(env.PM_STREAM.getByName(OWNER).run(Math.floor((event?.scheduledTime||Date.now())/60000)));
  },
  async fetch(request,env){
   const url=new URL(request.url);
@@ -33,7 +33,7 @@ export default{
   try{
    env=await beginJobExecution(env,JOB+':health');
    const object=await env.ARCHIVE.get(STREAM_STATUS_KEY),status=object?await object.json():null;
-   return json({ok:true,readOnly:true,schedule:'PAUSED',continuous:false,status,canQualify:false,canAuthorizeWager:false});
+   return json({ok:true,readOnly:true,schedule:'BOUNDED_MINUTE_SESSIONS',continuous:false,status,canQualify:false,canAuthorizeWager:false});
   }catch{return json({ok:false,code:'ACCOUNT_BUDGET_STOP',paused:true},503);}
  }
 };
