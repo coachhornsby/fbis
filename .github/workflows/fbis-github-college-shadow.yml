@@ -53,11 +53,11 @@ jobs:
           args=(--year "$FBIS_CAPTURE_YEAR" --week "$FBIS_CAPTURE_WEEK" --cbb-team "$FBIS_CAPTURE_TEAM")
           if [[ "$FBIS_NETWORK_CAPTURE" == "true" ]]; then args+=(--network); fi
           python scripts/github_college_shadow.py "${args[@]}"
-      - name: Keep evidence private in action artifact (7 days)
+      - name: Upload non-sensitive validation receipt only (7 days)
         if: always()
         uses: actions/upload-artifact@v4.6.2
         with:
           name: fbis-github-college-shadow-${{ github.run_id }}
-          path: artifacts/github-college-shadow/
+          path: artifacts/github-college-shadow/receipt.json
           retention-days: 7
           if-no-files-found: warn
