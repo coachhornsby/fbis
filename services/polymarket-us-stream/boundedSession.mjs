@@ -40,7 +40,7 @@ export function buildStreamRosterManifest(candidates,{now=Date.now()}={}){
   if(prior&&(prior.sport!==row.sport||prior.canonical_event_id!==row.canonical_event_id||prior.market_family!==row.market_family))throw Error('CONFLICTING_STREAM_IDENTITY');
   if(!prior||row.collected_at>prior.collected_at)rows.set(row.source_market_id,row);
  }
- const groups=new Map([...SPORTS].map(s=>[s,[...rows.values()].filter(r=>r.sport===s).sort((a,b)=>a.event_start_time.localeCompare(b.event_start_time)||a.source_market_id.localeCompare(b.source_market_id))]));
+ const groups=new Map([...SPORTS].map(s=>[s,[...rows.values()].filter(r=>r.sport===s).sort((a,b)=>((s==='cbb')?(Number(b.market_family==='total'&&b.displayBinding?.period==='first_half')-Number(a.market_family==='total'&&a.displayBinding?.period==='first_half')):0)||a.event_start_time.localeCompare(b.event_start_time)||a.source_market_id.localeCompare(b.source_market_id))]));
  const roster=[];let offset=0;
  while(roster.length<Math.min(50,rows.size)){
   for(const sport of SPORTS){if(roster.length>=50)break;const row=groups.get(sport)[offset];if(row)roster.push(row);}
