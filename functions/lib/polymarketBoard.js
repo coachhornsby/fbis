@@ -106,7 +106,16 @@ export async function loadPolymarketUsBoardOffers(db,games=[],sport,{now=new Dat
   const inferredSide=['moneyline','spread'].includes(family)
     ?(binding?.side||polymarketUsCanonicalSide({marketFamily:family,sport,side:r.side,raw:payload},matchedGame))
     :null;
-  const side=['moneyline','spread'].includes(family)&&['home','away','draw'].includes(payload?.canonicalSide)?payload.canonicalSide:inferredSide|| (soccerContract?polymarketUsSideLabel(payload.providerMarket,payload.providerSide,"soccer"):r.side);
+  // Reject old persisted CBB orientation labels unless independent provider
+  // home and away evidence is still present and consistent on readback.
+  const cbbOrientationOk=sport!=='cbb'||!['moneyline','spread'].includes(family)||
+    !!polymarketUsCanonicalSide({sport:'cbb',marketFamily:family,side:r.side,
+      homeTeam:payload?.providerHomeTeam,awayTeam:payload?.providerAwayTeam,
+      raw:payload},matchedGame);
+  const unresolvedCbb=sport==='cbb'&&['moneyline','spread'].includes(family)&&!cbbOrientationOk;
+  const side=unresolvedCbb
+    ?String(payload?.providerSide?.team?.name||payload?.providerSide?.description||'UNVERIFIED')
+    :(['moneyline','spread'].includes(family)&&['home','away','draw'].includes(payload?.canonicalSide)?payload.canonicalSide:inferredSide|| (soccerContract?polymarketUsSideLabel(payload.providerMarket,payload.providerSide,"soccer"):r.side));
   if(soccerContract&&family==="moneyline"&&payload.contractLong!==true)continue;
   if(sport==="soccer"&&r.source==="Polymarket US WebSocket"&&payload?.contractBindingVerified!==true)continue;
   const providerObservedAt=providerObservationTime({source:r.source,raw:payload,sourceObservedAt:
