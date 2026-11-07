@@ -6,7 +6,7 @@
  * for CBB only, one licensed KenPom rating feed when the owner already has a key.
  * Missing, stale, unmatched or insufficient evidence -> NO PREDICTION.
  */
-import {createRecoverySourceBudget,recoveryCoverage} from './lib/recoveryEvidence.mjs';
+import {createRecoverySourceBudget,recoveryCoverage,recoveryReceiptDiagnostics} from './lib/recoveryEvidence.mjs';
 import {mkdir,writeFile} from 'node:fs/promises';
 import {createHash} from 'node:crypto';
 import {boardDate,captureScoreboards} from '../functions/lib/publicBoardSnapshot.js';
@@ -271,8 +271,8 @@ async function run(){
 }
 try{await run();}
 catch(e){results.errors.push({stage:'RUN',reason:String(e.message||e)});}
+results.diagnostics=recoveryReceiptDiagnostics(results);
 await writeFile(outDir+'/receipt.json',JSON.stringify(results,null,2)+'\n');
 console.log(JSON.stringify(results));
 if(results.coverageState==='PARTIAL')console.warn('::warning::Projection coverage is PARTIAL. Inspect forecastCoverage for missing forecasts and expiry before kickoff; job success is not complete board coverage.');
 if(results.errors.length||!results.written.some(x=>x.stored))process.exitCode=1;
-

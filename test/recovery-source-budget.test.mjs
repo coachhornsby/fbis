@@ -31,3 +31,32 @@ test('coverage reports missing forecasts and expiry before kickoff without exten
  assert.equal(recoveryCoverage([],[],null).state,'NO_SCHEDULED_GAMES');
  assert.equal(recoveryCoverage([{id:'1'}],events,'2026-11-07T23:00:00Z').state,'COMPLETE');
 });
+
+import {recoveryReceiptDiagnostics} from '../scripts/lib/recoveryEvidence.mjs';
+const realistic=()=>({generatedAt:'2026-11-07T17:45:20.790Z',coverageState:'PARTIAL',errors:[],written:[{sport:'cbb',events:46,stored:true},{sport:'cfb',events:39,stored:true}],forecastCoverage:{cbb:{state:'PARTIAL',scheduled:58,projected:46,expiresAt:'2026-11-07T23:45:20.790Z',missingEventIds:Array(12).fill('missing'),expiresBeforeStartEventIds:Array(17).fill('late')},cfb:{state:'PARTIAL',scheduled:40,projected:39,expiresAt:'2026-11-08T11:45:20.790Z',missingEventIds:['401858290'],expiresBeforeStartEventIds:[]}}});
+test('realistic successful Nov7 receipt still reports missing and late forecasts',()=>{
+ const r=realistic(),before=JSON.stringify(r),d=recoveryReceiptDiagnostics(r,{nowMs:Date.parse('2026-11-07T21:35Z')});
+ assert.equal(d.state,'ATTENTION_REQUIRED');assert.equal(d.sports.cbb.missingCount,12);assert.equal(d.sports.cbb.expiresBeforeKickoffCount,17);assert.deepEqual(d.sports.cbb.flags,['COVERAGE_PARTIAL','MISSING_FORECASTS','EXPIRES_BEFORE_KICKOFF']);assert.equal(d.canDispatch,false);assert.equal(JSON.stringify(r),before);
+});
+test('exact expiry becomes expired, never extends capture',()=>assert.ok(recoveryReceiptDiagnostics(realistic(),{nowMs:Date.parse('2026-11-07T23:45:20.790Z')}).sports.cbb.flags.includes('EXPIRED')));
+test('missing, future, unpublished and malformed evidence fail closed',()=>{
+ assert.equal(recoveryReceiptDiagnostics(null).state,'ATTENTION_REQUIRED');
+ const r=realistic();r.generatedAt='2099-01-01';r.written=[];r.forecastCoverage.cbb.expiresAt='bad';
+ const d=recoveryReceiptDiagnostics(r);assert.ok(d.reasons.includes('FUTURE_CAPTURE_TIME'));assert.ok(d.sports.cbb.flags.includes('PUBLICATION_UNVERIFIED'));assert.ok(d.sports.cbb.flags.includes('INVALID_EXPIRY'));
+});
+test('deadline checks distinguish timely early capture from missed refresh',()=>{
+ const r=realistic(),opts={nowMs:Date.parse('2026-11-07T18:01Z'),minCaptureAt:'2026-11-07T17:30Z',deadlineAt:'2026-11-07T18:00Z'};
+ assert.ok(!recoveryReceiptDiagnostics(r,opts).reasons.includes('REFRESH_DEADLINE_MISSED'));
+ r.generatedAt='2026-11-07T13:28Z';assert.ok(recoveryReceiptDiagnostics(r,opts).reasons.includes('REFRESH_DEADLINE_MISSED'));
+ assert.throws(()=>recoveryReceiptDiagnostics(r,{...opts,minCaptureAt:'bad'}),/INVALID_REFRESH_WINDOW/);
+});
+
+test('structurally incomplete evidence never reports CURRENT',()=>{
+ for(const c of [null,{scheduled:null,projected:null},{state:'UNAVAILABLE',scheduled:0,projected:0,missingEventIds:['x']}]){
+  const d=recoveryReceiptDiagnostics({generatedAt:'2026-11-07T17:45Z',coverageState:'COMPLETE',forecastCoverage:{cbb:c}},{nowMs:Date.parse('2026-11-07T18:00Z')});assert.equal(d.state,'ATTENTION_REQUIRED');
+ }
+});
+test('valid complete four-sport empty slate is current',()=>{
+ const forecastCoverage=Object.fromEntries(['cbb','cfb','nba','nfl'].map(s=>[s,{state:'NO_SCHEDULED_GAMES',scheduled:0,projected:0,missingEventIds:[],expiresBeforeStartEventIds:[],expiresAt:null}]));
+ assert.equal(recoveryReceiptDiagnostics({generatedAt:'2026-11-07T17:45Z',coverageState:'COMPLETE',written:[],forecastCoverage},{nowMs:Date.parse('2026-11-07T18:00Z')}).state,'CURRENT');
+});
