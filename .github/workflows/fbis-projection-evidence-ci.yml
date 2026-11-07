@@ -1,0 +1,32 @@
+name: FBIS projection evidence checks
+on:
+  pull_request:
+    paths:
+      - 'scripts/recover-four-sport-once.mjs'
+      - '.github/workflows/fbis-four-sport-recovery-once.yml'
+      - 'scripts/lib/recoveryEvidence.mjs'
+      - 'test/recovery-source-budget.test.mjs'
+      - '.github/workflows/fbis-projection-evidence-ci.yml'
+permissions:
+  contents: read
+concurrency:
+  group: projection-evidence-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+jobs:
+  projection-evidence:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4.2.2
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4.1.0
+        with:
+          node-version: '22'
+      - run: npm ci --ignore-scripts --no-audit --no-fund
+      - name: Check accounting and projection guardrails without providers
+        run: |
+          node --check scripts/recover-four-sport-once.mjs
+          node --import ./test/offline-network.js --test test/recovery-source-budget.test.mjs test/cbb-private-access-route.test.mjs test/four-sport-private-recovery.test.mjs test/recovery-lean-shopping.test.mjs test/nfl-automatic-projection-form.test.mjs test/public-four-sport-projections.test.mjs
+      - name: Build without source capture or deployment
+        run: npm run build

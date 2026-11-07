@@ -6,6 +6,7 @@
  * for CBB only, one licensed KenPom rating feed when the owner already has a key.
  * Missing, stale, unmatched or insufficient evidence -> NO PREDICTION.
  */
+import {createRecoverySourceBudget,recoveryCoverage} from './lib/recoveryEvidence.mjs';
 import {mkdir,writeFile} from 'node:fs/promises';
 import {createHash} from 'node:crypto';
 import {boardDate,captureScoreboards} from '../functions/lib/publicBoardSnapshot.js';
@@ -31,9 +32,9 @@ const token=String(process.env.CLOUDFLARE_API_TOKEN||'');
 const kenpomKey=String(process.env.KENPOM_API_KEY||'');
 const outDir='artifacts/four-sport-recovery';
 await mkdir(outDir,{recursive:true});
-let providerCalls=0;const MAX_SOURCE_CALLS=135;
+const sourceBudget=createRecoverySourceBudget();
 const results={date,generatedAt,ownerScope:'PRIVATE_RESEARCH_ONLY',modelAuthority:'RESEARCH_ONLY',
- noD1:true,paidCollectors:0,providerCalls:{ESPN:0,KenPom:0},written:[],skipped:[],errors:[],
+ noD1:true,paidCollectors:0,providerCalls:sourceBudget.counts,written:[],skipped:[],errors:[],
  noWagerAuthorization:true,cost:{d1Reads:0,d1Writes:0,paidCollectors:0,espnCallsCap:134,kenpomCallsCap:1}};
 const sha=s=>createHash('sha256').update(s).digest('hex');
 const shiftDay=(d,n)=>new Date(dayNumber(d)+n*86400000).toISOString().slice(0,10);
@@ -43,8 +44,7 @@ function assertUrl(url){
  return u;
 }
 async function getJson(url,{kind='ESPN',maxBytes=3800000}={}){
- assertUrl(url);if(++providerCalls>MAX_SOURCE_CALLS)throw Error('SOURCE_CALL_BUDGET_EXCEEDED');
- results.providerCalls[kind]=(results.providerCalls[kind]||0)+1;
+ assertUrl(url);sourceBudget.reserve(kind);
  const res=await fetch(url,{redirect:'error',headers:{Accept:'application/json',
    ...(kind==='KenPom'?{Authorization:'Bearer '+kenpomKey}:{})},
    signal:AbortSignal.timeout(16000)});
@@ -179,7 +179,9 @@ async function writeObject(key,payload){
  return {stored:true,key,sha256:sha(body),bytes};
 }
 async function run(){
- const board=await captureScoreboards({date,sports:['cbb','nfl','nba','cfb']});
+ const board=await captureScoreboards({date,sports:['cbb','nfl','nba','cfb'],fetchFn:async(url,options)=>{
+  assertUrl(url);sourceBudget.reserve('ESPN');return fetch(url,options);
+ }});
  const target=Object.fromEntries(['cbb','nfl','nba','cfb'].map(s=>[s,board.games.filter(g=>g.sport===s&&g.status==='scheduled'&&Date.parse(g.start)>nowMs)]));
  results.slateCounts=Object.fromEntries(Object.entries(target).map(([s,rows])=>[s,rows.length]));
  results.feedStates=Object.fromEntries(Object.entries(board.feeds).map(([s,f])=>[s,{ok:f.ok,n:f.n}]));
@@ -190,6 +192,7 @@ async function run(){
  const nbaHistory=target.nba.length?await nbaBoxHistory(nbaFinals,target.nba):new Map();
  results.sourceCoverage={nflFinals:nflFinals.length,cfbFinals:cfbFinals.length,nbaFinals:nbaFinals.length,nbaWithBoxes:[...nbaHistory.values()].filter(x=>x.length>=3).length};
  const eventGroups={nfl:[],nba:[],cfb:[],cbb:[]};
+ results.forecastCoverage={};
  for(const g of target.nfl){
   const home=verifiedSeasonScoringForm(nflFinals,String(g.home.espnId)),away=verifiedSeasonScoringForm(nflFinals,String(g.away.espnId));
   if(!home||!away||home.games<4||away.games<4){results.skipped.push({sport:'nfl',event:g.id,reason:'INSUFFICIENT_VERIFIED_2026_FORM'});continue;}
@@ -240,7 +243,7 @@ async function run(){
  }else if(target.cbb.length)results.skipped.push({sport:'cbb',reason:'NO_ALREADY_PROVISIONED_KENPOM_API_KEY'});
  for(const sport of ['cbb','nfl','nba','cfb']){
   const events=eventGroups[sport];
-  if(!events.length){results.skipped.push({sport,reason:'NO_VALID_CURRENT_FORECASTS'});continue;}
+  if(!events.length){results.forecastCoverage[sport]=recoveryCoverage(target[sport],events,null);results.skipped.push({sport,reason:'NO_VALID_CURRENT_FORECASTS'});continue;}
   let packet;
   if(sport==='cbb'){
    packet={version:1,season:2027,generatedAt,expiresAt:new Date(nowMs+6*3600000).toISOString(),
@@ -253,12 +256,15 @@ async function run(){
    packet=packetFor(sport,date,events);
    validateFourSportPacket(packet,{sport,date});
   }
+  results.forecastCoverage[sport]=recoveryCoverage(target[sport],events,packet.expiresAt);
   const key='private/'+sport+'/projections/'+date+'.json';
   const file=outDir+'/'+sport+'-'+date+'.json';
   await writeFile(file,JSON.stringify(packet));
   try{const pub=await writeObject(key,packet);results.written.push({sport,events:events.length,file,...pub});}
   catch(e){results.errors.push({sport,reason:'PUBLICATION_FAILED:'+String(e.message||e)});}
  }
+ results.coverageState=results.errors.length||Object.values(results.feedStates).some(x=>!x.ok)||
+  results.written.some(x=>!x.stored)||Object.values(results.forecastCoverage).some(x=>['UNAVAILABLE','PARTIAL'].includes(x.state))?'PARTIAL':'COMPLETE';
  results.modelCoverage=Object.fromEntries(Object.entries(eventGroups).map(([s,events])=>[s,events.length]));
  // No odds provider calls: these are projections only; the display will NOT label a best bookmaker.
  results.marketQuoteCoverage={cbb:0,nfl:0,nba:0,cfb:0};
@@ -267,4 +273,6 @@ try{await run();}
 catch(e){results.errors.push({stage:'RUN',reason:String(e.message||e)});}
 await writeFile(outDir+'/receipt.json',JSON.stringify(results,null,2)+'\n');
 console.log(JSON.stringify(results));
+if(results.coverageState==='PARTIAL')console.warn('::warning::Projection coverage is PARTIAL. Inspect forecastCoverage for missing forecasts and expiry before kickoff; job success is not complete board coverage.');
 if(results.errors.length||!results.written.some(x=>x.stored))process.exitCode=1;
+

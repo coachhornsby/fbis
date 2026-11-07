@@ -23,7 +23,6 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     env:
-      KENPOM_API_KEY: ${{ secrets.KENPOM_API_KEY }}
       CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
       CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
       NODE_OPTIONS: "--max-old-space-size=2048"
@@ -37,6 +36,9 @@ jobs:
           node --check scripts/recover-four-sport-once.mjs
           node --test test/cbb-private-access-route.test.mjs test/four-sport-private-recovery.test.mjs test/recovery-lean-shopping.test.mjs test/nfl-automatic-projection-form.test.mjs test/public-four-sport-projections.test.mjs
       - name: Refresh today's free-input research projections once
+        env:
+          # Licensed credential is available only to this bounded same-day step.
+          KENPOM_API_KEY: ${{ secrets.KENPOM_API_KEY || secrets.KENPOM }}
         run: |
           node scripts/recover-four-sport-once.mjs
           cp artifacts/four-sport-recovery/receipt.json artifacts/four-sport-recovery/receipt-today.json
