@@ -21,7 +21,8 @@ export function startCbbSummaryRefresh({date,onUpdate,onError,load=loadCbbCardSu
   catch(error){if(!stopped)onError?.(error);}
   finally{busy=false;}
  }
- const tick=()=>{if(isCurrentDate())void refresh();};
+ // An initially hidden tab still gets its first read when visible, for any date.
+ const tick=()=>{if(isCurrentDate()||lastAttempt===-Infinity)void refresh();};
  const timer=setTimer(tick,CBB_SUMMARY_RECHECK_MS),unlisten=listen?.(tick);
  void refresh(true);
  return {refresh:()=>refresh(true),stop(){stopped=true;clearTimer(timer);unlisten?.();}};
