@@ -1,0 +1,27 @@
+name: FBIS bounded exchange fixture checks
+on:
+  pull_request:
+    paths:
+      - 'services/polymarket-rest-collector/fixtures.mjs'
+      - 'functions/lib/polymarketFixtureArchive.js'
+      - 'test/exchange-fixture-lookahead.test.mjs'
+      - '.github/workflows/fbis-exchange-fixture-lookahead-ci.yml'
+permissions:
+  contents: read
+concurrency:
+  group: exchange-fixture-checks-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4.2.2
+      - uses: actions/setup-node@v4.1.0
+        with:
+          node-version: '22'
+      - run: npm ci --prefix services/account-budget --ignore-scripts --no-audit --no-fund
+      - name: Focused fixture, boundary, relay and stream tests
+        run: node --test test/exchange-fixture-lookahead.test.mjs test/polymarket-rest-boundary.test.mjs test/exchange-relay-pages.test.mjs test/kalshi-market-stream.test.mjs test/polymarket-bounded-session.test.mjs
+      - name: Offline bounded runtime integration tests
+        run: node --test test/polymarket-bounded-runtime.test.mjs test/polymarket-rest-runtime.test.mjs
