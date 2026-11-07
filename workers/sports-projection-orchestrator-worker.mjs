@@ -1,3 +1,4 @@
+import {handlePinnedManifestInspection} from './pinned-manifest-inspection-route.mjs';
 import {requireJobAdmission} from '../services/account-budget/admission.mjs';
 import {reservePinnoddsRun,capturePinnoddsSnapshot} from "./pinnodds-governed-capture.mjs";
 import crypto from "node:crypto";
@@ -267,6 +268,8 @@ async function runRecoveryWithTennisResearch(env,controller){
 }
 
 async function handleFetch(request, env) {
+  const inspection=await handlePinnedManifestInspection(request,env);
+  if(inspection)return inspection;
   configureRuntime(env);
   const url = new URL(request.url);
   // Public aggregate status only; source rows and credentials remain private.

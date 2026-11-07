@@ -44,3 +44,16 @@ test('real SQLite-backed Worker RPC serializes reservations and preserves them a
  assert.equal((await reserve(mf,'paused')).reason,'PAUSED');
  }finally{if(mf)await mf.dispose();await rm(path,{recursive:true,force:true});}
 });
+
+test('real coordinator requires inspection overhead/CPU declarations and reserves single-success allowance',async()=>{
+ const {PINNED_INSPECTION_JOB,CERTIFIED_EXECUTION_JOBS}=await import('../services/account-budget/executionJobs.mjs');
+ const units=CERTIFIED_EXECUTION_JOBS[PINNED_INSPECTION_JOB].units,now=Date.now();
+ const policy={enabled:true,startMs:now-1000,endMs:now+3600000,measuredAtMs:now,expiresAtMs:now+900000,committedMicroUsd:0,unitCeilings:{...units},jobs:{[PINNED_INSPECTION_JOB]:{worstCaseMicroUsd:10,coordinatorOverheadMicroUsd:7,preAdmissionAttemptCeiling:1,runtimeCpuLimitMs:10,maxUnits:{...units}}}};
+ const path=await mkdtemp(join(tmpdir(),'fbis-inspection-budget-'));let mf;
+ try{
+  const missing=structuredClone(policy);delete missing.jobs[PINNED_INSPECTION_JOB].coordinatorOverheadMicroUsd;mf=runtime(path,missing);
+  assert.equal((await reserve(mf,'denied',PINNED_INSPECTION_JOB)).reason,'INSPECTION_COORDINATOR_OVERHEAD_NOT_APPROVED');
+  await mf.dispose();mf=runtime(path,policy);const granted=await reserve(mf,'one',PINNED_INSPECTION_JOB);assert.equal(granted.allowed,true);assert.equal(granted.reservedMicroUsd,17);
+  await mf.dispose();mf=runtime(path,policy);assert.equal((await reserve(mf,'different',PINNED_INSPECTION_JOB)).reason,'ACCOUNT_UNIT_STOP');
+ }finally{if(mf)await mf.dispose();await rm(path,{recursive:true,force:true});}
+});

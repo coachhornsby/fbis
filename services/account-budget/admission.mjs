@@ -1,6 +1,7 @@
 // One coordinator per Cloudflare account, used only for bounded job admission.
 // Reservations are never refunded: delayed billing and failed jobs cannot free
 // capacity for another run. This is an application stop, not a provider hard cap.
+import {PINNED_INSPECTION_JOB} from './executionJobs.mjs';
 import {validCycleAllocation} from './cycleAllocation.mjs';
 export const STOP_MICRO_USD = 8_000_000;
 const integer = n => Number.isSafeInteger(n) && n >= 0;
@@ -18,7 +19,14 @@ export async function reserveJob(storage, policy, request, now = Date.now()) {
   const job = policy.jobs && Object.hasOwn(policy.jobs,request?.job) ? policy.jobs[request.job] : null;
   if (!job || !integer(job.worstCaseMicroUsd) || job.worstCaseMicroUsd<1)
     return {allowed:false,reason:'UNAPPROVED_JOB'};
+  const inspection=request.job===PINNED_INSPECTION_JOB;
+  const overhead=inspection?job.coordinatorOverheadMicroUsd:0;
+  if(!integer(overhead)||(inspection&&overhead<1))return {allowed:false,reason:'INSPECTION_COORDINATOR_OVERHEAD_NOT_APPROVED'};
+  const reservedCost=job.worstCaseMicroUsd+overhead;
+  if(!integer(reservedCost))return {allowed:false,reason:'INVALID_JOB_COST'};
+  let transactionAttempts=0;
   return storage.transaction(async txn => {
+    if(inspection&&++transactionAttempts>1)throw Error('INSPECTION_ADMISSION_RETRY_BLOCKED');
     const key = `period:${startMs}:${endMs}`;
     const state = await txn.get(key) || {reserved:0,count:0,units:{}};
     if (!integer(state.reserved) || !integer(state.count) || !state.units ||
@@ -26,8 +34,8 @@ export async function reserveJob(storage, policy, request, now = Date.now()) {
       return {allowed:false,reason:'LEDGER_UNAVAILABLE_OR_FULL'};
     const reservationKey=`${key}:job:${request.id}`;
     if (await txn.get(reservationKey)) return {allowed:false,reason:'DUPLICATE_JOB'};
-    const projected = committedMicroUsd+state.reserved+job.worstCaseMicroUsd;
-    if(allocated&&state.reserved+job.worstCaseMicroUsd>policy.cycleAllocation.maxReservedMicroUsd)
+    const projected = committedMicroUsd+state.reserved+reservedCost;
+    if(allocated&&state.reserved+reservedCost>policy.cycleAllocation.maxReservedMicroUsd)
       return {allowed:false,reason:'CYCLE_ALLOCATION_EXHAUSTED'};
     if (!Number.isSafeInteger(projected) || projected>STOP_MICRO_USD)
       return {allowed:false,reason:'ACCOUNT_BUDGET_STOP'};
@@ -39,14 +47,14 @@ export async function reserveJob(storage, policy, request, now = Date.now()) {
         return {allowed:false,reason:'ACCOUNT_UNIT_STOP'};
     }
     if (!Object.keys(job.maxUnits || {}).length) return {allowed:false,reason:'MISSING_UNIT_BOUNDS'};
-    state.reserved += job.worstCaseMicroUsd;
+    state.reserved += reservedCost;
     state.count += 1;
     await txn.put(reservationKey,{job:request.job,at:now});
     state.units={...used};
     for(const [unit,amount] of Object.entries(job.maxUnits))state.units[unit]=(state.units[unit] || 0)+amount;
     await txn.put(key,state);
     return {allowed:true,id:request.id,job:request.job,maxUnits:job.maxUnits,expiresAtMs:Math.min(expiresAtMs,now+110_000),
-      reservedMicroUsd:job.worstCaseMicroUsd,projectedMicroUsd:projected};
+      reservedMicroUsd:reservedCost,projectedMicroUsd:projected};
   });
 }
 

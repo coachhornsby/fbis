@@ -13,8 +13,10 @@ export const POLY_ROSTER_PUBLISH_JOB='services/polymarket-roster-publisher/worke
 export const POLY_SNAPSHOT_READ_JOB='functions/lib/boundedPolymarketBoard.js:read';
 export const POLY_REST_JOB='services/polymarket-rest-collector/worker.mjs';
 export const POLY_FIXTURE_JOB='functions/lib/polymarketFixtureArchive.js:write';
+export const PINNED_INSPECTION_JOB='services/archive/inspectPinnedManifest.mjs';
 const noD1={d1Queries:0,reads:0,writes:0,r2Lists:0};
 export const CERTIFIED_EXECUTION_JOBS=Object.freeze({
+ [PINNED_INSPECTION_JOB]:Object.freeze({cpuMs:10,units:Object.freeze({...noD1,requests:0,responseBytes:0,r2Reads:2,r2Writes:0,r2Bytes:4096,inspectionAttempts:1,coordinatorCalls:1,coordinatorStorageGets:2,coordinatorStoragePuts:2})}),
  ['services/espn-mcp/oauth.mjs']:Object.freeze({cpuMs:100,units:Object.freeze({...noD1,requests:0,responseBytes:0,r2Reads:0,r2Writes:0,r2Bytes:0,doDurationMs:1000})}),
  ['services/espn-mcp/worker.mjs']:Object.freeze({cpuMs:100,units:Object.freeze({...noD1,requests:1,responseBytes:4194304,r2Reads:0,r2Writes:0,r2Bytes:0})}),
  ['services/exchangeDiagnostics.mjs']:Object.freeze({cpuMs:100,units:Object.freeze({...noD1,requests:0,responseBytes:0,r2Reads:0,r2Writes:1,r2Bytes:16384})}),
@@ -46,6 +48,11 @@ export function executionPolicyError(policy,job){
  const units=policy?.jobs?.[job]?.maxUnits;
  if(!units||!Object.keys(units).length)return 'MISSING_UNIT_BOUNDS';
  const caps=CERTIFIED_EXECUTION_JOBS[job].units;
+ if(job===PINNED_INSPECTION_JOB){
+  const definition=policy.jobs[job];
+  if(!Number.isSafeInteger(definition.coordinatorOverheadMicroUsd)||definition.coordinatorOverheadMicroUsd<1||definition.preAdmissionAttemptCeiling!==1||definition.runtimeCpuLimitMs!==10||policy.unitCeilings?.inspectionAttempts!==1)return 'INSPECTION_COORDINATOR_OVERHEAD_NOT_APPROVED';
+  if(Object.keys(units).length!==Object.keys(caps).length||Object.entries(caps).some(([key,value])=>units[key]!==value))return 'INSPECTION_EXACT_UNITS_REQUIRED';
+ }
  for(const [unit,value]of Object.entries(units))if(!Object.hasOwn(caps,unit)||!Number.isSafeInteger(value)||value<0||value>caps[unit])return 'JOB_POLICY_EXCEEDS_CODE_CEILINGS';
  return null;
 }
