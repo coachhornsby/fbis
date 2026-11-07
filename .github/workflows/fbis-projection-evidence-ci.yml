@@ -3,6 +3,7 @@ on:
   pull_request:
     paths:
       - 'scripts/recover-four-sport-once.mjs'
+      - '.github/workflows/fbis-four-sport-recovery-once.yml'
       - 'scripts/lib/recoveryEvidence.mjs'
       - 'test/recovery-source-budget.test.mjs'
       - '.github/workflows/fbis-projection-evidence-ci.yml'
