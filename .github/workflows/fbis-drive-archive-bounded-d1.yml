@@ -1,4 +1,4 @@
-name: FBIS Bounded D1 to Google Drive Archive
+name: FBIS Bounded D1 to Google Drive Archive (PAUSED — D1 billing guard)
 
 on:
   workflow_dispatch:
@@ -6,26 +6,12 @@ on:
 permissions:
   contents: read
 
-concurrency:
-  group: fbis-bounded-d1-drive-pilot
-  cancel-in-progress: false
-
 jobs:
-  copy-restore:
+  blocked-until-row-read-cost-confirmed:
     runs-on: ubuntu-24.04
-    timeout-minutes: 5
     steps:
-      - uses: actions/checkout@v6
-      - uses: actions/setup-python@v6
-        with:
-          python-version: "3.12"
-      - name: Install OAuth and HTTP libraries
-        run: python -m pip install --disable-pip-version-check "google-auth>=2.35,<3" "requests>=2.31,<3"
-      - name: Bounded source read, Drive archive and independent restore
-        env:
-          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID }}
-          GOOGLE_CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }}
-          GOOGLE_REFRESH_TOKEN: ${{ secrets.GOOGLE_REFRESH_TOKEN }}
-        run: python scripts/fbis_drive_archive_bounded_d1.py
+      - name: Stop D1 archive until row-read cost and indexing are verified
+        run: |
+          echo "::error::D1_ARCHIVE_PAUSED_COST_GUARD. Run 42315474763 reported D1_ROW_READ_BUDGET_EXCEEDED_OR_UNKNOWN. No D1 query attempted in this workflow."
+          echo "Do not increase the per-query cap or run the original D1 pilot without independent query-plan and row-read evidence."
+          exit 1
