@@ -25,13 +25,46 @@ MAX_BILLABLE_ROWS_READ = 1000
 FIELDS = "rowid, *"
 
 
-def cloudflare_query(sql, account, token):
-    # No free-form SQL: callers use only the two fixed literal statements below.
-    if sql not in (
-        "SELECT sql FROM sqlite_master WHERE type='table' AND name='normalized_market_observations'",
-        "SELECT CAST(rowid AS TEXT) AS __fbis_rowid, * FROM normalized_market_observations WHERE rowid > 0 ORDER BY rowid LIMIT 5",
-    ):
+STATEMENTS = {
+    "SELECT sql FROM sqlite_master WHERE type='table' AND name='normalized_market_observations'": "schema",
+    "SELECT CAST(rowid AS TEXT) AS __fbis_rowid, * FROM normalized_market_observations WHERE rowid > 0 ORDER BY rowid LIMIT 5": "sample",
+}
+
+
+def validate_accounting(block, label, remaining_budget):
+    """Post-query evidence only, never a pre-execution financial cap.
+
+    Log only allowlisted scalar accounting fields, never SQL results or tokens.
+    Missing, malformed, coerced or negative counters fail closed.
+    """
+    meta = block.get("meta")
+    meta = meta if isinstance(meta, dict) else {}
+    evidence = {"statement": label}
+    for field in ("rows_read", "rows_written", "total_attempts"):
+        value = meta.get(field)
+        evidence[field] = value if type(value) is int and value >= 0 else None
+    evidence["changed_db"] = meta.get("changed_db") if type(meta.get("changed_db")) is bool else None
+    print("D1_QUERY_ACCOUNTING:", json.dumps(evidence, sort_keys=True), flush=True)
+    if block.get("success") is not True:
+        fail("D1_QUERY_NOT_SUCCESSFUL:" + label)
+    if evidence["changed_db"] is not False or evidence["rows_written"] != 0:
+        fail("D1_MUTATION_ACCOUNTING_UNSAFE_OR_UNKNOWN:" + label)
+    rows_read = evidence["rows_read"]
+    if rows_read is None:
+        fail("D1_ROW_READ_ACCOUNTING_UNKNOWN:" + label)
+    if rows_read > MAX_BILLABLE_ROWS_READ or rows_read > remaining_budget:
+        fail("D1_ROW_READ_BUDGET_EXCEEDED:" + label)
+    return rows_read
+
+
+def cloudflare_query(sql, account, token, remaining_budget=MAX_BILLABLE_ROWS_READ):
+    # No free-form SQL, application retries, or budget increases.
+    if sql not in STATEMENTS:
         fail("SQL_NOT_ALLOWLISTED")
+    if type(remaining_budget) is not int or not 0 < remaining_budget <= MAX_BILLABLE_ROWS_READ:
+        fail("D1_RUN_BUDGET_UNAVAILABLE")
+    label = STATEMENTS[sql]
+    print("D1_QUERY_START:", label, flush=True)
     url = f"https://api.cloudflare.com/client/v4/accounts/{account}/d1/database/{DB_ID}/query"
     with requests.post(
         url,
@@ -41,23 +74,19 @@ def cloudflare_query(sql, account, token):
         stream=True,
     ) as response:
         if response.status_code != 200:
-            fail("D1_HTTP_" + str(response.status_code))
+            fail("D1_HTTP_" + str(response.status_code) + ":" + label)
         raw = bytearray()
         for piece in response.iter_content(chunk_size=8192):
             raw.extend(piece)
             if len(raw) > MAX_RESPONSE_BYTES:
-                fail("D1_RESPONSE_SIZE_CAP")
+                fail("D1_RESPONSE_SIZE_CAP:" + label)
     data = json.loads(raw)
     if not data.get("success") or len(data.get("result", [])) != 1:
-        fail("D1_QUERY_NOT_SUCCESSFUL")
+        fail("D1_QUERY_NOT_SUCCESSFUL:" + label)
     block = data["result"][0]
-    meta = block.get("meta") or {}
-    if block.get("success") is False or meta.get("changed_db") or int(meta.get("rows_written", 0)) != 0:
-        fail("D1_MUTATION_ASSERTION_FAILED")
-    rows_read = meta.get("rows_read")
-    if rows_read is None or not 0 <= int(rows_read) <= MAX_BILLABLE_ROWS_READ:
-        fail("D1_ROW_READ_BUDGET_EXCEEDED_OR_UNKNOWN")
-    return block.get("results") or [], int(rows_read)
+    rows_read = validate_accounting(block, label, remaining_budget)
+    return block.get("results") or [], rows_read
+
 
 
 def isolated_restore(schema, rows, columns):
@@ -105,7 +134,7 @@ def main():
         fail("MISSING_SOURCE_TABLE")
     rows, cost_sample = cloudflare_query(
         "SELECT CAST(rowid AS TEXT) AS __fbis_rowid, * FROM normalized_market_observations WHERE rowid > 0 ORDER BY rowid LIMIT 5",
-        account, token
+        account, token, remaining_budget=MAX_BILLABLE_ROWS_READ - cost_schema
     )
     if not rows:
         fail("SOURCE_SAMPLE_EMPTY")
