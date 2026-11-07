@@ -53,7 +53,8 @@ The destination adapter contract is `saveImmutable(name, Uint8Array)` returning
 perform bounded network reads, immutable create-or-byte-verified-reuse, approved
 folder scoping, and serialization against duplicate writes. The library also
 checks returned caps and checksums. Existing Python Drive archive helpers are not
-silently bridged or bypassed. No live Drive adapter is included in this change.
+silently bridged or bypassed. The credential-free adapter in `driveArchiveSink.mjs` is now offline-tested;
+see `drive-archive-adapter.md`. It has no live authentication wiring or caller.
 
 ## Failure and resume
 
@@ -79,6 +80,6 @@ corruption, and caller-plan mutation. They also assert the job stays uncertified
 No live copy, metadata request, D1 query, Drive mutation, or billing-policy expansion
 was performed. Before activation, independently establish a non-overlapping cold
 candidate with trusted expected size/hash/count/provenance, review its format,
-implement/review the destination adapter, certify execution and CPU ceilings,
+validate the reviewed adapter in its approved runtime, certify execution and CPU ceilings,
 obtain budget admission, and separately approve the bounded run. Do not repeat
 already verified pilots just to test this capability.
