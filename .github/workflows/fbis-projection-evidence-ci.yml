@@ -3,6 +3,9 @@ on:
   pull_request:
     paths:
       - 'scripts/recover-four-sport-once.mjs'
+      - 'src/PublicationApp.jsx'
+      - 'src/lib/cbbCardAuto.js'
+      - 'test/cbb-summary-revalidation.test.mjs'
       - '.github/workflows/fbis-four-sport-recovery-once.yml'
       - 'scripts/lib/recoveryEvidence.mjs'
       - 'test/recovery-source-budget.test.mjs'
@@ -27,6 +30,6 @@ jobs:
       - name: Check accounting and projection guardrails without providers
         run: |
           node --check scripts/recover-four-sport-once.mjs
-          node --import ./test/offline-network.js --test test/recovery-source-budget.test.mjs test/cbb-private-access-route.test.mjs test/four-sport-private-recovery.test.mjs test/recovery-lean-shopping.test.mjs test/nfl-automatic-projection-form.test.mjs test/public-four-sport-projections.test.mjs
+          node --import ./test/offline-network.js --test test/cbb-summary-revalidation.test.mjs test/recovery-source-budget.test.mjs test/cbb-private-access-route.test.mjs test/four-sport-private-recovery.test.mjs test/recovery-lean-shopping.test.mjs test/nfl-automatic-projection-form.test.mjs test/public-four-sport-projections.test.mjs
       - name: Build without source capture or deployment
         run: npm run build
