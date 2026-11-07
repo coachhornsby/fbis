@@ -16,15 +16,15 @@ export function parseKalshiCbbFirstHalfTotalRule(text){
   date:match[6]+'-'+MONTHS[match[4]]+'-'+match[5].padStart(2,'0')};
 }
 /** Source-only market explorer quotes. No fee, executable-price or wager authority. */
-export function matchedKalshiCbbFirstHalfTotals(fixtures=[],snapshot,{now=Date.now()}={}){
+export function matchedKalshiCbbFirstHalfTotals(fixtures=[],snapshot,{now=Date.now(),retainLastObserved=false}={}){
  const result={};
  if(snapshot?.ok!==true||snapshot.sport!=='cbb_1h_total'||snapshot.seriesTicker!==SERIES||
   !Array.isArray(snapshot.records)||snapshot.records.length>4000||
-  !ageOk(snapshot.capturedAt,now,1800000))return result;
+  !ageOk(snapshot.capturedAt,now,retainLastObserved?Infinity:1800000))return result;
  for(const market of snapshot.records){
   if(market?.sport!=='cbb_1h_total'||market.seriesTicker!==SERIES||market.status!=='active'||
    !market.ticker?.startsWith(SERIES+'-')||!market.eventTicker?.startsWith(SERIES+'-')||
-   !market.ticker.startsWith(market.eventTicker+'-')||!ageOk(market.fetchedAt,now,900000))continue;
+   !market.ticker.startsWith(market.eventTicker+'-')||(!ageOk(market.fetchedAt,now,retainLastObserved?Infinity:900000)||Date.parse(market.fetchedAt)>Date.parse(snapshot.capturedAt)))continue;
   const rule=parseKalshiCbbFirstHalfTotalRule(market.rulesPrimary);
   if(!rule)continue;
   const matching=fixtures.filter(game=>{if(!Number.isFinite(Date.parse(game.start||''))||
@@ -37,7 +37,7 @@ export function matchedKalshiCbbFirstHalfTotals(fixtures=[],snapshot,{now=Date.n
    if(ask==null)continue;
    (result[game.id]??=[]).push({venue:'Kalshi',marketFamily:'total',period:'1h',side,
     line:rule.line,ask,receivedAt:market.fetchedAt,providerObservedAt:null,
-    eventStart:game.start,transport:'REST',marketId:market.ticker,
+    eventStart:game.start,transport:'REST',marketId:market.ticker,eventTicker:market.eventTicker,marketUrl:market.marketUrl||null,stale:!ageOk(market.fetchedAt,now,900000),quoteAgeSeconds:Math.floor((now-Date.parse(market.fetchedAt))/1000),marketStatus:'active',canRecommend:false,canChangeProjection:false,executionEligible:false,
     sourceSeries:SERIES,referenceOnly:true,canQualify:false,canAuthorizeWager:false});
   }
  }

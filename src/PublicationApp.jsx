@@ -1,3 +1,4 @@
+import {mergeRetainedExchangeQuotes,loadRetainedExchangeQuotes,saveRetainedExchangeQuotes} from './lib/retainedExchangeQuotes.js';
 import {startCbbSummaryRefresh} from './lib/cbbCardAuto.js';
 import PrivateSportProjection from './components/board/PrivateSportProjection.jsx';
 import {loadPublicSportSnapshot,clearPublicSportSnapshot} from './lib/publicSportAuto.js';
@@ -32,6 +33,7 @@ function PublicationApp(){
   const [modelPacket,setModelPacket]=useState(null);
   const [sportOffers,setSportOffers]=useState([]);
   const [exchangeQuotes,setExchangeQuotes]=useState({});
+  const exchangeCache=useRef({});
   const [exchangeHealth,setExchangeHealth]=useState({state:'LOADING'});
   const [modelStatus,setModelStatus]=useState('IDLE');
   const url=new URL(window.location.href);
@@ -100,17 +102,20 @@ function PublicationApp(){
     },20*60*1000);
     return()=>{active=false;clearInterval(timer);};
   },[date,sport]);
-  useEffect(()=>{let active=true;setExchangeQuotes({});setExchangeHealth({state:'LOADING'});
+  useEffect(()=>{let active=true;const scope=sport+'|'+date;
+   let storage=null;try{storage=window.sessionStorage;}catch{}
+   exchangeCache.current=loadRetainedExchangeQuotes(storage,scope);setExchangeQuotes(exchangeCache.current);setExchangeHealth({state:'LOADING'});
    async function read(){if(document.hidden)return;
     try{
      const response=await fetch('/api/public/exchange-quotes?'+new URLSearchParams({sport,date}),{cache:'no-store'});
      const packet=await response.json();if(!active)return;
      if(response.ok&&packet.ok&&packet.sport===sport&&packet.date===date){
-      setExchangeQuotes(packet.byEvent||{});
+      exchangeCache.current=mergeRetainedExchangeQuotes(exchangeCache.current,packet.byEvent||{},Date.now(),packet.unavailableMarkets||[]);
+      saveRetainedExchangeQuotes(storage,scope,exchangeCache.current);setExchangeQuotes(exchangeCache.current);
       setExchangeHealth({state:'READY',sources:packet.marketSources||null,
        counts:packet.matchedQuoteCounts||{}});
-     }else{setExchangeQuotes({});setExchangeHealth({state:packet.code==='EXCHANGE_FEED_READ_PAUSED'?'PAUSED':'UNAVAILABLE'});}
-    }catch{if(active){setExchangeQuotes({});setExchangeHealth({state:'UNAVAILABLE'});}}
+     }else{setExchangeHealth({state:packet.code==='EXCHANGE_FEED_READ_PAUSED'?'PAUSED':'UNAVAILABLE'});}
+    }catch{if(active){setExchangeHealth({state:'UNAVAILABLE'});}}
    }
    read();const timer=setInterval(read,60000);
    return()=>{active=false;clearInterval(timer);};

@@ -14,7 +14,37 @@ const now=Date.parse('2026-11-06T16:00:00Z'),start='2026-11-07T01:00:00Z';
 const base={id:'presentation-fixture',sport:'cbb',start,status:'scheduled',away:{name:'Away Team'},home:{name:'Home Team'}};
 const q=(family,side,line,venue='Kalshi')=>({venue,marketFamily:family,side,line,ask:.52,transport:'WebSocket',receivedAt:new Date(now-1000).toISOString(),eventStart:start});
 const render=quotes=>renderToStaticMarkup(React.createElement(Card,{game:{...base,exchangeReferenceQuotes:quotes},clock:now}));
-test('empty venues show two branded panels and explicit unavailable messages',()=>{const s=render([]);assert.equal((s.match(/No current prices/g)||[]).length,2);assert.ok(s.includes('Kalshi reference prices'));assert.ok(s.includes('Polymarket reference prices'));assert.ok(s.includes('aria-hidden="true"'));assert.ok(!s.includes('current matched prices'));});
-test('current offers retain all families, signed lines and team-total sides',()=>{const s=render([q('moneyline','away',null),q('spread','home',3.5),q('total','over',147.5),q('team_total','away_under',70.5)]);for(const x of ['>ML</th>','title="Moneyline"','Spread','Total','Team totals','52.0¢','+3.5','O 147.5','U 70.5','Away Team','Home Team'])assert.ok(s.includes(x),x);assert.equal((s.match(/No current prices/g)||[]).length,1);});
-test('stale or wrong-event quotes cannot light up a branded price panel',()=>{const s=render([{...q('moneyline','away',null),receivedAt:new Date(now-121000).toISOString()},{...q('moneyline','home',null,'Polymarket'),eventStart:'2026-11-08T01:00:00Z'}]);assert.equal((s.match(/No current prices/g)||[]).length,2);assert.ok(!s.includes('52.0¢'));});
+test('empty venues show two branded panels and explicit unavailable messages',()=>{const s=render([]);assert.equal((s.match(/No captured prices/g)||[]).length,2);assert.ok(s.includes('Kalshi reference prices'));assert.ok(s.includes('Polymarket reference prices'));assert.ok(s.includes('aria-hidden="true"'));assert.ok(!s.includes('current matched prices'));});
+test('current offers retain all families, signed lines and team-total sides',()=>{const s=render([q('moneyline','away',null),q('spread','home',3.5),q('total','over',147.5),q('team_total','away_under',70.5)]);for(const x of ['>ML</th>','title="Moneyline"','Spread','Total','Team totals','52.0¢','+3.5','O 147.5','U 70.5','Away Team','Home Team'])assert.ok(s.includes(x),x);assert.equal((s.match(/No captured prices/g)||[]).length,1);});
+test('stale matched quotes remain visibly dated references while wrong-event quotes stay absent',()=>{
+ const s=render([{...q('moneyline','away',null),receivedAt:new Date(now-121000).toISOString()},{...q('moneyline','home',null,'Polymarket'),ask:.63,eventStart:'2026-11-08T01:00:00Z'}]);
+ assert.equal((s.match(/No captured prices/g)||[]).length,1);
+ assert.ok(s.includes('52.0¢'));assert.ok(!s.includes('63.0¢'));
+ assert.ok(s.includes('Saved · reference only'));assert.match(s,/Fetched .*CT · 2m ago/);
+ assert.ok(s.includes('Provider quote time unknown'));
+ assert.ok(s.includes('last fetched reference prices'));
+ assert.ok(s.includes('Quotes are saved references, not verified live prices.'));
+ assert.ok(!s.includes('current matched prices'));assert.ok(!s.includes('BEST PRICE'));
+});
+test('closed and invalid contract states show unavailable, without old prices or links',()=>{
+ for(const marketStatus of ['closed','invalid']){
+  const s=render([{...q('moneyline','away',null),marketStatus,
+   marketId:'KXNCAAMBGAME-26NOV06DUKEUNC-DUKE',eventTicker:'KXNCAAMBGAME-26NOV06DUKEUNC'}]);
+  assert.ok(s.includes('Unavailable'));assert.ok(s.includes(marketStatus==='closed'?'Market closed':'Quote unavailable'));
+  assert.ok(!s.includes('52.0¢'));assert.ok(!s.includes('href="https://kalshi.com/'));
+ }
+});
+test('retained lines link only to supported exact venue destinations',()=>{
+ const kalshi={...q('moneyline','away',null),receivedAt:new Date(now-3600000).toISOString(),
+  marketId:'KXNCAAMBGAME-26NOV06DUKEUNC-DUKE',eventTicker:'KXNCAAMBGAME-26NOV06DUKEUNC'};
+ const poly={...q('spread','home',3.5,'Polymarket'),marketId:'source-contract-1',marketUrl:'https://polymarket.us/markets/source-contract-1'};
+ const s=render([kalshi,poly]);
+ assert.ok(s.includes('href="https://kalshi.com/markets/kxncaambgame/mens-college-basketball-mens-game/kxncaambgame-26nov06dukeunc?op_market_ticker=KXNCAAMBGAME-26NOV06DUKEUNC-DUKE"'));
+ assert.ok(s.includes('href="https://polymarket.us/markets/source-contract-1"'));assert.ok(s.includes('rel="noopener noreferrer"'));
+ assert.ok(s.includes('Saved · reference only'));
+ const bad=render([{...poly,marketUrl:'https://evil.invalid/markets/source-contract-1'}]);
+ assert.ok(bad.includes('52.0¢'));assert.ok(!bad.includes('href="https://evil.invalid'));
+ const mismatched=render([{...poly,marketUrl:'https://polymarket.us/markets/another-contract'}]);
+ assert.ok(!mismatched.includes('href="https://polymarket.us/'));
+});
 test('watermark does not intercept input and prices remain above it',async()=>{const s=await readFile('src/components/board/recoveryMiniGameCard.css','utf8');assert.match(s,/pointer-events:none/);assert.match(s,/isolation:isolate/);assert.match(s,/opacity:\.18/);assert.match(s,/z-index:-1/);assert.match(s,/border-top:2px solid #958548/);});

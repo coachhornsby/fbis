@@ -19,6 +19,16 @@ const localTime=value=>{
 };
 const displayName=t=>t?.name||t?.fullName||t?.abbr||'Team';
 
+
+function CapturedQuote({cell}){
+ const value=<>{cell.line!=null&&<span className="fbis-mini-exchange-line">{cell.line}</span>}<strong>{cell.price}</strong></>;
+ return <div className={'fbis-mini-captured-quote'+(cell.stale?' is-stale':'')} data-market-state={cell.state||'missing'}>
+  {cell.link?<a href={cell.link.url} target="_blank" rel="noopener noreferrer" aria-label={cell.link.label+' · '+[cell.line,cell.price].filter(Boolean).join(' ')}>{value}</a>:value}
+  {cell.statusLabel&&<span className="fbis-mini-quote-status">{cell.statusLabel}</span>}
+  {cell.observedLabel&&<span className="fbis-mini-quote-time">{cell.observedLabel}</span>}
+ </div>;
+}
+
 export default function RecoveryMiniGameCard({game,onOpen,clock=Date.now()}){
  const model=game?.recoveryVerifiedProjection||null;
  const facts=recoveryCardFacts(game,clock);
@@ -87,11 +97,12 @@ export default function RecoveryMiniGameCard({game,onOpen,clock=Date.now()}){
     return <section key={venue} className={'fbis-mini-venue-panel '+(venue==='Kalshi'?'is-kalshi':'is-polymarket')} aria-label={venue+' reference prices'}>
      <span className="fbis-mini-venue-name fbis-mini-sr-only">{venue}</span>
      <div className="fbis-mini-venue-watermark" aria-hidden="true"/>
-     {hasPrices?<table aria-label={venue+' current matched prices'}><thead className="fbis-mini-sr-only"><tr><th scope="col">Market</th><th scope="col">{displayName(away)}</th><th scope="col">{displayName(home)}</th></tr></thead><tbody>{rows.map(row=><tr key={row.family}>
+     {hasPrices?<table aria-label={venue+' last fetched reference prices'}><thead className="fbis-mini-sr-only"><tr><th scope="col">Market</th><th scope="col">{displayName(away)}</th><th scope="col">{displayName(home)}</th></tr></thead><tbody>{rows.map(row=><tr key={row.family}>
       <th scope="row" title={row.label}>{row.family==='moneyline'?'ML':row.label}</th>{row.cells.map((cell,i)=><td key={i} title={cell.title}>{cell.lines?.length
-       ?<div className="fbis-mini-team-total-prices">{cell.lines.map(x=><div key={x.line} title={x.title}><span>{x.line}</span><strong>{x.price}</strong></div>)}</div>
-       :<>{cell.line&&<span className="fbis-mini-exchange-line">{cell.line}</span>}{cell.price}</>}</td>)}
-     </tr>)}</tbody></table>:<p className="fbis-mini-exchange-empty">No current prices</p>}
+       ?<div className="fbis-mini-team-total-prices">{cell.lines.map(x=><CapturedQuote key={x.line} cell={x}/>)}</div>
+       :<CapturedQuote cell={cell}/>}</td>)}
+     </tr>)}</tbody></table>:<p className="fbis-mini-exchange-empty">No captured prices</p>}
+     {hasPrices&&<p className="fbis-mini-quote-note">Fetch times shown · Quotes are saved references, not verified live prices.</p>}
     </section>;
    })}
   </div>
