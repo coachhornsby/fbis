@@ -87,7 +87,7 @@ export default function RecoveryMiniGameCard({game,onOpen,clock=Date.now()}){
      <span className="fbis-mini-venue-name fbis-mini-sr-only">{venue}</span>
      <div className="fbis-mini-venue-watermark" aria-hidden="true"/>
      {hasPrices?<table aria-label={venue+' current matched prices'}><thead className="fbis-mini-sr-only"><tr><th scope="col">Market</th><th scope="col">{displayName(away)}</th><th scope="col">{displayName(home)}</th></tr></thead><tbody>{rows.map(row=><tr key={row.family}>
-      <th scope="row">{row.label}</th>{row.cells.map((cell,i)=><td key={i} title={cell.title}>{cell.lines?.length
+      <th scope="row" title={row.label}>{row.family==='moneyline'?'ML':row.label}</th>{row.cells.map((cell,i)=><td key={i} title={cell.title}>{cell.lines?.length
        ?<div className="fbis-mini-team-total-prices">{cell.lines.map(x=><div key={x.line} title={x.title}><span>{x.line}</span><strong>{x.price}</strong></div>)}</div>
        :<>{cell.line&&<span className="fbis-mini-exchange-line">{cell.line}</span>}{cell.price}</>}</td>)}
      </tr>)}</tbody></table>:<p className="fbis-mini-exchange-empty">No current prices</p>}
