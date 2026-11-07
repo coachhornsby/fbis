@@ -11,18 +11,20 @@ const validId=id=>typeof id==='string'&&/^[A-Za-z0-9_-]{1,160}$/.test(id);
 const sha=async value=>Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256',value)),x=>x.toString(16).padStart(2,'0')).join('');
 const same=(a,b)=>a.length===b.length&&a.every((value,i)=>value===b[i]);
 
-export function createDriveArchiveSink({authenticatedFetch,categoryId,archiveFolderId,now=Date.now}){
+export function createDriveArchiveSink({authenticatedFetch,categoryId,archiveFolderId,now=Date.now,executionLease}){
  if(typeof authenticatedFetch!=='function'||!validId(categoryId)||!validId(archiveFolderId)||new Set([DRIVE_ROOT,categoryId,archiveFolderId]).size!==3)throw Error('DRIVE_SINK_CONFIG');
+ if(executionLease!==undefined&&(!executionLease?.live||!executionLease?.spend||!executionLease?.stop||!Number.isSafeInteger(executionLease.expiresAtMs)))throw Error('DRIVE_EXECUTION_LEASE_INVALID');
  const started=now();let requests=0,transferred=0,closed=false,busy=false,scoped=false;
  const known=new Map();
- const stop=code=>{closed=true;throw Error(code);};
- const live=()=>{if(closed||now()-started>=DRIVE_LIMITS.durationMs)stop('DRIVE_SINK_EXPIRED_OR_STOPPED');};
+ const stop=code=>{closed=true;if(executionLease)executionLease.stop(code);throw Error(code);};
+ const live=()=>{executionLease?.live();if(closed||now()-started>=DRIVE_LIMITS.durationMs)stop('DRIVE_SINK_EXPIRED_OR_STOPPED');};
  const spend=amount=>{live();if(!Number.isSafeInteger(amount)||amount<0||transferred+amount>DRIVE_LIMITS.totalBytes)stop('DRIVE_TRANSFER_CAP');transferred+=amount;};
  async function request(url,{method='GET',body,headers={}}={},cap=DRIVE_LIMITS.metadataBytes){
   live();if(requests>=DRIVE_LIMITS.requests)stop('DRIVE_REQUEST_CAP');requests++;
   if(body)spend(body.length);
+  executionLease?.spend({requests:1});
   let response;
-  try{response=await authenticatedFetch(url,{method,body,headers,redirect:'manual',signal:AbortSignal.timeout(Math.max(1,Math.min(20000,DRIVE_LIMITS.durationMs-(now()-started))))});}
+  try{response=await authenticatedFetch(url,{method,body,headers,redirect:'manual',signal:AbortSignal.timeout(Math.max(1,Math.min(20000,DRIVE_LIMITS.durationMs-(now()-started),executionLease?executionLease.expiresAtMs-now():Infinity)))});}
   catch{stop('DRIVE_REQUEST_FAILED_OUTCOME_UNCERTAIN');}
   try{live();}catch(error){await response.body?.cancel().catch(()=>{});throw error;}
   if(response.status!==200&&!(method==='POST'&&response.status===201)){await response.body?.cancel().catch(()=>{});stop('DRIVE_HTTP_'+response.status);}
@@ -30,12 +32,12 @@ export function createDriveArchiveSink({authenticatedFetch,categoryId,archiveFol
   if(declared!==null&&(!/^\d+$/.test(declared)||Number(declared)>cap)){await response.body?.cancel().catch(()=>{});stop('DRIVE_RESPONSE_CAP');}
   if(!response.body)stop('DRIVE_RESPONSE_BODY_REQUIRED');
   const reader=response.body.getReader();let count=0;const chunks=[];
-  try{while(true){live();const part=await reader.read();live();if(part.done)break;count+=part.value.length;if(count>cap)stop('DRIVE_RESPONSE_CAP');spend(part.value.length);chunks.push(part.value);}}
+  try{while(true){live();const part=await reader.read();live();if(part.done)break;count+=part.value.length;if(count>cap)stop('DRIVE_RESPONSE_CAP');spend(part.value.length);executionLease?.spend({responseBytes:part.value.length});chunks.push(part.value);}}
   catch(error){await reader.cancel().catch(()=>{});throw error;}finally{reader.releaseLock();}
   const result=new Uint8Array(count);let offset=0;for(const chunk of chunks){result.set(chunk,offset);offset+=chunk.length;}
   if(declared!==null&&count!==Number(declared))stop('DRIVE_RESPONSE_TRUNCATED');return result;
  }
- async function json(url,init){try{return JSON.parse(decoder.decode(await request(url,init)));}catch(error){closed=true;if(init?.method==='POST')throw Error('DRIVE_UPLOAD_OUTCOME_UNCERTAIN');throw error;}}
+ async function json(url,init){try{return JSON.parse(decoder.decode(await request(url,init)));}catch(error){closed=true;if(init?.method==='POST')stop('DRIVE_UPLOAD_OUTCOME_UNCERTAIN');if(error instanceof SyntaxError||error instanceof TypeError)stop('DRIVE_JSON_INVALID');throw error;}}
  const url=(base,params)=>base+'?'+new URLSearchParams(params);
  async function metadata(id){return json(url(BASE+'/'+id,{fields,supportsAllDrives:'true'}));}
  function check(item,{id,name,mimeType,parent}){
@@ -56,7 +58,7 @@ export function createDriveArchiveSink({authenticatedFetch,categoryId,archiveFol
  }
  async function exclusive(action){
   live();if(busy)stop('DRIVE_CONCURRENT_CALL');busy=true;
-  try{return await action();}catch(error){closed=true;throw error;}finally{busy=false;}
+  try{return await action();}catch(error){closed=true;const code=/^(DRIVE_[A-Z0-9_]+|JOB_[A-Za-z0-9_]+)$/.test(error?.message||'')?error.message:'DRIVE_OPERATION_FAILED';if(executionLease)executionLease.stop(code);throw Error(code);}finally{busy=false;}
  }
  return Object.freeze({
   async saveImmutable(name,payload){return exclusive(async()=>{

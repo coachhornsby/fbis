@@ -62,10 +62,12 @@ that blocker instead of silently changing storage or access scope.
 
 ## Required unified execution boundary before certification
 
-The library currently admits R2 HEAD/GET units. The Drive adapter independently
-caps HTTP requests and bytes, but those local limits are not the coordinator's
-execution lease. A deployed Worker also consumes HTTP subrequests and CPU during
-Drive operations. This integration must be completed before job certification:
+The offline `unifiedArchiveCaller.mjs` now creates the Drive sink after admission
+and shares the library's exact execution lease with R2. The adapter charges each
+Drive request and streamed response byte to that same lease, retaining its local
+transfer caps. This is fixture-verified, not deployed or certified. The production
+runtime still must satisfy the following requirements, including authentication
+acquisition, CPU, and persistent coordination:
 
 1. Reserve exactly one named archive job through the current coordinator, after
    plan validation and before any R2 or Drive network operation.
@@ -127,8 +129,9 @@ safety shape; they do not satisfy these future deployment gates automatically.
 1. Resolve candidate provenance and duplicate coverage from existing evidence.
 2. Select and review a runtime/credential reuse path without access expansion;
    request any required security approval before credential configuration.
-3. Implement unified lease/caller and recovery serialization offline; measure CPU
-   and authentication overhead; review all acceptance tests.
+3. Integrate the offline-tested unified caller with approved runtime bindings and
+   recovery serialization; measure CPU/authentication overhead and review all
+   deployment acceptance tests.
 4. Only for a qualified candidate, provision/verify the dedicated Drive child.
 5. Review a separate execution certification and cost-admission change. Obtain
    the specific bounded run authorization and current full-account budget evidence.
