@@ -1,0 +1,74 @@
+{
+  "contract": "fbis-known-key-activation-plan-v1",
+  "executionEnabled": false,
+  "mode": "offline-plan-only",
+  "job": "services/archive/knownKeyArchive.mjs",
+  "candidate": {
+    "bucket": "fbis-archive",
+    "key": "research/storage-recovery/2026-10-15/cfb-roster-2004-pilot/manifest-9dca1afc000cd6951769f92b74f7c45381f117ac51d995c07caf97f4b4ac2f38.json",
+    "historicalBytes": 2456,
+    "sha256": "9dca1afc000cd6951769f92b74f7c45381f117ac51d995c07caf97f4b4ac2f38",
+    "format": "json-document",
+    "directRecords": 0,
+    "sport": "CFB",
+    "season": "2004",
+    "provider": null,
+    "sourceCapturedAt": null,
+    "schemaVersion": null,
+    "currentMetadataVerified": false,
+    "duplicateCoverageVerified": false,
+    "qualified": false,
+    "evidence": "docs/storage-recovery-20261015.md"
+  },
+  "destination": {
+    "rootId": "1-cEe24VMCvfO55HZry5qxRaf0riTs6NO",
+    "rootName": "FBIS_Data",
+    "categoryId": "1wz2dVyd2FyfByq7gxEucot0R4kC_2n9O",
+    "categoryName": "04_Model_Evidence",
+    "archiveFolderName": "Known_Key_Archive",
+    "archiveFolderId": null,
+    "createBeforeCandidateQualification": false,
+    "reuseCategoryAsArchiveFolder": false
+  },
+  "boundedRunProposal": {
+    "maximumObjects": 1,
+    "maximumSourceBytes": 4096,
+    "metadataMethod": "R2_HEAD",
+    "downloadMethod": "R2_GET_IF_ETAG_MATCHES",
+    "metadataMustPrecedeDownload": true,
+    "followManifestReferences": false,
+    "automaticRetries": 0,
+    "proposedUnits": {
+      "requests": 24,
+      "responseBytes": 2097152,
+      "r2Reads": 2,
+      "r2Bytes": 2456,
+      "r2Lists": 0,
+      "r2Writes": 0,
+      "d1Queries": 0,
+      "reads": 0,
+      "writes": 0
+    },
+    "cpuMsCeiling": null,
+    "worstCaseMicroUsd": null,
+    "certified": false,
+    "admitted": false
+  },
+  "runtime": {
+    "deploymentTarget": null,
+    "publicRoute": null,
+    "cron": [],
+    "authenticatedTrigger": null,
+    "credentialWiringApproved": false,
+    "sharedR2AndDriveLeaseVerified": false,
+    "crossProcessSerializationVerified": false,
+    "accountBudgetPolicyChange": false
+  },
+  "safeguards": {
+    "productionAuthority": false,
+    "sourceDeletionAuthorized": false,
+    "retentionReleaseAuthorized": false,
+    "fullAccountCostEvidenceVerified": false,
+    "liveRunAuthorized": false
+  }
+}
