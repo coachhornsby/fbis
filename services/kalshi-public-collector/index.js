@@ -27,6 +27,28 @@ async function writeJson(bucket,key,value){
 export function selectedSport(now){
   return SPORTS[Math.floor(now.getTime()/SLOT_MS)%SPORTS.length];
 }
+// Only public, fixed receipt codes may cross the relay. Never reflect a raw
+// error body, arbitrary provider string, headers, or credentials. Read at most
+// 4 KiB inside the existing response-byte lease; no retry or additional IO.
+const SAFE_RELAY_CODES=new Set([
+ "KALSHI_SIGNED_POLL_NOT_DUE","KALSHI_SIGNED_COOLDOWN",
+ "KALSHI_STATUS_POLL_NOT_DUE","KALSHI_CATALOG_POLL_NOT_DUE",
+ "ACCOUNT_BUDGET_STOP","BOUNDED_COLLECTION_STOPPED",
+ "JOB_EXECUTION_NOT_CERTIFIED","ARCHIVE_BINDING_MISSING",
+ "KALSHI_SIGNING_CREDENTIALS_NOT_CONFIGURED",
+]);
+async function safeRelayFailureCode(response){
+ const reader=response.body?.getReader();if(!reader)return null;
+ let size=0,text="";const decoder=new TextDecoder();
+ try{
+  for(;;){const part=await reader.read();if(part.done)break;
+   size+=part.value.byteLength;if(size>4096)return null;
+   text+=decoder.decode(part.value,{stream:true});
+  }
+  const value=JSON.parse(text+decoder.decode());
+  return value?.ok===false&&SAFE_RELAY_CODES.has(value.code)?value.code:null;
+ }catch{return null;}finally{await reader.cancel().catch(()=>{});reader.releaseLock();}
+}
 export async function relaySignedPages(env,{scope,sport=null,fetchImpl=fetch}={}){
   // This binding is generated independently, shared only between the Worker
   // and Pages, and must never be substituted with a user's portfolio code.
@@ -50,9 +72,12 @@ export async function relaySignedPages(env,{scope,sport=null,fetchImpl=fetch}={}
     });
   }catch{return {ok:false,code:"PAGES_RELAY_UNAVAILABLE"};}
   if(!response.ok) {
-    // Do not reflect status bodies or any service tokens.
+    // Preserve expected poll/cooldown and admission stops rather than
+    // disguising every HTTP 503 as a transport outage. Authority is unchanged.
+    const code=response.status===503?await safeRelayFailureCode(response):null;
+    if(response.status!==503)await response.body?.cancel();
     return {ok:false,code:response.status===403?"PAGES_RELAY_DENIED":
-      response.status===429?"KALSHI_SIGNED_RATE_LIMITED":"PAGES_RELAY_HTTP_ERROR",
+      response.status===429?"KALSHI_SIGNED_RATE_LIMITED":code||"PAGES_RELAY_HTTP_ERROR",
       httpStatus:response.status};
   }
   try{
