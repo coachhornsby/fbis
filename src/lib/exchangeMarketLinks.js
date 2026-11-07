@@ -1,3 +1,4 @@
+import {validatePolymarketEventNavigation} from './polymarketEventNavigation.js';
 /**
  * Source-bound exchange navigation only. A URL never verifies price,
  * settlement equivalence, independent model quality or wagering permission.
@@ -96,7 +97,11 @@ export function exchangeMarketLink(offer={}){
    nonEmpty(offer.raw?.providerMarketId);
   const candidate=nonEmpty(offer.marketUrl)||nonEmpty(offer.raw?.providerMarket?.marketUrl)||
     nonEmpty(offer.raw?.providerMarket?.url);
-  if(!marketId||!candidate)return null;
+  if(!marketId)return null;
+  if(!candidate){
+   const event=validatePolymarketEventNavigation(offer.eventNavigation||offer.raw?.eventNavigation,{canonicalEventId:offer.canonicalEventId||offer.eventId,sport:offer.sport,eventStart:offer.eventStart});
+   return event?{url:event.url,provider:'Polymarket US',scope:'EVENT',id:event.providerEventId,label:'View game on Polymarket US'}:null;
+  }
   try{
    const uri=new URL(candidate);
    if(uri.protocol!=='https:'||uri.hostname!=='polymarket.us'||

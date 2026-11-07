@@ -95,7 +95,7 @@ export async function collectBoundedPolymarketRest(env,{sport,slot=Math.floor(Da
      if(!long||!short)continue;
      const displayBinding={...verifiedCbbFirstHalfTotalBinding(long,fixture),
        oppositeSide:'under',oppositeSourceOutcomeId:short.sourceOutcomeId};
-     candidates.push({sport,source_market_id:long.sourceMarketId,canonical_event_id:match.id,
+     candidates.push({sport,source_market_id:long.sourceMarketId,provider_event_id:long.raw.providerEventId,eventNavigation:long.raw.eventNavigation,canonical_event_id:match.id,
        market_family:'total',event_start_time:fixture.start,collected_at:new Date(now).toISOString(),displayBinding});
      continue;
     }
@@ -103,7 +103,7 @@ export async function collectBoundedPolymarketRest(env,{sport,slot=Math.floor(Da
      if(!['moneyline','spread','total'].includes(offer.marketFamily))continue;
      const displayBinding=verifiedFullGameDisplayBinding(offer,fixture);
      if(!displayBinding)continue;
-     candidates.push({sport,source_market_id:offer.sourceMarketId,canonical_event_id:match.id,market_family:offer.marketFamily,event_start_time:fixture.start,collected_at:new Date(now).toISOString(),displayBinding});
+     candidates.push({sport,source_market_id:offer.sourceMarketId,provider_event_id:offer.raw.providerEventId,eventNavigation:offer.raw.eventNavigation,canonical_event_id:match.id,market_family:offer.marketFamily,event_start_time:fixture.start,collected_at:new Date(now).toISOString(),displayBinding});
     }
    }
   }

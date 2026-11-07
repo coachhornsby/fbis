@@ -28,7 +28,7 @@ export function exchangeGameMarkets(payload,game,{now=Date.now()}={}){
   .slice(0,600).map((o,i)=>{
    const period=toPeriod(o.period);
    const state=exchangeMarketState(o),ageSeconds=Math.floor((now-exchangeObservationTime(o))/1000);
-   const link=state==='observed'?exchangeMarketLink({source:o.venue==='Kalshi'?'Kalshi':'Polymarket US WebSocket',sourceMarketId:o.marketId,eventTicker:o.eventTicker,marketUrl:o.marketUrl}):null;
+   const link=state==='observed'?exchangeMarketLink({source:o.venue==='Kalshi'?'Kalshi':'Polymarket US WebSocket',sourceMarketId:o.marketId,eventTicker:o.eventTicker,marketUrl:o.marketUrl,eventNavigation:o.eventNavigation,canonicalEventId:String(game.id),sport:game.sport,eventStart:game.start}):null;
    const maxAgeSeconds=o.transport==='WebSocket'?120:900;
    return {id:[o.venue,o.marketId,o.side,o.line,period,i].join('|'),
     venue:o.venue==='Polymarket'?'Polymarket US':o.venue,period,

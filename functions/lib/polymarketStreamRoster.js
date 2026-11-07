@@ -18,6 +18,7 @@ export async function capturedPolymarketStreamRoster(env,fixtures,{now=new Date(
      const sql=`WITH recent AS (SELECT sport,league,canonical_event_id,provider_event_id,event_start_time,
        home_team,away_team,market_family,side,line,period,source_market_id,source_outcome_id,collected_at,
        json_extract(raw_payload_json,'$.canonicalSide') canonical_side,
+       json_extract(raw_payload_json,'$.eventNavigation') event_navigation_json,
        json_extract(raw_payload_json,'$.opposite') opposite_json,
        json_extract(raw_payload_json,'$.providerMarket.feeCoefficient') fee_coefficient,
        ROW_NUMBER() OVER(PARTITION BY source_market_id ORDER BY collected_at DESC,id DESC) rn
@@ -34,7 +35,8 @@ export async function capturedPolymarketStreamRoster(env,fixtures,{now=new Date(
       if(!game||!/^[-a-z0-9]{1,160}$/i.test(row.source_market_id||'')||Math.abs(Date.parse(game.start)-Date.parse(row.event_start_time))>60000||!Number.isFinite(Date.parse(row.event_start_time)))continue;
       const old=byMarket.get(row.source_market_id);
       if(!old||row.collected_at>old.collected_at){let opposite=null;try{opposite=JSON.parse(row.opposite_json||'null')}catch{}
-       const {opposite_json,rn,...safe}=row;byMarket.set(row.source_market_id,{...safe,opposite});}
+       let eventNavigation=null;try{eventNavigation=JSON.parse(row.event_navigation_json||'null')}catch{}
+       const {opposite_json,event_navigation_json,rn,...safe}=row;byMarket.set(row.source_market_id,{...safe,opposite,eventNavigation});}
      }
     }
    }

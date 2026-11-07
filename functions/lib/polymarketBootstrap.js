@@ -177,7 +177,7 @@ export async function bootstrapPolymarket(env,opts={}, {fetchImpl=fetch,now=new 
   await env.ARCHIVE.put(prefix+opts.receiptId+'-source.json',JSON.stringify(sourcePage));
   if(contracts.length){
    await persistNormalizedMarketBatch(writeDb,contracts,{snapshotType:'CURRENT',collectedAt:now.toISOString(),modelProbability:null});
-   const roster=contracts.map(o=>({sport:o.sport,league:o.league,canonical_event_id:o.eventId,provider_event_id:o.raw.providerEventId,event_start_time:o.eventStart,home_team:o.homeTeam,away_team:o.awayTeam,market_family:o.marketFamily,side:o.side,canonical_side:o.raw.canonicalSide,line:o.line,period:o.period,source_market_id:o.sourceMarketId,source_outcome_id:o.sourceOutcomeId,collected_at:now.toISOString(),opposite:o.raw.opposite,fee_coefficient:o.raw.providerMarket?.feeCoefficient??null}));
+   const roster=contracts.map(o=>({sport:o.sport,league:o.league,canonical_event_id:o.eventId,provider_event_id:o.raw.providerEventId,eventNavigation:o.raw.eventNavigation,event_start_time:o.eventStart,home_team:o.homeTeam,away_team:o.awayTeam,market_family:o.marketFamily,side:o.side,canonical_side:o.raw.canonicalSide,line:o.line,period:o.period,source_market_id:o.sourceMarketId,source_outcome_id:o.sourceOutcomeId,collected_at:now.toISOString(),opposite:o.raw.opposite,fee_coefficient:o.raw.providerMarket?.feeCoefficient??null}));
    await env.ARCHIVE.put(`market-sources/polymarket-us/stream-roster/bootstrap-${scope.slug}-${opts.operation}-${opts.parentReceiptId||'events'}-${opts.eventIndex??0}-${opts.offset}.json`,JSON.stringify({version:1,source:'Polymarket US',capturedAt:now.toISOString(),roster}));
   }
   await env.ARCHIVE.put(key,JSON.stringify(receipt));
