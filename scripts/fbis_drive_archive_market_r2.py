@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
 """Archive three fixed small market-evidence objects R2->Drive; no D1 calls or source mutation."""
+from archive_manifest import save_batch_manifest
+
 import base64
 import json
 import os
@@ -111,10 +113,9 @@ def main():
               "sourceBytes":sum(o[1] for o in OBJECTS),"records":EXPECTED_TOTAL_RECORDS,
               "objects":receipts,"cloudflareD1Queries":0,"sourceDeletionAuthorized":False,
               "retentionReleaseAuthorized":False,"productionAuthority":False}
-    mb=(json.dumps(manifest,sort_keys=True,separators=(",",":"))+"\n").encode()
     cat=drive.folder(ROOT,"00_Catalog")
     cat=drive.folder(cat,"R2_Batches")
-    mid,mstate=drive.save_immutable(cat,"market-r2-pilot-003-"+digest(mb)+".json",mb)
+    mid,mstate=save_batch_manifest(drive,cat,"market-r2-pilot-003-",manifest,"objects")
     m=json.loads(drive.read(mid))
     restored=[]
     for item in m["objects"]:
