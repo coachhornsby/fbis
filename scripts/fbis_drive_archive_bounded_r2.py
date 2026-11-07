@@ -101,7 +101,7 @@ def main():
     root = drive.metadata(ROOT)
     if root.get("name") != "FBIS_Data" or root.get("mimeType") != "application/vnd.google-apps.folder" or root.get("trashed"):
         fail("DRIVE_ROOT_NOT_ALLOWED")
-    archive_folder = drive.folder(ROOT, "03_Market_History") if False else drive.folder(ROOT, "04_Model_Evidence")
+    archive_folder = drive.folder(ROOT, "04_Model_Evidence")
     cfb = drive.folder(archive_folder, "CFB")
     r2 = drive.folder(cfb, "R2_Cold_Archive")
     # Existing immutable Drive helper accepts JSON only; preserve original bytes in base64 envelope.
