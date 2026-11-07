@@ -82,6 +82,21 @@ def main():
     batch_folders = drive.children(catalog[0]["id"],"R2_Batches")
     if len(batch_folders) != 1:
         fail("BATCH_CATALOG_MISSING")
+    evidence_folders = drive.children(ROOT,"04_Model_Evidence")
+    if len(evidence_folders) != 1 or evidence_folders[0]["mimeType"] != "application/vnd.google-apps.folder":
+        fail("EVIDENCE_FOLDER_MISSING")
+    cfb_folders = drive.children(evidence_folders[0]["id"],"CFB")
+    if len(cfb_folders) != 1:
+        fail("CFB_FOLDER_MISSING")
+    archive_folders = drive.children(cfb_folders[0]["id"],"R2_Cold_Archive")
+    if len(archive_folders) != 1:
+        fail("COLD_ARCHIVE_FOLDER_MISSING")
+    allowed_parent_ids = []
+    for folder_name in ("Batch_2004_001", "Batch_2004_002"):
+        matches = drive.children(archive_folders[0]["id"],folder_name)
+        if len(matches) != 1 or matches[0]["mimeType"] != "application/vnd.google-apps.folder":
+            fail("EXPECTED_ARCHIVE_BATCH_FOLDER_MISSING")
+        allowed_parent_ids.append(matches[0]["id"])
     listings = list_drive(drive,batch_folders[0]["id"])
     candidate_manifests=[]
     for item in listings:
@@ -121,7 +136,7 @@ def main():
             fail("RECEIPT_SHA_OR_SIZE_MISMATCH")
         # Verify all referenced objects have the correct approved Drive parents.
         item=drive.metadata(receipt["driveId"])
-        if item.get("mimeType") != "application/json" or item.get("trashed"):
+        if item.get("mimeType") != "application/json" or item.get("trashed") or len(set(item.get("parents",[])) & set(allowed_parent_ids)) != 1:
             fail("DRIVE_OBJECT_METADATA_FAILED")
         envelope_bytes=drive.read(receipt["driveId"])
         if len(envelope_bytes)>MAX_DRIVE_OBJECT:
