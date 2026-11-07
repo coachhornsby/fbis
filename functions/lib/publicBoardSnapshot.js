@@ -80,7 +80,9 @@ export async function captureScoreboards({date=boardDate(),fetchFn=fetch,signal,
   const results=[], requests=SCOREBOARD_SOURCES.filter(([sport])=>sports.includes(sport)).flatMap(([sport,path,tour])=>[date,end].map(day=>[sport,path,tour,day]));
   for(let i=0;i<requests.length;i+=4){
     const batch=await Promise.all(requests.slice(i,i+4).map(async([sport,path,tour,day])=>{
-      const url=`https://site.api.espn.com/apis/site/v2/sports/${path}/scoreboard?dates=${stamp(day)}&limit=500${['cbb','cfb'].includes(sport)?'&groups=50':''}`;
+      // ESPN group IDs are sport-specific: CFB FBS=80; CBB Division I=50.
+      const group=sport==='cfb'?'&groups=80':sport==='cbb'?'&groups=50':'';
+      const url=`https://site.api.espn.com/apis/site/v2/sports/${path}/scoreboard?dates=${stamp(day)}&limit=500${group}`;
       try{const data=await boundedScoreboardFetch(url,{fetchFn,signal:signal?AbortSignal.any([signal,AbortSignal.timeout(12000)]):AbortSignal.timeout(12000)});
         return {sport,tour,capturedAt,games:scoreboardGames(data,{sport,tour,date,capturedAt}),url,ok:true};}
       catch(error){return {sport,tour,capturedAt,games:[],url,ok:false,error:String(error.message||error)};}
@@ -100,3 +102,4 @@ export function assemblePublicBoard(results,{date,capturedAt,sports=PUBLIC_SPORT
     costContract:{publicD1Queries:0,publicCloudflareFunctions:0,paidModelCalls:0},
     sources:results.map(({games,...r})=>({...r,count:games.length}))};
 }
+
