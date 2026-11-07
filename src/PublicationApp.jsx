@@ -1,4 +1,4 @@
-import {loadCbbCardSummary} from './lib/cbbCardAuto.js';
+import {startCbbSummaryRefresh} from './lib/cbbCardAuto.js';
 import PrivateSportProjection from './components/board/PrivateSportProjection.jsx';
 import {loadPublicSportSnapshot,clearPublicSportSnapshot} from './lib/publicSportAuto.js';
 import {privateFourSportProjectionFor} from '../functions/lib/privateFourSportProjection.js';
@@ -41,6 +41,7 @@ function PublicationApp(){
   const [clock,setClock]=useState(Date.now()),[tour,setTour]=useState('all');
   const busyRef=useRef(false),boardRef=useRef(null),refreshRef=useRef(null);const generation=useRef(0),active=useRef(null),lastAttempt=useRef(0);
   const cbbAutoAttempted=useRef(new Set());
+  const cbbSummaryRefresh=useRef(null);
   async function refresh(selected=date,force=false){
     if(busyRef.current&&!force)return;
     if(!force&&Date.now()-lastAttempt.current<60000)return;
@@ -63,10 +64,17 @@ function PublicationApp(){
   useEffect(()=>{const u=new URL(location.href);u.searchParams.set('date',date);u.searchParams.set('sport',sport);history.replaceState({},'',u);refresh(date,true);return()=>{generation.current++;active.current?.abort();};},[date]);
   // Read only the owner-authorized minimal CBB score summary; no raw input packet.
   useEffect(()=>{
-    let active=true;setPrivatePacket(null);setPrivateOffers([]);setPrivateStatus('LOADING');
+    setPrivatePacket(null);setPrivateOffers([]);setPrivateStatus('LOADING');
     if(sport!=='cbb')return;
-    loadCbbCardSummary(date).then(r=>{if(active){setPrivatePacket(r.packet);setPrivateOffers(r.offers);setPrivateStatus('LOADED');}}).catch(e=>{if(active)setPrivateStatus(e.message||'PRIVATE_DATA_UNAVAILABLE');});
-    return()=>{active=false;};
+    const reader=startCbbSummaryRefresh({date,
+      onUpdate:r=>{setPrivatePacket(r.packet);setPrivateOffers(r.offers);setPrivateStatus('LOADED');},
+      onError:e=>setPrivateStatus(e.message||'PRIVATE_DATA_UNAVAILABLE'),
+      isVisible:()=>!document.hidden,isCurrentDate:()=>date===boardDate(),
+      listen:tick=>{document.addEventListener('visibilitychange',tick);window.addEventListener('focus',tick);
+        return()=>{document.removeEventListener('visibilitychange',tick);window.removeEventListener('focus',tick);};}
+    });
+    cbbSummaryRefresh.current=reader;
+    return()=>{reader.stop();if(cbbSummaryRefresh.current===reader)cbbSummaryRefresh.current=null;};
   },[date,sport]);
   useEffect(()=>{
     let active=true,loaded=null,lastStatus=null;
@@ -122,7 +130,7 @@ function PublicationApp(){
     <section className="publication-notice" aria-label="Four sport recovery status"><strong>CBB, NFL, NBA and CFB are the active recovery sports.</strong><p>Schedules and observed scores come from ESPN. Available, verified FBIS-owned research projections for NFL, NBA and CFB appear automatically on matching game cards without sign-in. CBB scores use current KenPom ratings and the FBIS formula, labeled provisional research. Raw ratings and API keys stay server-side. Missing or expired projections stay unavailable. Bounded Kalshi and Polymarket market reads are enabled. Exchange quotes are reference prices; wagering remains disabled.</p></section>
     {!privatePacket&&privateStatus==='NO_CBB_SNAPSHOT'&&sport==='cbb'&&<CbbReadiness date={date} clock={clock}/>}
     <nav className="publication-sports" aria-label="Sports">{ACTIVE_SPORTS.map(s=><button key={s} aria-pressed={sport===s} onClick={()=>changeSport(s)}>{s.toUpperCase()}{board&&<small>{board.games.filter(g=>g.sport===s||s==='all').length}</small>}</button>)}</nav>
-    <section className="publication-controls" aria-label="Board controls"><label>Central date <input type="date" value={date} min={shiftBoardDate(boardDate(),-7)} max={shiftBoardDate(boardDate(),7)} onChange={e=>{if(e.target.value)setDate(e.target.value);}}/></label><button onClick={()=>setDate(boardDate())}>Today</button><button onClick={()=>setDate(shiftBoardDate(boardDate(),1))}>Tomorrow</button><button disabled={busy||clock-lastAttempt.current<60000} onClick={()=>refresh()}>{busy?'Refreshing sources…':'Refresh scores'}</button>{sport==='tennis'&&<label>Tour <select value={tour} onChange={e=>setTour(e.target.value)}><option value="all">ATP + WTA</option><option value="atp">ATP</option><option value="wta">WTA</option></select></label>}</section>
+    <section className="publication-controls" aria-label="Board controls"><label>Central date <input type="date" value={date} min={shiftBoardDate(boardDate(),-7)} max={shiftBoardDate(boardDate(),7)} onChange={e=>{if(e.target.value)setDate(e.target.value);}}/></label><button onClick={()=>setDate(boardDate())}>Today</button><button onClick={()=>setDate(shiftBoardDate(boardDate(),1))}>Tomorrow</button><button disabled={busy||clock-lastAttempt.current<60000} onClick={()=>{refresh();cbbSummaryRefresh.current?.refresh();}}>{busy?'Refreshing sources…':'Refresh scores'}</button>{sport==='tennis'&&<label>Tour <select value={tour} onChange={e=>setTour(e.target.value)}><option value="all">ATP + WTA</option><option value="atp">ATP</option><option value="wta">WTA</option></select></label>}</section>
     <div className="publication-freshness" role="status"><b>{stale?'SAVED / STALE OR PARTIAL':'CURRENT SOURCE CAPTURE'}</b> · {games.length} games · Times shown in Central. Scores update automatically every minute while this page is visible. Captures become stale after five minutes.<br/>{feeds.map(([s,f])=><span key={s}>{s.toUpperCase()}: {f.capturedAt?new Date(f.capturedAt).toLocaleString('en-US',{timeZone:'America/Chicago',month:'short',day:'numeric',hour:'numeric',minute:'2-digit'}):'unavailable'} CT{!f.ok?' · source unavailable':''}　</span>)}</div>
     <div className="publication-freshness" role="status" aria-label="Exchange market coverage">
      <b>EXCHANGE MARKET CAPTURE</b> · {exchangeHealth.state==='LOADING'?'Checking verified snapshot coverage…':
