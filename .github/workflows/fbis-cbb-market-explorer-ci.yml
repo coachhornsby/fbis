@@ -4,6 +4,8 @@ on:
     branches: [feature/cbb-exchange-market-explorer-20261106]
   pull_request:
     paths:
+      - "functions/lib/kalshiFootballRuleIdentity.js"
+      - "test/kalshi-football-rule-identity.test.mjs"
       - "functions/lib/kalshiFirstHalfTotalQuotes.js"
       - "functions/lib/exchangeCardDelivery.js"
       - "functions/lib/kalshiMarketShadow.js"
