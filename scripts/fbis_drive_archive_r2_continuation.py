@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
 """Manual continuation batch of two R2 objects. No D1 queries or source changes."""
+from archive_manifest import save_batch_manifest
+
 import base64
 import json
 import os
@@ -136,11 +138,10 @@ def main():
                 "sourceDeletionAuthorized": False,
                 "productionAuthority": False, "retentionReleaseAuthorized": False,
                 "cloudflareD1Queries": 0}
-    manifest_data = (json.dumps(manifest, sort_keys=True, separators=(",", ":")) + "\n").encode()
     catalog = drive.folder(ROOT, "00_Catalog")
     catalog = drive.folder(catalog, "R2_Batches")
-    manifest_id, manifest_state = drive.save_immutable(
-        catalog, "cfb-2004-continuation-two-part-" + digest(manifest_data) + ".json", manifest_data)
+    manifest_id, manifest_state = save_batch_manifest(
+        drive, catalog, "cfb-2004-continuation-two-part-", manifest, "files")
     # Read only the downloaded Drive manifest and its referenced Drive files.
     remote_manifest = json.loads(drive.read(manifest_id))
     if remote_manifest["objectCount"] != 2 or remote_manifest["totalRows"] != 200:
