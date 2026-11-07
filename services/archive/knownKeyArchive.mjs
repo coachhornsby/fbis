@@ -48,11 +48,12 @@ async function sinkRead(sink,id,cap,lease){
  if(!(data instanceof Uint8Array)||data.byteLength>cap)fail('ARCHIVE_READBACK_CAP');return data;
 }
 
-export async function archiveKnownKeys({env,bucket,plan,sink,reservationId}){
+export async function archiveKnownKeys({env,bucket,plan,sink,sinkFactory,reservationId}){
  // Clone and validate before reservation. Never let an asynchronous caller mutate
  // the admitted key set, source expectations, or provenance in flight.
  const frozenPlan=planSnapshot(plan);
- if(!sink?.saveImmutable||!sink?.read)fail('IMMUTABLE_SINK_REQUIRED');
+ if(sinkFactory!==undefined){if(typeof sinkFactory!=='function'||sink!==undefined)fail('IMMUTABLE_SINK_FACTORY_INVALID');}
+ else if(!sink?.saveImmutable||!sink?.read)fail('IMMUTABLE_SINK_REQUIRED');
  const admission=await requireJobAdmission(env,JOB,reservationId);
  if(admission.job!==JOB||admission.id!==reservationId)fail('ARCHIVE_ADMISSION_IDENTITY');
  const lease=createExecutionLease(admission);
@@ -60,6 +61,7 @@ export async function archiveKnownKeys({env,bucket,plan,sink,reservationId}){
  const units=admission.maxUnits;
  for(const unit of ['r2Lists','r2Writes','d1Queries','reads','writes'])if(units[unit]!==0)fail('ARCHIVE_ZERO_MUTATION_BUDGET_REQUIRED');
  if(units.r2Reads!==2*frozenPlan.objects.length||units.r2Bytes!==total)fail('ARCHIVE_EXACT_READ_BUDGET_REQUIRED');
+ if(sinkFactory!==undefined){sink=sinkFactory(lease);if(!sink?.saveImmutable||!sink?.read)fail('IMMUTABLE_SINK_REQUIRED');}
  const source=executionR2(bucket,lease);const metadata=[];
  // All metadata must pass before any object download or destination write.
  for(const item of frozenPlan.objects){
