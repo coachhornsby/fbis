@@ -1,3 +1,4 @@
+import {kalshiTickerObservedAt} from './tickerTimestamp.mjs';
 export const KALSHI_STREAM_JOB='services/kalshi-public-collector/marketSession.mjs';
 export const KALSHI_STREAM_KEY='kalshi/public-shadow/v1/market-ws/latest.json';
 const root='kalshi/public-shadow/v1/sports/';
@@ -42,7 +43,8 @@ export async function runKalshiMarketSession(env,lease,{fetchImpl=fetch,now=Date
   const m=JSON.parse(event.data);if(m.type==='error'){close('PROVIDER_SUBSCRIPTION_ERROR');return;}
   if(m.type==='ticker'&&tickers.has(m.msg?.market_ticker)){
    const raw=m.msg,price=v=>{if(v==null||v==='')return null;const n=Number(v);return Number.isFinite(n)&&n>0&&n<1?n:null;};
-   quotes.set(raw.market_ticker,{ticker:raw.market_ticker,yesBid:price(raw.yes_bid_dollars),yesAsk:price(raw.yes_ask_dollars),receivedAt:new Date(now()).toISOString(),sourceObservedAt:null});
+   const receivedAtMs=now();
+   quotes.set(raw.market_ticker,{ticker:raw.market_ticker,yesBid:price(raw.yes_bid_dollars),yesAsk:price(raw.yes_ask_dollars),receivedAt:new Date(receivedAtMs).toISOString(),sourceObservedAt:kalshiTickerObservedAt(raw,receivedAtMs)});
   }
   if(count>=messageLimit||receivedBytes>=byteLimit)close('CAPTURE_ALLOWANCE_REACHED');
  }catch{close('MESSAGE_OR_EXECUTION_LIMIT');}};
