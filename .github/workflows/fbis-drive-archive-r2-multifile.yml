@@ -1,0 +1,31 @@
+name: FBIS R2 Multi-Object Drive Archive (3-file bounded pilot)
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: fbis-r2-multifile-drive-batch-2004-001
+  cancel-in-progress: false
+
+jobs:
+  archive-r2-batch:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+      - name: Install Drive OAuth and HTTPS clients
+        run: python -m pip install --disable-pip-version-check "google-auth>=2.35,<3" "requests>=2.31,<3"
+      - name: Copy fixed three-file R2 cohort and independently restore
+        env:
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID }}
+          GOOGLE_CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }}
+          GOOGLE_REFRESH_TOKEN: ${{ secrets.GOOGLE_REFRESH_TOKEN }}
+        run: python scripts/fbis_drive_archive_r2_multifile.py
