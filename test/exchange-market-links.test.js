@@ -48,12 +48,13 @@ test('Polymarket Global links identify the exact sourced event, not a fabricated
  assert.equal(exchangeMarketLink({source:'Polymarket Global Gamma',contractId:'points-30'}),null);
  assert.equal(exchangeMarketLink({source:'Polymarket Global Gamma',providerEventSlug:'nba-bos?evil=true'}),null);
 });
-test('Polymarket US requires exact source URL, domain, and matching market identifier',()=>{
+test('Polymarket US prefers exact source URL and otherwise links safely to homepage',()=>{
  const base={source:'Polymarket US',sourceMarketId:'nfl-buf-nyj-ml'};
  for(const url of [null,'https://polymarket.com/event/nfl-buf-nyj-ml',
     'https://polymarket.us.evil.com/markets/nfl-buf-nyj-ml',
     'https://polymarket.us/sports/nfl','https://polymarket.us/markets/different']){
-  assert.equal(exchangeMarketLink({...base,marketUrl:url}),null);
+  assert.equal(exchangeMarketLink({...base,marketUrl:url}).url,'https://polymarket.us/');
+  assert.equal(exchangeMarketLink({...base,marketUrl:url}).scope,'SITE');
  }
  assert.equal(exchangeMarketLink({...base,marketUrl:'https://polymarket.us/markets/nfl-buf-nyj-ml'})?.scope,'MARKET');
 });
@@ -84,6 +85,16 @@ test('game links include only market-matched source contracts, avoid duplicate Y
   {source:'PinnOdds',sourceMarketId:'pin-11'}
  ]}};
  const links=exchangeLinksForGame(game);
- assert.equal(links.length,1);
+ assert.equal(links.length,2);
  assert.equal(links[0].provider,'Kalshi');
+ assert.equal(links[1].url,'https://polymarket.us/');
+ assert.match(links[1].label,/homepage/);
+});
+
+test('homepage fallback is US-only and never disguises game identity',()=>{
+ const link=exchangeMarketLink({source:'Polymarket US'});
+ assert.equal(link.url,'https://polymarket.us/');assert.equal(link.scope,'SITE');
+ assert.match(link.label,/homepage \(game link unavailable\)/);
+ assert.equal(exchangeMarketLink({source:'Unknown'}),null);
+ assert.equal(exchangeMarketLink({source:'Kalshi'}),null);
 });

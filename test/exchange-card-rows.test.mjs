@@ -40,7 +40,7 @@ test('last fetched prices show age, remain non-actionable and link only to verif
  const c=exchangeCardRows({start,exchangeReferenceQuotes:[q]},now)[0].cells[0];
  assert.equal(c.price,'52.0¢');assert.equal(c.stale,true);assert.match(c.observedLabel,/Fetched .*1h ago/);assert.equal(c.canAuthorizeWager,false);assert.equal(c.executionEligible,false);assert.match(c.link.url,/kalshi.com\/markets\/kxncaafgame\/college-football-game/);assert.match(c.title,/Provider quote time unknown/);
  const closed=exchangeCardRows({start,exchangeReferenceQuotes:[{...q,marketStatus:'closed'}]},now)[0].cells[0];assert.equal(closed.price,'Unavailable');assert.equal(closed.link,null);assert.equal(closed.statusLabel,'Market closed');
- const badPoly=exchangeCardRows({start,exchangeReferenceQuotes:[{...q,venue:'Polymarket',marketUrl:'https://evil.invalid/markets/'+q.marketId}]},now)[4].cells[0];assert.equal(badPoly.link,null);
+ const badPoly=exchangeCardRows({start,exchangeReferenceQuotes:[{...q,venue:'Polymarket',marketUrl:'https://evil.invalid/markets/'+q.marketId}]},now)[4].cells[0];assert.equal(badPoly.link.url,'https://polymarket.us/');assert.equal(badPoly.link.scope,'SITE');
 });
 test('newer threshold replaces older complete pair without pairing unlike lines',()=>{
  const old=[quote('spread','away',-3.5),quote('spread','home',3.5)];

@@ -43,8 +43,13 @@ test('game link clearly scoped as event and remains ineligible for wagering',()=
  assert.equal(exchangeGameMarkets(payload,game,{now:at})[0].link.url,url);
  for(const eventNavigation of [{...nav(),canonicalEventId:'other'},{...nav(),eventStart:'2026-11-08T17:00:00Z'}]){
   const bad={...q,eventNavigation};
-  assert.equal(exchangeCardRows({...game,exchangeReferenceQuotes:[bad]},at).find(r=>r.venue==='Polymarket'&&r.family==='moneyline').cells[0].link,null);
-  assert.equal(exchangeGameMarkets({...payload,byEvent:{[game.id]:[bad]}},game,{now:at})[0].link,null);
+  assert.equal(exchangeCardRows({...game,exchangeReferenceQuotes:[bad]},at).find(r=>r.venue==='Polymarket'&&r.family==='moneyline').cells[0].link.scope,'SITE');
+  assert.equal(exchangeGameMarkets({...payload,byEvent:{[game.id]:[bad]}},game,{now:at})[0].link.scope,'SITE');
  }
  assert.equal(exchangeCardRows({...game,exchangeReferenceQuotes:[{...q,marketStatus:'closed'}]},at).find(r=>r.venue==='Polymarket'&&r.family==='moneyline').cells[0].link,null);
+});
+
+test('verified game destination beats homepage when supplied contract link is invalid',()=>{
+ const link=exchangeMarketLink({source:'Polymarket US',sourceMarketId:'synthetic-contract',marketUrl:'https://evil.invalid/',eventNavigation:nav()});
+ assert.equal(link.scope,'EVENT');assert.equal(link.url,url);
 });
