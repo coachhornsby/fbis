@@ -164,42 +164,28 @@
 .fbis-shell-main.route-board .fbis-mini-model-facts strong{display:block;margin-top:5px;font-size:22px;line-height:1.3;color:#fbd279;overflow-wrap:anywhere}
 @media(max-width:400px){.fbis-shell-main.route-board .fbis-mini-body{grid-template-columns:minmax(0,1fr) 112px minmax(0,1fr);gap:3px}.fbis-shell-main.route-board .fbis-mini-footer{display:block}.fbis-shell-main.route-board .fbis-mini-footer span{display:block;margin:5px 0}}
 
-.fbis-shell-main.route-board .fbis-mini-exchanges{padding:4px 12px 10px;border-top:1px solid #34404c;color:#f3f8ff;font-size:16px;line-height:1.4}
-.fbis-shell-main.route-board .fbis-mini-exchanges table{width:100%;border-collapse:collapse;table-layout:fixed}
-.fbis-shell-main.route-board .fbis-mini-exchanges th,.fbis-shell-main.route-board .fbis-mini-exchanges td{padding:8px 4px;color:#f3f8ff;font-size:16px;overflow-wrap:anywhere;text-align:center}
-.fbis-shell-main.route-board .fbis-mini-exchanges th:first-child{width:40%;text-align:left}
-.fbis-shell-main.route-board .fbis-mini-exchanges thead th{color:#e5e7eb;font-weight:500;border-bottom:1px solid #34404c}
-.fbis-shell-main.route-board .fbis-mini-exchanges tbody th{font-weight:600}
-.fbis-shell-main.route-board .fbis-mini-exchanges td{font-size:20px;font-weight:700;color:#fbd279;font-variant-numeric:tabular-nums}
-.fbis-shell-main.route-board .fbis-mini-exchange-empty{display:block;padding:10px 4px;color:#e5e7eb;font-size:16px}
 
-.fbis-shell-main.route-board .fbis-mini-exchanges th:first-child{width:auto;text-align:center}
-.fbis-shell-main.route-board .fbis-mini-exchanges thead th:first-child{width:36px}
-.fbis-shell-main.route-board .fbis-mini-exchanges thead th:nth-child(2){width:28%}
-.fbis-shell-main.route-board .fbis-mini-exchanges tbody th[scope="row"]{text-align:left;font-weight:500}
-.fbis-shell-main.route-board .fbis-mini-exchanges tr:nth-child(3n+1) td,.fbis-shell-main.route-board .fbis-mini-exchanges tr:nth-child(3n+1) th{border-top:1px solid #34404c}
-.fbis-mini-exchange-logo{display:block;width:32px;height:32px;object-fit:contain;margin:auto}
+/* EdgeFinder-style exchange boxes: branding stays behind readable prices. */
+.fbis-shell-main.route-board .fbis-mini-exchanges{padding:4px 12px 12px;border-top:1px solid #34404c;color:#f3f8ff;font-size:16px;line-height:1.4}
+.fbis-shell-main.route-board .fbis-mini-market-heading{display:grid;grid-template-columns:34% 33% 33%;align-items:center;text-align:center;min-height:44px;color:#e5e7eb}
+.fbis-shell-main.route-board .fbis-mini-market-team-logo{display:inline-flex;vertical-align:middle;margin:auto;max-width:100%}
+.fbis-shell-main.route-board .fbis-mini-venue-panel{position:relative;isolation:isolate;overflow:hidden;min-height:94px;background:#062f2e}
+.fbis-shell-main.route-board .fbis-mini-venue-panel.is-polymarket{background:#142858;border-top:2px solid #958548}
+.fbis-shell-main.route-board .fbis-mini-venue-watermark{position:absolute;inset:0;opacity:.18;pointer-events:none;user-select:none;background:center/94% auto no-repeat url('/brands/kalshi-watermark.png');z-index:-1}
+.fbis-shell-main.route-board .is-polymarket .fbis-mini-venue-watermark{opacity:.12;background-image:url('/brands/polymarket-watermark.png')}
+.fbis-shell-main.route-board .fbis-mini-venue-panel table{position:relative;width:100%;border-collapse:collapse;table-layout:fixed}
+.fbis-shell-main.route-board .fbis-mini-venue-panel th,.fbis-shell-main.route-board .fbis-mini-venue-panel td{padding:8px 4px;overflow-wrap:anywhere;text-align:center;vertical-align:middle;background:transparent}
+.fbis-shell-main.route-board .fbis-mini-venue-panel th{width:34%;font-size:16px;font-weight:600;color:#f3f8ff}
+.fbis-shell-main.route-board .fbis-mini-venue-panel td{width:33%;font-size:20px;font-weight:750;color:#fbd279;font-variant-numeric:tabular-nums;text-shadow:0 1px 3px #061321}
+.fbis-shell-main.route-board .fbis-mini-venue-panel tr+tr{border-top:1px solid #ffffff13}
+.fbis-shell-main.route-board .fbis-mini-exchange-empty{position:relative;display:flex;align-items:center;justify-content:center;min-height:94px;margin:0;padding:12px;box-sizing:border-box;color:#e5e7eb;font-size:16px;font-weight:650;text-shadow:0 1px 3px #061321}
 .fbis-mini-exchange-line{display:block;color:#f3f8ff;font-size:16px;font-weight:500}
 .fbis-mini-sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
-
-/* Team emblems replace abbreviation headers; the shared TeamLogo component
-   displays its existing abbreviation fallback when an emblem is unavailable. */
-.fbis-shell-main.route-board .fbis-mini-exchanges thead th.fbis-mini-market-team{
- text-align:center;vertical-align:middle;padding:6px 2px
-}
-.fbis-shell-main.route-board .fbis-mini-exchanges thead .fbis-mini-market-team-logo{
- display:inline-flex;align-items:center;justify-content:center;
- vertical-align:middle;margin:0 auto;max-width:100%
-}
-.fbis-shell-main.route-board .fbis-mini-exchanges thead .team-logo-fallback.fbis-mini-market-team-logo{
- font-size:12px!important;font-weight:850;letter-spacing:0
-}
-
 .fbis-shell-main.route-board .fbis-mini-team-total-prices{display:flex;flex-direction:column;gap:6px}
-.fbis-shell-main.route-board .fbis-mini-team-total-prices>div{
- display:flex;align-items:center;justify-content:space-between;gap:5px;
- font-size:16px;line-height:1.25;color:#f3f8ff
-}
-.fbis-shell-main.route-board .fbis-mini-team-total-prices>div+div{border-top:1px solid #34404c;padding-top:5px}
+.fbis-shell-main.route-board .fbis-mini-team-total-prices>div{display:flex;align-items:center;justify-content:center;flex-wrap:wrap;gap:5px;font-size:16px;line-height:1.25;color:#f3f8ff}
+.fbis-shell-main.route-board .fbis-mini-team-total-prices>div+div{border-top:1px solid #ffffff25;padding-top:5px}
 .fbis-shell-main.route-board .fbis-mini-team-total-prices span{font-size:16px;font-weight:700;white-space:nowrap}
 .fbis-shell-main.route-board .fbis-mini-team-total-prices strong{font-size:16px;font-weight:850;color:#fbd279;white-space:nowrap}
+@media(max-width:380px){.fbis-shell-main.route-board .fbis-mini-exchanges{padding:4px 8px 10px}.fbis-shell-main.route-board .fbis-mini-venue-panel th{font-size:14px}}
+
+@media(forced-colors:active){.fbis-shell-main.route-board .fbis-mini-venue-watermark{display:none}.fbis-shell-main.route-board .fbis-mini-venue-name{position:static;width:auto;height:auto;margin:0;overflow:visible;clip:auto;white-space:normal;display:block;padding:4px 8px;font-weight:700}.fbis-shell-main.route-board .fbis-mini-venue-panel{border:1px solid CanvasText}}
