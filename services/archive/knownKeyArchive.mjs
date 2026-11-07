@@ -6,12 +6,14 @@ export const JOB='services/archive/knownKeyArchive.mjs';
 export const LIMITS=Object.freeze({objects:2,objectBytes:262144,totalBytes:409600,envelopeBytes:360448,manifestBytes:16384});
 const encoder=new TextEncoder();
 const decoder=new TextDecoder('utf-8',{fatal:true});
-const bytes=value=>encoder.encode(JSON.stringify(value)+'\n');
+const canonical=value=>Array.isArray(value)?value.map(canonical):value!==null&&typeof value==='object'?Object.fromEntries(Object.keys(value).sort().map(key=>[key,canonical(value[key])])):value;
+const bytes=value=>encoder.encode(JSON.stringify(canonical(value))+'\n');
 const hash=async data=>Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256',data)),x=>x.toString(16).padStart(2,'0')).join('');
 const fail=reason=>{throw Error(reason);};
 function records(raw,format){
  const text=decoder.decode(raw);
  const result=format==='ndjson'?text.trim().split('\n').filter(line=>line.trim()).map(line=>JSON.parse(line)):JSON.parse(text);
+ if(format==='json-document'){if(result===null||typeof result!=='object'||Array.isArray(result))fail('ARCHIVE_DOCUMENT_FORMAT');return [];}
  if(!Array.isArray(result)||!result.every(row=>row!==null&&typeof row==='object'&&!Array.isArray(row)))fail('ARCHIVE_RECORD_FORMAT');
  return result;
 }
@@ -23,7 +25,7 @@ function planSnapshot(plan){
  for(const o of copy.objects){
   if(typeof o.key!=='string'||!o.key.startsWith('research/')||o.key.length>1024||/[\x00-\x1f\\]/.test(o.key)||o.key.split('/').some(s=>s==='..'||s==='.')||keys.has(o.key))fail('ARCHIVE_KEY_INVALID');
   keys.add(o.key);
-  if(!Number.isSafeInteger(o.bytes)||o.bytes<1||o.bytes>LIMITS.objectBytes||!Number.isSafeInteger(o.records)||o.records<1||o.records>10000||!['json-array','ndjson'].includes(o.format)||!/^[a-f0-9]{64}$/.test(o.sha256||''))fail('ARCHIVE_EXPECTATION_INVALID');
+  if(!Number.isSafeInteger(o.bytes)||o.bytes<1||o.bytes>LIMITS.objectBytes||!Number.isSafeInteger(o.records)||o.records<0||o.records>10000||(o.format==='json-document'?o.records!==0:o.records<1)||!['json-array','ndjson','json-document'].includes(o.format)||!/^[a-f0-9]{64}$/.test(o.sha256||''))fail('ARCHIVE_EXPECTATION_INVALID');
   for(const field of ['sport','provider','season','schemaVersion','capturedAt'])if(typeof o[field]!=='string'||!o[field]||o[field].length>100)fail('ARCHIVE_PROVENANCE_REQUIRED');
   if(!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d{3})?Z$/.test(o.capturedAt)||!Number.isFinite(Date.parse(o.capturedAt)))fail('ARCHIVE_TIMESTAMP_INVALID');
   total+=o.bytes;
@@ -104,5 +106,5 @@ export async function archiveKnownKeys({env,bucket,plan,sink,reservationId}){
   const count=records(restored,file.format).length;if(count!==file.records)fail('ARCHIVE_RESTORE_COUNT');restoredRecords+=count;
  }
  if(restoredRecords!==restoredManifest.totalRecords)fail('ARCHIVE_RESTORE_TOTAL');
- return {manifestId:saved.id,manifestSha256,manifest:restoredManifest,operations,independentRestoreVerified:true,budget:lease.snapshot()};
+ return {manifestId:saved.id,manifestSha256,manifest:restoredManifest,operations,independentRestoreVerified:true,restoreScope:'archived-object-bytes-and-direct-records-only',referencedRecordsVerified:false,budget:lease.snapshot()};
 }

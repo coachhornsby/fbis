@@ -62,3 +62,20 @@ test('NDJSON restore preserves original record bytes and counts',async()=>{
  f.bucket.head=async()=>({size:data.length,etag:'etag'});f.bucket.get=async()=>({size:data.length,etag:'etag',body:new Response(data).body});
  const result=await archiveKnownKeys(f);assert.equal(result.manifest.totalRecords,2);assert.equal(result.independentRestoreVerified,true);
 });
+
+test('semantic plan property order cannot change archive content addresses',async()=>{
+ const f=fixture();const first=await archiveKnownKeys(f);
+ f.plan.objects[0]=Object.fromEntries(Object.entries(f.plan.objects[0]).reverse());
+ const second=await archiveKnownKeys(f);assert.equal(first.manifestId,second.manifestId);assert.equal(f.files.size,2);assert.deepEqual(second.operations,['existing_verified']);
+});
+test('provenance JSON document copies no referenced objects and counts zero restored records',async()=>{
+ const f=fixture();const data=new TextEncoder().encode(JSON.stringify({count:13644,segments:[{key:'research/never-fetch-this'}]}));
+ Object.assign(f.plan.objects[0],{format:'json-document',records:0,bytes:data.length,sha256:sha(data)});f.grant.maxUnits.r2Bytes=data.length;
+ f.bucket.head=async key=>{assert.equal(key,f.plan.objects[0].key);return{size:data.length,etag:'etag'};};
+ let gets=0;f.bucket.get=async key=>{assert.equal(key,f.plan.objects[0].key);gets++;return{size:data.length,etag:'etag',body:new Response(data).body};};
+ const result=await archiveKnownKeys(f);assert.equal(gets,1);assert.equal(result.manifest.totalRecords,0);assert.equal(result.referencedRecordsVerified,false);assert.equal(result.restoreScope,'archived-object-bytes-and-direct-records-only');
+});
+test('document mode refuses record claims and non-object JSON',async()=>{
+ const f=fixture();f.plan.objects[0].format='json-document';await assert.rejects(()=>archiveKnownKeys(f),/EXPECTATION_INVALID/);assert.equal(f.calls.length,0);
+ f.plan.objects[0].records=0;await assert.rejects(()=>archiveKnownKeys(f),/DOCUMENT_FORMAT/);assert.equal(f.files.size,0);
+});

@@ -30,16 +30,21 @@ account reservation; an unused dollar balance alone does not authorize execution
 - At most two objects, 256 KiB each and 400 KiB total source bytes.
 - Expected original SHA-256, bytes, format, record count, source capture timestamp,
   sport, provider, season, and schema version are mandatory.
-- JSON arrays of records and NDJSON are supported. Other source envelopes require
-  separately reviewed format support; do not relabel them to force acceptance.
+- JSON arrays of records and NDJSON are supported, plus explicit `json-document`
+  mode for provenance manifests. Document mode requires a JSON object and exactly
+  zero records; referenced keys are never traversed or counted as restored. Other
+  source envelopes need separate format review; do not relabel them.
 - Every HEAD must match the pinned size and provide an ETag before any GET occurs.
 - Each GET is conditional on that ETag and must match metadata, streamed length,
   SHA-256, and record count before any destination write.
 - Original bytes are preserved in bounded base64 JSON envelopes. No lossy
   conversion or compression occurs. Envelope and manifest hashes are recorded.
+- Recursive sorted-key serialization makes envelope and manifest hashes stable
+  across caller property insertion order. Array order remains significant.
 - Operational created/reused statuses are outside the immutable manifest.
 - Independent destination reads verify manifest/envelope hashes, original bytes,
-  parse records, and confirm counts without re-reading R2. This proves lossless
+  parse records (or the zero-record provenance document), and confirm counts
+  without re-reading R2. This proves lossless
   record recovery, not production-schema/model compatibility.
 - Production authority, source deletion, and retention release remain false.
 
