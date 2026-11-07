@@ -1,3 +1,4 @@
+import {validatePolymarketEventNavigation} from './polymarketEventNavigation.js';
 import {exchangeMarketLink} from './exchangeMarketLinks.js';
 import {exchangeMarketState,exchangeObservationTime} from './retainedExchangeQuotes.js';
 const venues=['Kalshi','Polymarket'];
@@ -15,7 +16,7 @@ const details=(q,clock)=>{
  const source=Date.parse(q.sourceObservedAt||q.quoteSourceTime||'');
  const sourceTime=Number.isFinite(source)?'Provider quote time '+new Date(source).toISOString():'Provider quote time unknown';
  const statusLabel=state==='closed'?'Market closed':state==='unavailable'?'Quote unavailable':stale?'Saved · reference only':'Reference only';
- const link=state==='observed'?exchangeMarketLink({source:q.venue==='Kalshi'?'Kalshi':'Polymarket US WebSocket',sourceMarketId:q.marketId,eventTicker:q.eventTicker,marketUrl:q.marketUrl}):null;
+ const link=state==='observed'?exchangeMarketLink({source:q.venue==='Kalshi'?'Kalshi':'Polymarket US WebSocket',sourceMarketId:q.marketId,eventTicker:q.eventTicker,marketUrl:q.marketUrl,eventNavigation:q.eventNavigation}):null;
  return {stale,state,statusLabel,link,observedLabel:(state==='observed'?'Fetched ':'Status checked ')+fetched+' CT · '+ageText(clock-at),
   title:(q.transport||'Capture')+' · '+statusLabel+' · fetched '+q.receivedAt+' · '+sourceTime,
   canAuthorizeWager:false,executionEligible:false};
@@ -63,7 +64,7 @@ export function exchangeCardRows(game,clock=Date.now()){
    (exchangeMarketState(q)!=='observed'||q.ask>0&&q.ask<1&&typeof q.ask==='number')&&
    Number.isFinite(stamp)&&clock>=stamp&&
    Math.abs(Date.parse(q.eventStart)-Date.parse(game.start))<=60000;
- }).sort((a,b)=>timestamp(b)-timestamp(a));
+ }).map(q=>({...q,eventNavigation:validatePolymarketEventNavigation(q.eventNavigation,{sport:game.sport,canonicalEventId:String(game.id),eventStart:game.start})})).sort((a,b)=>timestamp(b)-timestamp(a));
  return venues.flatMap(venue=>families.map(family=>{
   const offers=quotes.filter(q=>q.venue===venue&&(q.marketFamily||'moneyline')===family);
   if(family==='team_total')return {venue,family,label:labels[family],

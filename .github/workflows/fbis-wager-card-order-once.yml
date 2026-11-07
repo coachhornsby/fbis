@@ -22,7 +22,7 @@ jobs:
       - name: Install pinned build dependencies
         run: npm ci --ignore-scripts --no-audit --no-fund
       - name: Verify retained market references, links, and wager isolation
-        run: node --test test/game-card-order.test.mjs test/exchange-panel-presentation.test.mjs test/retained-exchange-card-quotes.test.mjs test/retained-exchange-quotes.test.mjs test/polymarket-retained-display.test.mjs test/exchange-card-rows.test.mjs test/exchange-market-links.test.js test/cbb-exchange-market-explorer.test.js
+        run: node --test test/polymarket-event-navigation.test.mjs test/game-card-order.test.mjs test/exchange-panel-presentation.test.mjs test/retained-exchange-card-quotes.test.mjs test/retained-exchange-quotes.test.mjs test/polymarket-retained-display.test.mjs test/exchange-card-rows.test.mjs test/exchange-market-links.test.js test/cbb-exchange-market-explorer.test.js
       - name: Build current publication source without collectors or data jobs
         run: |
           mkdir -p deploy/board/snapshots

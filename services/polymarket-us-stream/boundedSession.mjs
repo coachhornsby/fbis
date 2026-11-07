@@ -1,3 +1,4 @@
+import {validatePolymarketEventNavigation} from '../../src/lib/polymarketEventNavigation.js';
 import {polymarketUsSubscribe,parsePolymarketUsLite,parsePolymarketUsTrade} from '../../functions/lib/polymarketUsSignedWs.js';
 export const STREAM_ROSTER_KEY='market-sources/polymarket-us/stream-roster/current-v2.json';
 export const STREAM_SNAPSHOT_KEY='market-sources/polymarket-us/bounded/latest-v1.json';
@@ -26,7 +27,8 @@ export function validateStreamRoster(value,now=Date.now()){
      line:row.market_family==='moneyline'?null:b.line,
      ...(b.oppositeSide==='under'?{oppositeSide:'under',oppositeSourceOutcomeId:b.oppositeSourceOutcomeId}:{})};
   }
-  seen.add(slug);return {...(displayBinding?{displayBinding}:{}),sport:row.sport,source_market_id:slug,canonical_event_id:row.canonical_event_id,market_family:row.market_family,event_start_time:new Date(start).toISOString(),collected_at:new Date(collected).toISOString()};
+  const eventNavigation=validatePolymarketEventNavigation(row.eventNavigation,{sport:row.sport,canonicalEventId:row.canonical_event_id,eventStart:row.event_start_time,...(row.provider_event_id?{providerEventId:row.provider_event_id}:{})});
+  seen.add(slug);return {...(eventNavigation?{eventNavigation}:{}),...(displayBinding?{displayBinding}:{}),sport:row.sport,source_market_id:slug,canonical_event_id:row.canonical_event_id,market_family:row.market_family,event_start_time:new Date(start).toISOString(),collected_at:new Date(collected).toISOString()};
  });
 }
 // Batch producers supply already matched contracts; no provider calls or SQL.

@@ -1,3 +1,4 @@
+import {polymarketEventNavigationFromSource} from '../../src/lib/polymarketEventNavigation.js';
 import {resolveTeamExact} from './teams.js';
 /**
  * Polymarket US read-only research adapter.
@@ -172,6 +173,7 @@ export function polymarketUsMarketOffers(e,sport,{canonicalId=null,capturedAt=ne
   const offers=[];
   const providerEventId=String(e.id||e.gameId||"");
   const start=marketEventStart(e);
+  const eventNavigation=polymarketEventNavigationFromSource(e,{sport,canonicalEventId:canonicalId,eventStart:start});
   for(const m of markets){
     const slug=String(m.slug||m.id||"");
     if(!slug)continue;
@@ -190,7 +192,7 @@ export function polymarketUsMarketOffers(e,sport,{canonicalId=null,capturedAt=ne
         contractPrice:price,americanOdds:null,executionEligible:false,
         standardOrAlt:"unknown",period:polymarketUsPeriod(m),sourceMarketId:slug,
         sourceOutcomeId:String(side.id||side.identifier||label),fetchedAt:capturedAt,
-        raw:{providerEventId,providerMarketId:String(m.id||slug),providerOutcomeId:String(side.id||""),
+        raw:{providerEventId,providerEventSlug:typeof e.slug==='string'?e.slug:null,eventNavigation,providerMarketId:String(m.id||slug),providerOutcomeId:String(side.id||""),
           providerTitle:e.title||null,marketTitle:m.question||m.title||null,
           providerMarketType:m.sportsMarketTypeV2||m.sportsMarketType||null,
           contractLong:typeof side.long==="boolean"?side.long:null,

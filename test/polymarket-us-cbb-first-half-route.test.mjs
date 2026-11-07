@@ -81,7 +81,9 @@ test('bounded CBB collector gets full event-by-slug markets with existing four-c
   capturedAt:new Date(now).toISOString(),expiresAt:new Date(now+3600000).toISOString(),
   providerTags:['cbb'],fixtures:[game]};
  const eventSlug='cbb-yngst-ohiost-2026-11-06';
- const one={...event,slug:eventSlug,markets:[{
+ // Synthetic source URL tests propagation, not a verified live destination.
+ const sourceUrl='https://polymarket.us/sports/cbb/'+eventSlug;
+ const one={...event,slug:eventSlug,url:sourceUrl,markets:[{
    slug:'cbb-yngst-ohiost-moneyline',sportsMarketType:'basketball_team_full_game_winner',
    sportsMarketTypeV2:'SPORTS_MARKET_TYPE_MONEYLINE',marketSides:[{id:'ml-side',description:game.home_name,long:true,team:{name:game.home_name}}]
  }]};
@@ -109,4 +111,6 @@ test('bounded CBB collector gets full event-by-slug markets with existing four-c
  assert.equal(writes,1);
  assert.ok(result.selected.some(r=>r.market_family==='total'&&r.displayBinding.period==='first_half'&&r.displayBinding.oppositeSide==='under'));
  assert.equal(result.receipt.complete,false);
+ for(const row of result.selected){assert.equal(row.provider_event_id,event.id);assert.equal(row.eventNavigation?.url,sourceUrl);}
+ assert.ok(result.selected.some(r=>r.market_family==='moneyline'));
 });

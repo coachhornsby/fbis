@@ -53,7 +53,7 @@ export async function capturePolymarketPage(env,{receiptId,kind,slug=null,sport=
   const roster=offers.filter(o=>o.eventId&&o.raw?.contractLong===true&&
     ['moneyline','spread','total'].includes(o.marketFamily)&&o.sourceMarketId)
    .map(o=>({sport:o.sport,league:o.league,canonical_event_id:o.eventId,
-     provider_event_id:o.raw.providerEventId,event_start_time:o.eventStart,
+     provider_event_id:o.raw.providerEventId,eventNavigation:o.raw.eventNavigation,event_start_time:o.eventStart,
      home_team:o.homeTeam,away_team:o.awayTeam,market_family:o.marketFamily,
      side:o.side,line:o.line,period:o.period,source_market_id:o.sourceMarketId,
      source_outcome_id:o.sourceOutcomeId,collected_at:capturedAt}));
