@@ -71,3 +71,12 @@ test('admission delay cannot mutate plan or authorization/destination snapshots'
  f.env.FBIS_ACCOUNT_BUDGET.getByName=()=>({reserve:async args=>{f.plan.objects[0].key='research/changed';f.drive.authorization='Bearer changed';f.drive.archiveFolderId='outside';return reserve(args);}});
  const result=await runBoundedArchive(f);assert.equal(result.manifest.files[0].key,'research/fixture/manifest.json');
 });
+
+test('serialized caller persists only redacted receipt/intent and prevents re-admission on replay',async()=>{
+ const {runSerializedArchive}=await import('../services/archive/serializedArchiveCaller.mjs');
+ const data=new Map();let queue=Promise.resolve();
+ const storage={transaction(fn){const work=queue.then(async()=>{const copy=new Map(structuredClone([...data]));const result=await fn({get:async k=>copy.get(k),put:async(k,v)=>copy.set(k,structuredClone(v))});data.clear();for(const pair of copy)data.set(...pair);return result;});queue=work.catch(()=>{});return work;}};
+ const f=fixture();const result=await runSerializedArchive({storage,...f});assert.equal(result.independentRestoreVerified,true);
+ const state=JSON.stringify([...data]);assert.ok(!state.includes('offline-fixture'));assert.ok(!state.includes('never-follow'));assert.equal(data.get('archive:v1:operation:one').phase,'completed');
+ const count=f.calls.length;await assert.rejects(()=>runSerializedArchive({storage,...f}),/OPERATION_REPLAY/);assert.equal(f.reserves,1);assert.equal(f.calls.length,count);
+});
