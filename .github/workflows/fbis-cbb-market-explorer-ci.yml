@@ -4,6 +4,8 @@ on:
     branches: [feature/cbb-exchange-market-explorer-20261106]
   pull_request:
     paths:
+      - "test/kalshi-signed-collector.test.js"
+      - "test/kalshi-phase2-coverage.test.js"
       - "functions/lib/kalshiFootballRuleIdentity.js"
       - "test/kalshi-football-rule-identity.test.mjs"
       - "functions/lib/kalshiFirstHalfTotalQuotes.js"
@@ -43,6 +45,6 @@ jobs:
           node --check services/kalshi-public-collector/entrypoint.mjs
           node --check src/lib/exchangeMarketExplorer.js
       - name: Targeted regression suite
-        run: node --test test/cbb-exchange-market-explorer.test.js test/exchange-card-delivery.test.mjs test/kalshi-basketball-line-quotes.test.mjs test/exchange-card-rows.test.mjs test/kalshi-market-shadow.test.js test/account-budget-admission.test.mjs test/kalshi-market-stream.test.mjs test/kalshi-stream-capture-ceiling.test.mjs test/kalshi-ticker-timestamp.test.mjs test/kalshi-football-rule-identity.test.mjs
+        run: node --test test/cbb-exchange-market-explorer.test.js test/exchange-card-delivery.test.mjs test/kalshi-basketball-line-quotes.test.mjs test/exchange-card-rows.test.mjs test/kalshi-market-shadow.test.js test/account-budget-admission.test.mjs test/kalshi-market-stream.test.mjs test/kalshi-stream-capture-ceiling.test.mjs test/kalshi-ticker-timestamp.test.mjs test/kalshi-football-rule-identity.test.mjs test/kalshi-signed-collector.test.js test/kalshi-phase2-coverage.test.js
       - name: Production Pages board build (no deployment)
         run: cd deploy/board && npm run build

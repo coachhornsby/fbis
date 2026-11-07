@@ -137,3 +137,26 @@ test("signed exchange status uses service secret with private Pages signing only
  assert.equal(saved.authenticationMode,"SIGNED_PAGES");
  assert.equal(saved.canAuthorizeWager,false);
 });
+
+test('CFB partial pages fit existing capture lease and retain per-row times',async()=>{
+ const {beginJobExecution}=await import('../services/account-budget/jobScope.mjs');
+ const {KALSHI_CAPTURE_JOB}=await import('../services/account-budget/executionJobs.mjs');
+ const original=await config();let writes=0,requests=0,bytes=0,reads=0;
+ original.ARCHIVE.head=async key=>original.ARCHIVE.values.has(key)?{size:Buffer.byteLength(original.ARCHIVE.values.get(key))}:null;
+ original.ARCHIVE.get=async key=>{reads++;const text=original.ARCHIVE.values.get(key);return text===undefined?null:{size:Buffer.byteLength(text),body:new Response(text).body};};
+ const put=original.ARCHIVE.put;original.ARCHIVE.put=async(k,v)=>{writes++;bytes+=Buffer.byteLength(v);return put(k,v);};
+ const pages=[{markets:[market('cfb')],cursor:'next-page'},{markets:[{...market('cfb'),ticker:'KXNCAAFGAME-26OCT25-DEF'}],cursor:''}];
+ async function cycle(now){
+  const fetchImpl=async()=>{requests++;return Response.json(pages.shift());};
+  const env=await beginJobExecution(original,KALSHI_CAPTURE_JOB,{fetchImpl,network:{origin:'https://external-api.kalshi.com',path:'/trade-api/v2/markets'}});
+  const result=await captureSignedKalshiMarkets(env,{sport:'cfb',now,webCrypto:webcrypto,fetchImpl:env.FBIS_JOB_FETCH});
+  await assert.rejects(()=>env.ARCHIVE.put('unbudgeted-fifth-write','{}'),/JOB_UNIT_LIMIT_r2Writes/);
+  return result;
+ }
+ const first=await cycle(at);assert.equal(first.status,'PAGINATING');assert.equal(requests,1);assert.equal(writes,4);
+ const partial=JSON.parse(original.ARCHIVE.values.get(PREFIX+'sports/cfb.json'));
+ assert.equal(partial.paginationComplete,false);assert.equal(partial.coverage,'BOUNDED_PARTIAL_SERIES');assert.equal(partial.canAuthorizeWager,false);assert.equal(partial.records[0].fetchedAt,at.toISOString());
+ const later=new Date(at.getTime()+20*60000),second=await cycle(later);assert.equal(second.status,'CAPTURED');assert.equal(requests,2);assert.equal(writes,8);assert.equal(reads,6);
+ const full=JSON.parse(original.ARCHIVE.values.get(PREFIX+'sports/cfb.json'));assert.equal(full.paginationComplete,true);assert.equal(full.records[0].fetchedAt,at.toISOString());assert.equal(full.records[1].fetchedAt,later.toISOString());assert.equal(full.oldestMarketFetchedAt,at.toISOString());
+ assert.ok(bytes<8388608);assert.equal(CERTIFIED_EXECUTION_JOBS[KALSHI_CAPTURE_JOB].units.r2Writes,4);assert.equal(CERTIFIED_EXECUTION_JOBS[KALSHI_CAPTURE_JOB].units.requests,1);
+});
