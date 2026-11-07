@@ -9,11 +9,12 @@ export async function refreshExchangeFixtures(original,{sport,slot,now=Date.now(
  const env=await beginJobExecution(original,FIXTURE_REFRESH_JOB,{reservationId:'exchange-fixtures-'+sport+'-'+slot,fetchImpl,network:{origin:'https://site.api.espn.com',path}});
  const date=boardDate(new Date(now).toISOString());
  // Football's next scheduled games may be several days away. Keep one
- // bounded request and the same response/fixture caps, but cover the existing
- // 72-hour market horizon rather than silently skipping empty weekdays.
+ // bounded request and the same response/fixture caps. ESPN football rejects
+ // date ranges; its default current-week scoreboard covers upcoming games.
+ // Apply the existing 72-hour horizon locally instead of skipping weekdays.
  const dates=(sport==='nfl'||sport==='cfb')?[0,1,2,3].map(n=>shiftBoardDate(date,n)):[date];
- const range=dates.length>1?date.replaceAll('-','')+'-'+dates.at(-1).replaceAll('-',''):date.replaceAll('-','');
- const response=await env.FBIS_JOB_FETCH('https://site.api.espn.com'+path+'?dates='+range+'&limit=499'+(sport==='cfb'?'&groups=80':sport==='cbb'?'&groups=50':''));
+ const dateQuery=dates.length>1?'':'&dates='+date.replaceAll('-','');
+ const response=await env.FBIS_JOB_FETCH('https://site.api.espn.com'+path+'?limit=499'+dateQuery+(sport==='cfb'?'&groups=80':sport==='cbb'?'&groups=50':''));
  if(!response.ok)throw Error('FIXTURE_SOURCE_HTTP_'+response.status);
  const payload=await response.json();
  const games=dates.flatMap(day=>scoreboardGames(payload,{sport,date:day,capturedAt:new Date(now).toISOString()}));
