@@ -3,7 +3,9 @@ import NhlInjuryIntelligence from "./NhlInjuryIntelligence.jsx";
 import TennisMatchIntelligence from "./TennisMatchIntelligence.jsx";
 import { Fragment, useMemo, useState } from "react";
 import { buildBoardGameViewModel } from "../../lib/boardViewModel.js";
-import { sortByConfidence } from "../../lib/confidenceStars.js";
+import {sortGameCards} from '../../lib/gameCardOrder.js';
+import {useWagerGameMarks} from '../../lib/useWagerGameMarks.js';
+import WagerGameToggle from './WagerGameToggle.jsx';
 import CompactGameCard from "./CompactGameCard.jsx";
 import RecoveryMiniGameCard from "./RecoveryMiniGameCard.jsx";
 import PremiumGameCard from "./PremiumGameCard.jsx";
@@ -75,7 +77,8 @@ export function BoardSummaryStrip({ games = [] }) {
 
 export default function DecisionBoard({ games = [], renderDetail, renderCardExtra, compactRecovery = false, clock = Date.now() }) {
   const [selected, setSelected] = useState(null);
-  const ranked = useMemo(() => sortByConfidence(games).sort((a,b)=>Number(Boolean(a.tennisProjection?.researchFixture))-Number(Boolean(b.tennisProjection?.researchFixture))), [games]);
+  const {marked,toggle,message}=useWagerGameMarks();
+  const ranked=useMemo(()=>sortGameCards(games,{marked}),[games,marked]);
 
   if (!games.length) return <div className="empty">No games on this filter.</div>;
 
@@ -105,6 +108,7 @@ export default function DecisionBoard({ games = [], renderDetail, renderCardExtr
 
   return (
     <div className="decision-board">
+      <p role="status" style={{fontSize:16,color:'#e5e7eb'}}>Order: Your wagers → Live → Upcoming → Completed. Wager marks stay in this browser on this site.{message?' '+message:''}</p>
       {!compactRecovery ? <BoardSummaryStrip games={ranked} /> : null}
       <div className={'db-grid'+(compactRecovery?' fbis-mini-grid':'')} role="list" aria-label="Decision board cards">
         {ranked.map((g,index) => {
@@ -114,6 +118,7 @@ export default function DecisionBoard({ games = [], renderDetail, renderCardExtr
             {isTennis&&index===0&&!g.tennisProjection?.researchFixture?<div className="tmc-official-separator" role="note">Tennis schedule</div>:null}
             {g.tennisProjection?.researchFixture&&!ranked[index-1]?.tennisProjection?.researchFixture?<div className="tmc-research-separator" role="note">Additional Tennis fixtures</div>:null}
             <div role="listitem" className={isTennis ? "db-grid-item db-grid-item-tennis" : "db-grid-item"}>
+              <WagerGameToggle game={g} marked={marked} onToggle={toggle}/>
               {compactRecovery
                 ? <RecoveryMiniGameCard game={g} clock={clock} onOpen={setSelected}/>
                 : isTennis

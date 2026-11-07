@@ -1,0 +1,39 @@
+name: FBIS wager-first game cards — one bounded Pages release
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/fbis-wager-card-order-once.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: fbis-public-model-cards-once
+  cancel-in-progress: false
+jobs:
+  release-card-order:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4.2.2
+      - uses: actions/setup-node@v4.1.0
+        with:
+          node-version: '22'
+      - name: Install pinned build dependencies
+        run: npm ci --ignore-scripts --no-audit --no-fund
+      - name: Verify wager priority, identity, and browser-only marks
+        run: node --test test/game-card-order.test.mjs
+      - name: Build current publication source without collectors or data jobs
+        run: |
+          mkdir -p deploy/board/snapshots
+          npx vite build --config vite.publication.config.js
+      - name: Deploy existing Pages project only
+        working-directory: deploy/board
+        env:
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        run: |
+          test -n "${CLOUDFLARE_ACCOUNT_ID:-}" || exit 1
+          test -n "${CLOUDFLARE_API_TOKEN:-}" || exit 1
+          test -f dist/index.html || exit 1
+          npx wrangler pages deploy dist --project-name fbis --branch main --commit-hash "${GITHUB_SHA}"

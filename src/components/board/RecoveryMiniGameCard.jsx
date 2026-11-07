@@ -1,3 +1,4 @@
+import {liveGameLabel} from '../../lib/gameCardClock.js';
 import TeamLogo from '../TeamLogo.jsx';
 import {recoveryLeanShopping} from '../../lib/recoveryLeanShopping.js';
 import {recoveryCardFacts} from '../../lib/recoveryCardFacts.js';
@@ -41,7 +42,7 @@ export default function RecoveryMiniGameCard({game,onOpen,clock=Date.now()}){
    aria-label={'Open '+displayName(away)+' at '+displayName(home)+' model details'}>
    <header className="fbis-mini-header">
     <span className="fbis-mini-sport">{String(game.sport||'').toUpperCase()}</span>
-    <span className="fbis-mini-time">{localTime(game.start)}</span>
+    <span className="fbis-mini-time">{liveGameLabel(game)||localTime(game.start)}</span>
     <span className={'fbis-mini-status'+(fresh?' live-model':'')}>{actual?(game.status==='final'?'FINAL':'LIVE'):fresh?'FBIS RESEARCH':'NO MODEL'}</span>
    </header>
    <div className="fbis-mini-body">
