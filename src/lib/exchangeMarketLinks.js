@@ -5,8 +5,8 @@ import {validatePolymarketEventNavigation} from './polymarketEventNavigation.js'
  *
  * Kalshi exposes a ticker-addressable market route. Polymarket Global exposes
  * a documented event-slug route (not a guaranteed selected contract). For
- * Polymarket US use ONLY a provider-supplied exact-market link: US and Global
- * are different exchanges and slug formats are not interchangeable.
+ * Polymarket US prefers provider-supplied contract/game links and falls back
+ * to its verified homepage. US and Global slug formats are not interchangeable.
  */
 const tickerPattern=/^KX[A-Z0-9_.]{2,90}-[A-Z0-9_.-]{2,120}$/i;
 const slugPattern=/^[a-z0-9]+(?:-[a-z0-9]+)*$/;
@@ -97,25 +97,26 @@ export function exchangeMarketLink(offer={}){
    nonEmpty(offer.raw?.providerMarketId);
   const candidate=nonEmpty(offer.marketUrl)||nonEmpty(offer.raw?.providerMarket?.marketUrl)||
     nonEmpty(offer.raw?.providerMarket?.url);
-  if(!marketId)return null;
-  if(!candidate){
+  const fallback=()=>{
    const event=validatePolymarketEventNavigation(offer.eventNavigation||offer.raw?.eventNavigation,{canonicalEventId:offer.canonicalEventId||offer.eventId,sport:offer.sport,eventStart:offer.eventStart});
-   return event?{url:event.url,provider:'Polymarket US',scope:'EVENT',id:event.providerEventId,label:'View game on Polymarket US'}:null;
-  }
+   return event?{url:event.url,provider:'Polymarket US',scope:'EVENT',id:event.providerEventId,label:'View game on Polymarket US'}:
+    {url:'https://polymarket.us/',provider:'Polymarket US',scope:'SITE',id:'polymarket-us-home',label:'Open Polymarket US homepage (game link unavailable)'};
+  };
+  if(!marketId||!candidate)return fallback();
   try{
    const uri=new URL(candidate);
    if(uri.protocol!=='https:'||uri.hostname!=='polymarket.us'||
-      uri.username||uri.password||uri.port)return null;
-   // Exact-market evidence is required. Event-only URLs are not accepted.
+      uri.username||uri.password||uri.port)return fallback();
+   // Exact-market evidence is required; unsafe or unrelated links fall back.
    const parts=uri.pathname.split('/').filter(Boolean).map(decodeURIComponent);
    const queryIds=['market','marketId','market_id','slug'].map(k=>uri.searchParams.get(k));
    const pathMatches=parts.some(x=>x===marketId) &&
      parts.some(x=>/^(?:market|markets|contract|contracts)$/i.test(x));
    const queryMatches=queryIds.some(x=>x===marketId);
-   if(!pathMatches&&!queryMatches)return null;
+   if(!pathMatches&&!queryMatches)return fallback();
    return {url:uri.toString(),provider:'Polymarket US',scope:'MARKET',id:marketId,
     label:'Open on Polymarket US'};
-  }catch{return null;}
+  }catch{return fallback();}
  }
  return null;
 }

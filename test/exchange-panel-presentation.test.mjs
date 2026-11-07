@@ -45,6 +45,8 @@ test('retained lines link only to supported exact venue destinations',()=>{
  const bad=render([{...poly,marketUrl:'https://evil.invalid/markets/source-contract-1'}]);
  assert.ok(bad.includes('52.0¢'));assert.ok(!bad.includes('href="https://evil.invalid'));
  const mismatched=render([{...poly,marketUrl:'https://polymarket.us/markets/another-contract'}]);
- assert.ok(!mismatched.includes('href="https://polymarket.us/'));
+ assert.ok(mismatched.includes('href="https://polymarket.us/"'));
+ assert.ok(mismatched.includes('Open Polymarket US homepage (game link unavailable)'));
+ assert.ok(!mismatched.includes('/markets/another-contract'));
 });
 test('watermark does not intercept input and prices remain above it',async()=>{const s=await readFile('src/components/board/recoveryMiniGameCard.css','utf8');assert.match(s,/pointer-events:none/);assert.match(s,/isolation:isolate/);assert.match(s,/opacity:\.18/);assert.match(s,/z-index:-1/);assert.match(s,/border-top:2px solid #958548/);});
