@@ -25,7 +25,7 @@ function m(ticker="KXNCAAFGAME-26OCT25-DAL",title="Dallas Cowboys wins"){
   yes_bid_dollars:"0.48",yes_ask_dollars:"0.51",
   rules_primary:"Wins under official rules",status:"active"};
 }
-test("small signed CFB pages checkpoint and resume without overwriting live snapshot",async()=>{
+test("small signed CFB pages publish explicit partial evidence then complete",async()=>{
  const e=await env();let calls=0;
  const first=await captureSignedKalshiMarkets(e,{sport:"cfb",now:begin,
   webCrypto:webcrypto,fetchImpl:async(url,opts)=>{
@@ -39,7 +39,7 @@ test("small signed CFB pages checkpoint and resume without overwriting live snap
   }});
  assert.equal(first.ok,true);assert.equal(first.status,"PAGINATING");
  assert.equal(first.records,1);assert.equal(first.pagesFetched,1);
- assert.equal(e.ARCHIVE.items.has(BASE+"sports/cfb.json"),false);
+ assert.equal(JSON.parse(e.ARCHIVE.items.get(BASE+"sports/cfb.json")).paginationComplete,false);
  const progress=JSON.parse(e.ARCHIVE.items.get(BASE+"sports/cfb-progress.json"));
  assert.equal(progress.cursor,"NEXT");
  assert.equal(progress.records.length,1);
@@ -81,7 +81,8 @@ test("partial 429 preserves cursor and previous published snapshot with one-hour
  assert.equal(calls,2);
  assert.equal(fail.pagesFetched,1);
  assert.equal(JSON.parse(e.ARCHIVE.items.get(BASE+"sports/cfb-progress.json")).cursor,"NEXT");
- assert.equal(JSON.parse(e.ARCHIVE.items.get(BASE+"sports/cfb.json")).paginationComplete,true);
+ assert.equal(JSON.parse(e.ARCHIVE.items.get(BASE+"sports/cfb.json")).paginationComplete,false);
+ assert.equal(JSON.parse(e.ARCHIVE.items.get(BASE+"sports/cfb.json")).capturedAt,begin.toISOString());
  const blocked=await captureSignedKalshiMarkets(e,{sport:"cfb",
   now:new Date(begin.getTime()+40*60000),webCrypto:webcrypto,
   fetchImpl:async()=>{calls++;throw Error("NEVER_CALL");}});

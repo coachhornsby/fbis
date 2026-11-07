@@ -54,7 +54,8 @@ const receiptKey=sport=>"sports/"+sport+"-status.json";
 /**
  * A CFB 1,000-row response may exceed the Pages↔Worker relay budget.
  * Checkpoint one 250-row page per 30-minute sport window in R2, then resume.
- * Publish a completed snapshot ONLY after the provider returns an empty cursor.
+ * Only claim complete coverage after the provider returns an empty cursor.
+ * CFB/CBB publish explicitly partial snapshots while traversal continues.
  * Previously captured records preserve their individual fetchedAt timestamps.
  */
 export async function captureSignedKalshiMarkets(env,{sport="nfl",now=new Date(),
@@ -169,7 +170,7 @@ export async function captureSignedKalshiMarkets(env,{sport="nfl",now=new Date()
       await writeJson(env.ARCHIVE,progressKey(sport),progress);
       // Preserve traversal completeness separately from useful current rows.
       // Each row keeps its original fetchedAt; no partial page claims full coverage.
-      if(sport==='cbb'||/^(?:nba|cbb)_(?:spread|total|team_total|1h_total)$/.test(sport))await writeJson(env.ARCHIVE,"sports/"+sport+".json",{
+      if(sport==='cfb'||sport==='cbb'||/^(?:nba|cbb)_(?:spread|total|team_total|1h_total)$/.test(sport))await writeJson(env.ARCHIVE,"sports/"+sport+".json",{
         ok:true,provider:'Kalshi',sport,seriesTicker:KALSHI_SHADOW_SERIES[sport],
         capturedAt:iso(now),startedAt:progress.startedAt,records:progress.records,
         paginationComplete:false,coverage:'BOUNDED_PARTIAL_SERIES',pagesFetched:progress.pagesFetched,
