@@ -189,3 +189,13 @@
 @media(max-width:380px){.fbis-shell-main.route-board .fbis-mini-exchanges{padding:4px 8px 10px}.fbis-shell-main.route-board .fbis-mini-venue-panel th{font-size:14px}}
 
 @media(forced-colors:active){.fbis-shell-main.route-board .fbis-mini-venue-watermark{display:none}.fbis-shell-main.route-board .fbis-mini-venue-name{position:static;width:auto;height:auto;margin:0;overflow:visible;clip:auto;white-space:normal;display:block;padding:4px 8px;font-weight:700}.fbis-shell-main.route-board .fbis-mini-venue-panel{border:1px solid CanvasText}}
+/* Retained observations remain legible and never look like live recommendations. */
+.fbis-shell-main.route-board .fbis-mini-captured-quote{display:flex;flex-direction:column;gap:3px;min-width:0}
+.fbis-shell-main.route-board .fbis-mini-captured-quote a{color:#fbd279;text-decoration:underline;text-underline-offset:3px}
+.fbis-shell-main.route-board .fbis-mini-captured-quote a:focus-visible{outline:2px solid #fff;outline-offset:3px}
+.fbis-shell-main.route-board .fbis-mini-quote-status,.fbis-shell-main.route-board .fbis-mini-quote-time{display:block;font-size:14px;line-height:1.35;font-weight:500;color:#f3f4f6;white-space:normal;overflow-wrap:anywhere}
+.fbis-shell-main.route-board .fbis-mini-captured-quote.is-stale .fbis-mini-quote-status{color:#fbd279}
+.fbis-shell-main.route-board .fbis-mini-captured-quote[data-market-state="closed"] strong,.fbis-shell-main.route-board .fbis-mini-captured-quote[data-market-state="unavailable"] strong{font-size:16px;color:#e5e7eb}
+.fbis-shell-main.route-board .fbis-mini-quote-note{position:relative;margin:4px 8px 10px;font-size:14px;line-height:1.4;color:#e5e7eb}
+.fbis-shell-main.route-board .fbis-mini-team-total-prices>.fbis-mini-captured-quote{flex-direction:column;align-items:stretch}
+.fbis-shell-main.route-board .fbis-mini-team-total-prices .fbis-mini-quote-time,.fbis-shell-main.route-board .fbis-mini-team-total-prices .fbis-mini-quote-status{white-space:normal;font-size:14px;font-weight:500}

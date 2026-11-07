@@ -38,18 +38,18 @@ export function kalshiBasketballLineRule(m,sourceSport){
   date:year+'-'+MONTHS[month]+'-'+day.padStart(2,'0')};
 }
 /** Quote is reference-only and never establishes executable price or EV. */
-export function matchedKalshiBasketballLineQuotes(fixtures,snapshot,{sourceSport,now=Date.now()}={}){
+export function matchedKalshiBasketballLineQuotes(fixtures,snapshot,{sourceSport,now=Date.now(),retainLastObserved=false}={}){
  const result={},family=FAMILY[sourceSport],series=SERIES[sourceSport],
   sport=sourceSport?.split('_')[0],captured=Date.parse(snapshot?.capturedAt||'');
  if(!family||snapshot?.ok!==true||snapshot.sport!==sourceSport||
   snapshot.seriesTicker!==series||!Array.isArray(snapshot.records)||
   snapshot.records.length>4000||!Number.isFinite(captured)||
-  captured>now||now-captured>1800000)return result;
+  captured>now||(!retainLastObserved&&now-captured>1800000))return result;
  for(const m of snapshot.records){
   if(m?.sport!==sourceSport||m.seriesTicker!==series||m.status!=='active'||
    !m.eventTicker?.startsWith(series+'-')||!m.ticker?.startsWith(m.eventTicker+'-'))continue;
   const fetched=Date.parse(m.fetchedAt||'');
-  if(!Number.isFinite(fetched)||fetched>now||now-fetched>900000)continue;
+  if(!Number.isFinite(fetched)||fetched>now||fetched>captured||(!retainLastObserved&&now-fetched>900000))continue;
   const rule=kalshiBasketballLineRule(m,sourceSport);
   if(!rule)continue;
   const matches=fixtures.filter(g=>{
@@ -67,7 +67,7 @@ export function matchedKalshiBasketballLineQuotes(fixtures,snapshot,{sourceSport
    if(!validPrice(ask))return;
    items.push({venue:'Kalshi',marketFamily:family,side,line,ask,
     receivedAt:m.fetchedAt,eventStart:g.start,transport:'REST',
-    marketId:m.ticker,sourceSeries:series,referenceOnly:true,canAuthorizeWager:false});
+    marketId:m.ticker,eventTicker:m.eventTicker,marketUrl:m.marketUrl||null,sourceSeries:series,referenceOnly:true,canQualify:false,canRecommend:false,canChangeProjection:false,executionEligible:false,canAuthorizeWager:false,stale:now-fetched>900000,quoteAgeSeconds:Math.floor((now-fetched)/1000),sourceObservedAt:null,marketStatus:'active'});
   };
   if(family==='spread'){
    if(!scoring)continue;

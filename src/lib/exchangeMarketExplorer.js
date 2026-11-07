@@ -1,3 +1,5 @@
+import {exchangeMarketState,exchangeObservationTime} from './retainedExchangeQuotes.js';
+import {exchangeMarketLink} from './exchangeMarketLinks.js';
 /**
  * Presentation-only exchange inventory for an exact FBIS game ID.
  * Never turns reference captures into executable or qualified betting lines.
@@ -20,21 +22,22 @@ export function exchangeGameMarkets(payload,game,{now=Date.now()}={}){
  return payload.byEvent[game.id].filter(o=>supported.has(o?.venue)&&
   ['moneyline','spread','total','team_total'].includes(o.marketFamily)&&
   typeof o.side==='string'&&o.side.length>0&&o.side.length<48&&
-  (o.line==null||typeof o.line==='number'&&Number.isFinite(o.line))&&valid(o.ask)&&
+  (o.line==null||typeof o.line==='number'&&Number.isFinite(o.line))&&(exchangeMarketState(o)!=='observed'||valid(o.ask))&&
   o.canAuthorizeWager===false&&
-  Number.isFinite(Date.parse(o.receivedAt||''))&&Date.parse(o.receivedAt)<=now)
+  Number.isFinite(exchangeObservationTime(o))&&exchangeObservationTime(o)<=now)
   .slice(0,600).map((o,i)=>{
    const period=toPeriod(o.period);
-   const ageSeconds=Math.floor((now-Date.parse(o.receivedAt))/1000);
+   const state=exchangeMarketState(o),ageSeconds=Math.floor((now-exchangeObservationTime(o))/1000);
+   const link=state==='observed'?exchangeMarketLink({source:o.venue==='Kalshi'?'Kalshi':'Polymarket US WebSocket',sourceMarketId:o.marketId,eventTicker:o.eventTicker,marketUrl:o.marketUrl}):null;
    const maxAgeSeconds=o.transport==='WebSocket'?120:900;
    return {id:[o.venue,o.marketId,o.side,o.line,period,i].join('|'),
     venue:o.venue==='Polymarket'?'Polymarket US':o.venue,period,
     family:o.marketFamily,familyLabel:marketFamily(o.marketFamily),side:o.side,
-    line:o.line??null,cost:o.ask,american:americanFromContractCost(o.ask),
-    receivedAt:o.receivedAt,ageSeconds,
-    status:ageSeconds<=maxAgeSeconds?'CAPTURED':'STALE',
+    line:o.line??null,cost:state==='observed'?o.ask:null,american:state==='observed'?americanFromContractCost(o.ask):null,link,
+    receivedAt:o.receivedAt,statusObservedAt:o.statusObservedAt||o.stateObservedAt||null,sourceObservedAt:o.sourceObservedAt||null,ageSeconds,
+    status:state==='closed'?'CLOSED':state==='unavailable'?'UNAVAILABLE':ageSeconds<=maxAgeSeconds&&!o.stale&&o.fresh!==false?'CAPTURED':'STALE',
     transport:o.transport||'UNKNOWN',marketId:o.marketId||null,
-    providerTimestampVerified:o.providerTimestampVerified===true,
+    providerTimestampVerified:o.providerTimestampVerified===true&&Number.isFinite(Date.parse(o.sourceObservedAt||'')),
     canAuthorizeWager:false};
   }).sort((a,b)=>a.period.localeCompare(b.period)||a.family.localeCompare(b.family)||
    (a.line??0)-(b.line??0)||a.venue.localeCompare(b.venue)||a.side.localeCompare(b.side));

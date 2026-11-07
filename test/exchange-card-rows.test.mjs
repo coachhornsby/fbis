@@ -6,9 +6,9 @@ test('renders exact signed spreads and over/under thresholds with observed cents
  const rows=exchangeCardRows({start,exchangeReferenceQuotes:[quote('spread','away',-3.5),quote('spread','home',3.5,.49),quote('total','over',147.5),quote('total','under',147.5,.5)]},now);
  assert.equal(rows.length,8);assert.deepEqual(rows[5].cells.map(c=>c.line),['-3.5','+3.5']);assert.deepEqual(rows[6].cells.map(c=>c.line),['O 147.5','U 147.5']);assert.equal(rows[5].cells[0].price,'52.0¢');
 });
-test('missing feeds, mismatched thresholds, stale or wrong-event quotes stay empty',()=>{
+test('missing feeds, mismatched thresholds and wrong-event quotes stay empty while stale quotes remain references',()=>{
  const game={start,exchangeReferenceQuotes:[quote('spread','away',-3.5),quote('spread','home',4.5),{...quote('total','over',147.5),receivedAt:new Date(now-121000).toISOString()},quote('total','under',null),{...quote('moneyline','home',null),eventStart:'2026-11-08T01:00:00Z'}]};
- const rows=exchangeCardRows(game,now);assert.equal(rows[5].cells[1].price,'—');assert.ok(rows[6].cells.every(c=>c.price==='—'));assert.ok(rows[4].cells.every(c=>c.price==='—'));assert.equal(exchangeCardRows({start},now).length,8);
+ const rows=exchangeCardRows(game,now);assert.equal(rows[5].cells[1].price,'—');assert.equal(rows[6].cells[0].price,'52.0¢');assert.equal(rows[6].cells[0].stale,true);assert.equal(rows[6].cells[1].price,'—');assert.ok(rows[4].cells.every(c=>c.price==='—'));assert.equal(exchangeCardRows({start},now).length,8);
 });
 
 test('team totals show separate current over/under offers for the correct team only',()=>{
@@ -33,4 +33,18 @@ test('alternate totals and spreads are never paired across different thresholds'
  assert.equal(spread.filter(x=>x.price!=='—').length,1);
  const total=rows[6].cells;
  assert.equal(total.filter(x=>x.price!=='—').length,1);
+});
+
+test('last fetched prices show age, remain non-actionable and link only to verified exchange routes',()=>{
+ const q={...quote('moneyline','away',null),venue:'Kalshi',transport:'REST',receivedAt:new Date(now-3600000).toISOString(),marketId:'KXNCAAFGAME-26NOV07TEXMIZZ-TEX',eventTicker:'KXNCAAFGAME-26NOV07TEXMIZZ'};
+ const c=exchangeCardRows({start,exchangeReferenceQuotes:[q]},now)[0].cells[0];
+ assert.equal(c.price,'52.0¢');assert.equal(c.stale,true);assert.match(c.observedLabel,/Fetched .*1h ago/);assert.equal(c.canAuthorizeWager,false);assert.equal(c.executionEligible,false);assert.match(c.link.url,/kalshi.com\/markets\/kxncaafgame\/college-football-game/);assert.match(c.title,/Provider quote time unknown/);
+ const closed=exchangeCardRows({start,exchangeReferenceQuotes:[{...q,marketStatus:'closed'}]},now)[0].cells[0];assert.equal(closed.price,'Unavailable');assert.equal(closed.link,null);assert.equal(closed.statusLabel,'Market closed');
+ const badPoly=exchangeCardRows({start,exchangeReferenceQuotes:[{...q,venue:'Polymarket',marketUrl:'https://evil.invalid/markets/'+q.marketId}]},now)[4].cells[0];assert.equal(badPoly.link,null);
+});
+test('newer threshold replaces older complete pair without pairing unlike lines',()=>{
+ const old=[quote('spread','away',-3.5),quote('spread','home',3.5)];
+ const newer={...quote('spread','away',-4.5),receivedAt:new Date(now).toISOString()};
+ const cells=exchangeCardRows({start,exchangeReferenceQuotes:[...old,newer]},now)[5].cells;
+ assert.equal(cells[0].line,'-4.5');assert.equal(cells[1].price,'—');
 });
