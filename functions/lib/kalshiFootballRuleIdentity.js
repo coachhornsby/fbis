@@ -19,8 +19,9 @@ export function footballRuleIdentity(m,fixtures,records,{sport,now=Date.now()}={
  const date=p[7]+'-'+months[p[5]]+'-'+p[6].padStart(2,'0');
  const hits=fixtures.filter(g=>{const at=Date.parse(g.start);if(g.sport!==sport||!g.id||!Number.isFinite(at)||Math.abs(at-now)>72*3600000)return false;const day=new Intl.DateTimeFormat('en-CA',{timeZone:'America/Chicago',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date(at));const h=team(g.home_name),v=team(g.away_name);return day===date&&h&&v&&h!==v&&((h===a&&v===b)||(h===b&&v===a));});
  if(hits.length!==1)return null;
- // Do not discard contradictory occurrence evidence. Missing occurrence is
- // permitted for date-only research identity, never verified provider kickoff.
- if(pair.some(r=>r.occurrenceAt!=null&&(!Number.isFinite(Date.parse(r.occurrenceAt))||Math.abs(Date.parse(r.occurrenceAt)-Date.parse(hits[0].start))>900000)))return null;
+ // occurrence_datetime describes occurrence/settlement, not scheduled kickoff.
+ // https://docs.kalshi.com/openapi.yaml (Market.occurrence_datetime)
+ // Only explicitly sourced kickoff fields can contradict fixture kickoff.
+ if(pair.some(r=>['kickoffTime','verifiedGameStartTime'].some(k=>r[k]!=null&&(!Number.isFinite(Date.parse(r[k]))||Math.abs(Date.parse(r[k])-Date.parse(hits[0].start))>900000))))return null;
  return {fixture:hits[0],side:team(hits[0].home_name)===winner?'home':'away',identityBasis:'PAIRED_RULE_DATE_AND_CANONICAL_TEAMS',providerKickoffVerified:false,researchOnly:true,canAuthorizeWager:false};
 }
