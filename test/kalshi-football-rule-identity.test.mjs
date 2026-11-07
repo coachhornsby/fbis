@@ -18,8 +18,14 @@ test('NFL full canonical names require matching pro football paired rules',()=>{
  assert.equal(match({...pair[0],yesLabel:'Cowboys'},[fixture],pair,{sport:'nfl',now}),null);
 });
 
-test('contradictory or malformed occurrence evidence is rejected, never replaced by expiration',()=>{
- for(const occurrenceAt of ['2026-11-09T00:00:00Z','bad'])assert.equal(check(records.map(r=>({...r,occurrenceAt}))),null);
- assert.ok(check(records.map(r=>({...r,occurrenceAt:g.start}))));
- assert.ok(check(records.map(r=>({...r,expectedExpirationAt:'2026-11-09T00:00:00Z'}))));
+test('occurrence and expiration are not kickoff; explicit kickoff conflicts reject',()=>{
+ const occurrenceAt='2026-11-08T03:00:00Z';
+ const result=check(records.map(r=>({...r,occurrenceAt,expectedExpirationAt:occurrenceAt})));
+ assert.ok(result);assert.equal(result.providerKickoffVerified,false);assert.equal(result.researchOnly,true);assert.equal(result.canAuthorizeWager,false);
+ for(const key of ['kickoffTime','verifiedGameStartTime']){
+  for(const value of ['2026-11-09T00:00:00Z','bad']){
+   for(const index of [0,1])assert.equal(check(records.map((r,i)=>({...r,...(i===index?{[key]:value}:{})}))),null);
+  }
+  assert.ok(check(records.map(r=>({...r,[key]:g.start}))));
+ }
 });
