@@ -24,18 +24,27 @@ export async function runKalshiMarketSession(env,lease,{fetchImpl=fetch,now=Date
   method:'GET',headers:{Upgrade:'websocket',...headers},redirect:'manual',signal:AbortSignal.timeout(10000)});
  const socket=response.webSocket;
  if(response.status!==101||!socket){try{socket?.close(1000,'handshake failed');}catch{}await response.body?.cancel();throw Error('KALSHI_WS_HANDSHAKE_'+response.status);}
+ // Stop at the admitted capture ceiling before spend() would invalidate
+ // the entire lease and discard already-observed quotes. Never raise caps.
+ const units=lease.snapshot?.().limits;
+ const messageLimit=Math.min(128,units?.wsMessages??128);
+ const byteLimit=Math.min(1048576,units?.wsBytes??1048576);
+ let receivedBytes=0;
  let count=0,reason='SESSION_DEADLINE',closed=false,timer,finish;const quotes=new Map(),done=new Promise(r=>{finish=r;});
  const close=why=>{if(closed)return;closed=true;reason=why;clearTimer(timer);try{socket.close(1000,'bounded-market-read');}catch{}finish();};
  const deadline=Math.min(start+20000,lease.expiresAtMs-1000),enc=new TextEncoder();
  const receive=event=>{if(closed)return;try{
   lease.live();if(now()>=deadline){close('SESSION_DEADLINE');return;}
-  if(typeof event.data!=='string'||enc.encode(event.data).byteLength>65536)throw Error('INVALID_FRAME');
-  lease.spend({wsMessages:1,wsBytes:enc.encode(event.data).byteLength});count++;
+  if(typeof event.data!=='string')throw Error('INVALID_FRAME');
+  const frameBytes=enc.encode(event.data).byteLength;if(frameBytes>65536)throw Error('INVALID_FRAME');
+  if(count>=messageLimit||receivedBytes+frameBytes>byteLimit){close('CAPTURE_ALLOWANCE_REACHED');return;}
+  lease.spend({wsMessages:1,wsBytes:frameBytes});count++;receivedBytes+=frameBytes;
   const m=JSON.parse(event.data);if(m.type==='error'){close('PROVIDER_SUBSCRIPTION_ERROR');return;}
   if(m.type==='ticker'&&tickers.has(m.msg?.market_ticker)){
    const raw=m.msg,price=v=>{if(v==null||v==='')return null;const n=Number(v);return Number.isFinite(n)&&n>0&&n<1?n:null;};
    quotes.set(raw.market_ticker,{ticker:raw.market_ticker,yesBid:price(raw.yes_bid_dollars),yesAsk:price(raw.yes_ask_dollars),receivedAt:new Date(now()).toISOString(),sourceObservedAt:null});
   }
+  if(count>=messageLimit||receivedBytes>=byteLimit)close('CAPTURE_ALLOWANCE_REACHED');
  }catch{close('MESSAGE_OR_EXECUTION_LIMIT');}};
  try{
   socket.addEventListener('message',receive);socket.addEventListener('close',()=>close('PROVIDER_CLOSED'));socket.addEventListener('error',()=>close('PROVIDER_ERROR'));
