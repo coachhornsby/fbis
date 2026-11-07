@@ -41,6 +41,6 @@ jobs:
           node --check services/kalshi-public-collector/entrypoint.mjs
           node --check src/lib/exchangeMarketExplorer.js
       - name: Targeted regression suite
-        run: node --test test/cbb-exchange-market-explorer.test.js test/exchange-card-delivery.test.mjs test/kalshi-basketball-line-quotes.test.mjs test/exchange-card-rows.test.mjs test/kalshi-market-shadow.test.js test/account-budget-admission.test.mjs test/kalshi-market-stream.test.mjs test/kalshi-stream-capture-ceiling.test.mjs
+        run: node --test test/cbb-exchange-market-explorer.test.js test/exchange-card-delivery.test.mjs test/kalshi-basketball-line-quotes.test.mjs test/exchange-card-rows.test.mjs test/kalshi-market-shadow.test.js test/account-budget-admission.test.mjs test/kalshi-market-stream.test.mjs test/kalshi-stream-capture-ceiling.test.mjs test/kalshi-ticker-timestamp.test.mjs
       - name: Production Pages board build (no deployment)
         run: cd deploy/board && npm run build
