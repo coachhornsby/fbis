@@ -364,6 +364,8 @@ export function validateNflFeatureSnapshot(payload, season, now) {
   if (payload.season !== season) return {ok:false,reason:"snapshot-season-mismatch"};
   const stamp = payload.meta.builtAt ?? payload.meta.createdAt;
   if (typeof stamp !== "string" || !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{1,3})?(?:Z|[+-]\d{2}:\d{2})$/.test(stamp)) return {ok:false,reason:"snapshot-time-missing"};
+  const [year, month, day, hour, minute, second] = stamp.slice(0,19).split(/[-T:]/).map(Number);
+  if (month < 1 || month > 12 || day < 1 || day > new Date(Date.UTC(year,month,0)).getUTCDate() || hour > 23 || minute > 59 || second > 59) return {ok:false,reason:"snapshot-time-missing"};
   const builtAt = Date.parse(stamp);
   if (!Number.isFinite(builtAt)) return {ok:false,reason:"snapshot-time-missing"};
   if (builtAt > now) return {ok:false,reason:"snapshot-time-future"};
