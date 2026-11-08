@@ -21,3 +21,13 @@ test('observed live/final scores replace forecasts and pregame placeholder zeros
  const y=recoveryCardFacts({...game,recoveryVerifiedProjection:null,away:{score:0},home:{score:0}},now);
  assert.equal(y.actual,false);assert.equal(y.awayScore,null);
 });
+test('saved forecasts and actual scores coexist without treating historical forecasts as fresh',()=>{
+ const p={awayScore:110.5,homeScore:111.8,expired:true};
+ for(const status of ['live','final']){
+  const x=recoveryCardFacts({...game,status,away:{score:108},home:{score:114},recoveryHistoricalProjection:p},now);
+  assert.equal(x.actual,true);assert.equal(x.awayScore,108);assert.equal(x.homeScore,114);
+  assert.equal(x.savedProjection,p);assert.equal(x.fresh,false);assert.equal(x.fairSpread,null);
+ }
+ assert.equal(recoveryCardFacts({...game,recoveryHistoricalProjection:p},now).savedProjection,null);
+ assert.equal(recoveryCardFacts({...game,status:'final',recoveryHistoricalProjection:{awayScore:null,homeScore:1}},now).savedProjection,null);
+});

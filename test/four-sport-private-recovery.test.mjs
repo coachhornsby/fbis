@@ -95,3 +95,22 @@ test('packet rejects ancient source capture and post-tip generation even if expi
  const post={...packet,generatedAt:'2026-11-05T01:00:00Z',expiresAt:'2026-11-05T05:00:00Z'};
  assert.throws(()=>validateFourSportPacket(post));
 });
+test('live and final cards retain matching pregame forecast separately without restoring current authority',()=>{
+ for(const status of ['live','final']){
+  const g={...game,status,away:{...game.away,score:99},home:{...game.home,score:101}};
+  const x=overlayVerifiedResearchScores(g,{sportPacket:packet,clock:Date.parse('2026-11-05T01:00:00Z')});
+  assert.equal(x.recoveryHistoricalProjection.awayScore,108.5);
+  assert.equal(x.recoveryHistoricalProjection.homeScore,110.5);
+  assert.equal(x.recoveryHistoricalProjection.expired,true);
+  assert.equal(x.recoveryHistoricalProjection.generatedAt,packet.generatedAt);
+  assert.equal(x.recoveryVerifiedProjection,undefined);
+  assert.equal(x.away.score,99);assert.equal(x.home.score,101);
+  assert.equal(x.canAuthorizeWager,false);assert.equal(x.bettingAllowed,false);
+ }
+});
+test('historical forecasts reject wrong fixture, missing provenance and post-start generation',()=>{
+ const g={...game,status:'final'},clock=Date.parse('2026-11-05T01:00:00Z');
+ for(const p of [{...packet,generatedAt:null},{...packet,generatedAt:'2026-11-05T00:00:00Z'},
+  {...packet,events:[{...fixture,sourceCapturedAt:null}]},{...packet,events:[{...fixture,awayId:'nba-999'}]}])
+  assert.equal(overlayVerifiedResearchScores(g,{sportPacket:p,clock}).recoveryHistoricalProjection,undefined);
+});

@@ -48,3 +48,13 @@ test('newer threshold replaces older complete pair without pairing unlike lines'
  const cells=exchangeCardRows({start,exchangeReferenceQuotes:[...old,newer]},now)[5].cells;
  assert.equal(cells[0].line,'-4.5');assert.equal(cells[1].price,'—');
 });
+test('both venues show only relative fetch age with timestamp provenance retained',()=>{
+ for(const venue of ['Kalshi','Polymarket'])for(const [ms,label] of [[40000,'40s ago'],[120000,'2m ago'],[3600000,'1h ago'],[86400000,'1d ago']]){
+  const q={...quote('moneyline','away',null),venue,receivedAt:new Date(now-ms).toISOString()};
+  const c=exchangeCardRows({start,exchangeReferenceQuotes:[q]},now)[venue==='Kalshi'?0:4].cells[0];
+  assert.equal(c.observedLabel,'Fetched '+label);assert.ok(c.title.includes(q.receivedAt));
+  assert.equal(c.canAuthorizeWager,false);assert.equal(c.executionEligible,false);
+  const closed=exchangeCardRows({start,exchangeReferenceQuotes:[{...q,marketStatus:'closed'}]},now)[venue==='Kalshi'?0:4].cells[0];
+  assert.equal(closed.observedLabel,'Status checked '+label);assert.equal(closed.price,'Unavailable');
+ }
+});
