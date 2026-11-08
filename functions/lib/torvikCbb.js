@@ -11,7 +11,7 @@ import { mapSourceTeam } from "./collegeIdentity.js";
 
 const TTL_MS = 24 * 60 * 60 * 1000;
 const ERR_TTL_MS = 30 * 60 * 1000;
-const BASES = ["https://barttorvik.com", "http://barttorvik.com"];
+const BASE = "https://barttorvik.com";
 
 function num(v) {
   if (v == null || v === "") return null;
@@ -140,20 +140,29 @@ export function normalizeTorvikFourFactorRows(text = "") {
 }
 
 async function fetchText(path, fetchFn) {
-  let last = null;
-  for (const base of BASES) {
-    const url = `${base}/${path}`;
-    try {
-      const res = await fetchFn(url, {
-        headers: { Accept: "text/csv,*/*", "User-Agent": "FBIS-CBB/2.0" },
-      });
-      if (res.ok) return { ok: true, status: res.status, url, text: await res.text() };
-      last = { ok: false, status: res.status, url, error: `HTTP ${res.status}` };
-    } catch (err) {
-      last = { ok: false, status: 0, url, error: String(err?.message || err) };
+  const url = `${BASE}/${path}`;
+  try {
+    // A refusal or redirect is not permission to retry over HTTP or another URL.
+    const res = await fetchFn(url, {
+      redirect: "manual",
+      headers: { Accept: "text/csv,text/plain", "User-Agent": "FBIS-CBB/2.0" },
+    });
+    if (!res.ok) return { ok: false, status: res.status, url, error: `HTTP ${res.status}` };
+    if (res.redirected || (res.url && res.url !== url)) {
+      return { ok: false, status: res.status, url, error: "unexpected-response-url" };
     }
+    const type = String(res.headers?.get("content-type") || "").split(";")[0].trim().toLowerCase();
+    if (!["text/csv", "text/plain", "application/csv", "application/octet-stream"].includes(type)) {
+      return { ok: false, status: res.status, url, error: "unexpected-content-type" };
+    }
+    const text = await res.text();
+    if (/^\s*(?:<!doctype|<html|<head|<body)/i.test(text)) {
+      return { ok: false, status: res.status, url, error: "html-instead-of-csv" };
+    }
+    return { ok: true, status: res.status, url, text };
+  } catch (err) {
+    return { ok: false, status: 0, url, error: String(err?.message || err) };
   }
-  return last || { ok: false, status: 0, error: "torvik-fetch-failed" };
 }
 
 export function torvikEndingSeason(cbbSeasonStart) {
@@ -297,10 +306,7 @@ export async function loadTorvikCbbCatalog(env = {}, { cbbSeason, fetchFn = fetc
   const cached = await readCache(cacheKey, env.caches, TTL_MS);
   if (cached?.byCanonicalId) return cached;
 
-  const [ratingsRes, fourRes] = await Promise.all([
-    fetchText(`${endingSeason}_team_results.csv`, fetchFn),
-    fetchText(`${endingSeason}_fffinal.csv`, fetchFn),
-  ]);
+  const ratingsRes = await fetchText(`${endingSeason}_team_results.csv`, fetchFn);
 
   if (!ratingsRes.ok) {
     const fail = {
@@ -324,6 +330,9 @@ export async function loadTorvikCbbCatalog(env = {}, { cbbSeason, fetchFn = fetc
   }
 
   const ratings = normalizeTorvikTeamRows(ratingsRes.text);
+  const fourRes = ratings.length
+    ? await fetchText(`${endingSeason}_fffinal.csv`, fetchFn)
+    : { ok: false, status: 0 };
   const four = fourRes.ok ? normalizeTorvikFourFactorRows(fourRes.text) : [];
   const fourByTeam = new Map(four.map((row) => [teamKey(row.team), row]));
   const rows = ratings.map((row) => ({ ...row, ...(fourByTeam.get(teamKey(row.team)) || {}) }));
