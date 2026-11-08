@@ -1,0 +1,20 @@
+name: NFL offline shadow evidence
+on:
+  pull_request:
+    paths:
+      - 'scripts/lib/nfl-shadow-evidence.mjs'
+      - 'scripts/nfl-shadow-evidence.mjs'
+      - 'test/nfl-shadow-evidence.test.mjs'
+      - '.github/workflows/fbis-nfl-shadow-evidence-ci.yml'
+permissions:
+  contents: read
+jobs:
+  offline-test:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4.2.2
+      - uses: actions/setup-node@v4.1.0
+        with:
+          node-version: '22'
+      - run: node --import ./test/offline-network.js --test test/nfl-shadow-evidence.test.mjs test/nfl-feature-provenance.test.js
