@@ -18,3 +18,5 @@ test('bounded slate',()=>{const x=input();x.games=Array(33).fill(x.games[0]);ass
 
 test('empty slate fails closed',()=>{const x=input();x.games=[];assert.throws(()=>auditNflShadow(x),/SLATE_SIZE/);});
 test('duplicate identity blocks second game',()=>{const x=input();x.games.push({...x.games[0]});assert.ok(auditNflShadow(x).rows[1].blocked.includes('game-identity-invalid'));});
+
+test('data cannot postdate snapshot build',()=>{const x=input();x.evidence.dataThrough='2026-11-08T10:30:00Z';x.evidence.observedAt='2026-11-08T11:00:00Z';assert.ok(auditNflShadow(x).rows[0].blocked.includes('source-data-through-invalid'));});
