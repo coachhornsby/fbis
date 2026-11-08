@@ -1,0 +1,77 @@
+name: FBIS bounded REST and Pages code release
+on:
+  pull_request:
+    paths: ['.github/workflows/fbis-poly-rest-code-release-20261108.yml']
+  push:
+    branches: [main]
+    paths: ['.github/workflows/fbis-poly-rest-code-release-20261108.yml']
+permissions:
+  contents: read
+concurrency:
+  group: fbis-poly-rest-code-release
+  cancel-in-progress: false
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4.2.2
+        with:
+          ref: 7d84a7be2b61a2b50ca276699032207de38db6e3
+      - uses: actions/setup-node@v4.1.0
+        with:
+          node-version: '22'
+      - run: npm ci --ignore-scripts --no-audit --no-fund
+      - run: npm ci --prefix services/account-budget --ignore-scripts --no-audit --no-fund
+      - name: Verify offline collector and reader boundaries
+        run: |
+          node --import ./test/offline-network.js --test test/polymarket-offline-ci.test.mjs test/polymarket-pregame-rest.test.mjs test/polymarket-rest-boundary.test.mjs test/polymarket-retained-display.test.mjs test/exchange-card-delivery.test.mjs
+          node --test test/polymarket-rest-runtime.test.mjs
+      - name: Compile without source acquisition
+        run: |
+          mkdir -p deploy/board/snapshots
+          ./node_modules/.bin/vite build --config vite.publication.config.js
+      - name: Verify production new mode is off and cadence unchanged
+        if: github.event_name == 'push'
+        env:
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        run: |
+          node --input-type=module <<'NODE'
+          const root='https://api.cloudflare.com/client/v4/accounts/'+process.env.CLOUDFLARE_ACCOUNT_ID;
+          const get=async path=>{const r=await fetch(root+path,{headers:{Authorization:'Bearer '+process.env.CLOUDFLARE_API_TOKEN}});if(!r.ok)throw Error('PREFLIGHT_HTTP_'+r.status);const b=await r.json();if(!b.success)throw Error('PREFLIGHT_UNAVAILABLE');return b.result;};
+          const settings=await get('/workers/scripts/fbis-polymarket-rest-collector/settings');
+          if(settings.bindings?.some(b=>b.name==='FBIS_POLYMARKET_PREGAME_REST'&&b.text==='true'))throw Error('NEW_MODE_ALREADY_ENABLED_STOP');
+          const normalized=(settings.bindings||[]).map(b=>b.type==='plain_text'?{name:b.name,type:b.type,text:b.text}:b.type==='r2_bucket'?{name:b.name,type:b.type,bucket_name:b.bucket_name}:{name:b.name,type:b.type,class_name:b.class_name,script_name:b.script_name}).sort((a,b)=>a.name.localeCompare(b.name));
+          const expected=[
+            {name:'ARCHIVE',type:'r2_bucket',bucket_name:'fbis-archive'},
+            {name:'CLOUDFLARE_ACCOUNT_ID',type:'plain_text',text:process.env.CLOUDFLARE_ACCOUNT_ID},
+            {name:'FBIS_ACCOUNT_BUDGET',type:'durable_object_namespace',class_name:'AccountBudget',script_name:'fbis-account-budget'},
+            {name:'FBIS_POLYMARKET_TAGS_JSON',type:'plain_text',text:'{"nfl":["nfl"],"cfb":["cfb"],"nba":["nba"],"cbb":["cbb"],"nhl":["nhl"]'}
+          ].sort((a,b)=>a.name.localeCompare(b.name));
+          if(JSON.stringify(normalized)!==JSON.stringify(expected))throw Error('WORKER_BINDINGS_CHANGED_STOP');
+          if(settings.compatibility_date!=='2026-10-01'||settings.compatibility_flags?.length||settings.limits?.cpu_ms!==100||settings.observability?.enabled===true||settings.logpush===true||Object.keys(settings.placement||{}).length||(settings.tail_consumers||[]).length)throw Error('WORKER_SETTINGS_CHANGED_STOP');
+          const subdomain=await get('/workers/scripts/fbis-polymarket-rest-collector/subdomain');
+          if(subdomain.enabled!==false||subdomain.previews_enabled===true)throw Error('WORKER_PUBLIC_ACCESS_CHANGED_STOP');
+          const schedules=await get('/workers/scripts/fbis-polymarket-rest-collector/schedules');
+          if(JSON.stringify(schedules.schedules.map(s=>s.cron))!==JSON.stringify(['*/2 * * * *']))throw Error('SCHEDULE_CHANGED_STOP');
+          const pages=await get('/pages/projects/fbis');
+          if(pages.deployment_configs?.production?.env_vars?.FBIS_POLYMARKET_PREGAME_REST?.value==='true')throw Error('PAGES_MODE_ALREADY_ENABLED_STOP');
+          console.log('Existing schedules verified; new REST mode remains off. No policy mutations.');
+          NODE
+      - name: Build current public scoreboard assets for production Pages
+        if: github.event_name == 'push'
+        run: npm run build:publication
+      - name: Deploy existing REST code only, preserving variables
+        if: github.event_name == 'push'
+        env:
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        run: ./node_modules/.bin/wrangler deploy --config wrangler.polymarket-rest-collector.toml --keep-vars
+      - name: Deploy existing Pages only
+        if: github.event_name == 'push'
+        working-directory: deploy/board
+        env:
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        run: ../../node_modules/.bin/wrangler pages deploy dist --project-name fbis --branch main --commit-hash "7d84a7be2b61a2b50ca276699032207de38db6e3"
