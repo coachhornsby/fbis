@@ -23,7 +23,7 @@ export function auditNflShadow({snapshotText,evidence,games,season,now=Date.now(
  // ordering separately, without imposing 36h on the last completed football game.
  const throughCheck=validateNflFeatureSnapshot({season,byTeam:{},playersByTeam:{},meta:{builtAt:evidence?.dataThrough}},season,now);
  const throughMs=throughCheck.ok||throughCheck.reason==='snapshot-expired'?Date.parse(evidence?.dataThrough):null;
- if(throughMs===null||observed===null||throughMs>observed)reasons.push('source-data-through-invalid');
+ if(throughMs===null||observed===null||throughMs>observed||(validation.ok&&throughMs>validation.builtAt))reasons.push('source-data-through-invalid');
  if(!Number.isInteger(evidence?.completedWeek)||evidence.completedWeek<1||evidence.completedWeek>22)reasons.push('completed-week-missing');
  const ids=new Set();
  const teams=new Set('ARI ATL BAL BUF CAR CHI CIN CLE DAL DEN DET GB HOU IND JAX KC LAC LAR LV MIA MIN NE NO NYG NYJ PHI PIT SEA SF TB TEN WAS'.split(' '));
