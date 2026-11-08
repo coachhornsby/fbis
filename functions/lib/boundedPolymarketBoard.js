@@ -13,12 +13,15 @@ const suppliedMarketUrl=(row,marketId)=>{
   return u.toString();
  }catch{return null;}
 };
-export async function loadBoundedPolymarketSnapshot(env,{now=new Date(),retainLastObserved=false}={}){
+export async function loadBoundedPolymarketSnapshot(env,{now=new Date(),retainLastObserved=false,sport}={}){
  try{
   env=await beginJobExecution(env,POLY_SNAPSHOT_READ_JOB);
-  const object=await env.ARCHIVE.get(STREAM_SNAPSHOT_KEY);
+  const rest=env.FBIS_POLYMARKET_PREGAME_REST==='true'&&['nfl','cfb','cbb','nba','nhl'].includes(sport);
+  const object=await env.ARCHIVE.get(rest?'market-sources/polymarket-us/bounded-rest-v1/'+sport+'/latest.json':STREAM_SNAPSHOT_KEY);
   if(!object)return {ok:false,code:'NO_BOUNDED_SNAPSHOT'};
-  return decodeBoundedPolymarketSnapshot(await object.json(),{now,retainLastObserved});
+  const value=await object.json();
+  const result=decodeBoundedPolymarketSnapshot(rest?value.referenceSnapshot:value,{now,retainLastObserved});
+  return {...result,transport:rest?'REST':'WebSocket'};
  }catch{return {ok:false,code:'BOUNDED_SNAPSHOT_UNAVAILABLE'};}
 }
 // Historical display is explicitly opt-in. Live/qualification readers keep their
@@ -63,7 +66,7 @@ export function selectBoundedPolymarketOffers(snapshot,games=[],sport){
  for(const row of snapshot.roster){
   const fixture=gamesById.get(row.canonical_event_id),binding=row.displayBinding,q=quotes.get(row.source_market_id);
   if(row.sport!==sport||!fixture||!binding||!q||String(fixture.sport||sport)!==sport||!Number.isFinite(Date.parse(fixture.start))||Math.abs(Date.parse(fixture.start)-Date.parse(row.event_start_time))>60000)continue;
-  const offer={source:'Polymarket US WebSocket',marketFamily:row.market_family,period:binding.period,side:binding.side,line:binding.line,contractPrice:q.bestAsk,sourceMarketId:row.source_market_id,eventNavigation:row.eventNavigation??null,marketUrl:q.marketUrl??null,sourceOutcomeId:binding.sourceOutcomeId,collectedAt:q.receivedAt,observedAt:q.sourceObservedAt,sourceObservedAt:q.sourceObservedAt,providerObservedAt:q.sourceObservedAt,quoteKind:'DISPLAY_REFERENCE_NOT_EXECUTABLE',deliveryStore:'R2_BOUNDED_STREAM',stale:q.stale===true,fresh:q.fresh===true,ageSeconds:q.ageSeconds??null,sourceAgeSeconds:q.sourceAgeSeconds??null,marketStatus:q.marketStatus??'unknown',referenceOnly:true,raw:{bestBid:q.bestBid,bestAsk:q.bestAsk},priceVerified:false,providerTimestampVerified:false,identityVerified:false,marketAvailable:false,executionEligible:false,canQualify:false,canAuthorizeWager:false};
+  const offer={source:snapshot.transport==='REST'?'Polymarket US REST':'Polymarket US WebSocket',marketFamily:row.market_family,period:binding.period,side:binding.side,line:binding.line,contractPrice:q.bestAsk,sourceMarketId:row.source_market_id,eventNavigation:row.eventNavigation??null,marketUrl:q.marketUrl??null,sourceOutcomeId:binding.sourceOutcomeId,collectedAt:q.receivedAt,observedAt:q.sourceObservedAt,sourceObservedAt:q.sourceObservedAt,providerObservedAt:q.sourceObservedAt,quoteKind:'DISPLAY_REFERENCE_NOT_EXECUTABLE',deliveryStore:snapshot.transport==='REST'?'R2_BOUNDED_REST':'R2_BOUNDED_STREAM',stale:q.stale===true,fresh:q.fresh===true,ageSeconds:q.ageSeconds??null,sourceAgeSeconds:q.sourceAgeSeconds??null,marketStatus:q.marketStatus??'unknown',referenceOnly:true,raw:{bestBid:q.bestBid,bestAsk:q.bestAsk},priceVerified:false,providerTimestampVerified:false,identityVerified:false,marketAvailable:false,executionEligible:false,canQualify:false,canAuthorizeWager:false};
   const list=byId.get(row.canonical_event_id)||[];list.push(offer);
   if(row.sport==='cbb'&&row.market_family==='total'&&binding.period==='first_half'&&
      binding.side==='over'&&binding.oppositeSide==='under'&&
@@ -78,5 +81,5 @@ export function selectBoundedPolymarketOffers(snapshot,games=[],sport){
   }
   byId.set(row.canonical_event_id,list);
  }
- return {byId,available:byId.size>0,diagnostics:{source:'R2_BOUNDED_STREAM',status:snapshot.code,continuous:false,d1Queries:0,displayedOffers:[...byId.values()].reduce((n,rows)=>n+rows.length,0)}};
+ return {byId,available:byId.size>0,diagnostics:{source:snapshot.transport==='REST'?'R2_BOUNDED_REST':'R2_BOUNDED_STREAM',status:snapshot.code,continuous:false,d1Queries:0,displayedOffers:[...byId.values()].reduce((n,rows)=>n+rows.length,0)}};
 }
