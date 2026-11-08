@@ -1,0 +1,18 @@
+import test from 'node:test';import assert from 'node:assert/strict';
+import {matchedKalshiCardQuotes} from '../functions/lib/exchangeCardDelivery.js';
+// Selected fields transcribed from admitted FBIS Markets REST/WS reads at
+// 2026-11-08T07:05:40–43Z and ESPN scoreboard received 07:05:42.383Z.
+// ESPN: https://site.api.espn.com/apis/site/v2/sports/football/nfl/scoreboard?dates=20261108&limit=1000
+// Independent ESPN fixtures here are NOT proof of the production R2 manifest.
+const now=Date.parse('2026-11-08T07:05:43.100Z');
+const fixtures=[{id:'401873038',sport:'nfl',home_name:'Atlanta Falcons',away_name:'Cincinnati Bengals',start:'2026-11-08T14:30:00Z'},{id:'401873040',sport:'nfl',home_name:'Indianapolis Colts',away_name:'Dallas Cowboys',start:'2026-11-08T18:00:00Z'}];
+const pair=(event,names,suffixes,asks,occurrenceAt)=>names.map((name,i)=>({sport:'nfl',seriesTicker:'KXNFLGAME',eventTicker:event,ticker:event+'-'+suffixes[i],title:name+' wins',yesLabel:name,status:'active',yesAskDollars:asks[i],occurrenceAt,fetchedAt:'2026-11-08T07:00:36.775Z',rulesPrimary:`If ${name} wins the ${names[0]} vs ${names[1]} Pro Football game originally scheduled for Nov 8, 2026, then the market resolves to Yes.`}));
+const records=[...pair('KXNFLGAME-26NOV08CINATL',['Cincinnati','Atlanta'],['CIN','ATL'],[.62,.39],'2026-11-08T17:30:00Z'),...pair('KXNFLGAME-26NOV08DALIND',['Dallas','Indianapolis'],['DAL','IND'],[.68,.33],'2026-11-08T21:00:00Z')];
+const quotes=[{ticker:'KXNFLGAME-26NOV08CINATL-CIN',yesAsk:.62,receivedAt:'2026-11-08T07:04:43.122Z',sourceObservedAt:'2026-11-08T07:04:42.641Z'},{ticker:'KXNFLGAME-26NOV08CINATL-ATL',yesAsk:.39,receivedAt:'2026-11-08T07:04:43.122Z',sourceObservedAt:'2026-11-08T07:04:42.135Z'}].map(q=>({...q,canonicalEventId:null,sport:null,displayBinding:null,marketFamily:'UNVERIFIED'}));
+const snapshot={ok:true,sport:'nfl',seriesTicker:'KXNFLGAME',capturedAt:'2026-11-08T07:00:36.775Z',records};
+const stream={capturedAt:'2026-11-08T07:04:47.040Z',quotes};
+const run=(f=fixtures,s=snapshot,w=stream,at=now)=>matchedKalshiCardQuotes(f,s,w,{sport:'nfl',now:at,retainLastObserved:true});
+test('observed Cincinnati/Atlanta overlap joins exact ESPN game and keeps actual WS clocks',()=>{const out=run()['401873038'];assert.equal(out.length,2);assert.deepEqual(out.map(q=>[q.side,q.ask,q.transport]),[['away',.62,'WebSocket'],['home',.39,'WebSocket']]);for(const q of out){assert.equal(q.receivedAt,quotes[0].receivedAt);assert.equal(q.stale,false);assert.equal(q.eventStart,fixtures[0].start);assert.equal(q.canAuthorizeWager,false);assert.equal(q.canChangeProjection,false);assert.equal(q.providerTimestampVerified,true);}});
+test('observed Dallas pair falls back to REST when absent from this WS capture',()=>{const out=run()['401873040'];assert.deepEqual(out.map(q=>[q.side,q.ask,q.transport]),[['away',.68,'REST'],['home',.33,'REST']]);assert.ok(out.every(q=>q.sourceObservedAt===null&&q.stale===false&&q.providerTimestampVerified===false));assert.ok(JSON.parse(JSON.stringify(out)).every(q=>q.stale===false&&q.providerTimestampVerified===false));});
+test('retention keeps WS quote but marks it stale after expiry',()=>{const out=run(fixtures,snapshot,stream,now+120001)['401873038'];assert.ok(out.every(q=>q.stale&&q.transport==='WebSocket'&&!q.canRecommend));});
+test('missing or ambiguous fixture and incomplete outcome identity cannot be filled by WS',()=>{assert.deepEqual(run([]),{});assert.equal(run([...fixtures,{...fixtures[0],id:'duplicate'}])['401873038'],undefined);assert.equal(run(fixtures,{...snapshot,records:records.filter(r=>!r.ticker.endsWith('-ATL'))})['401873038'],undefined);});
