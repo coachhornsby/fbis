@@ -1,0 +1,19 @@
+name: CFB completed form integrity
+on:
+  pull_request:
+    paths:
+      - 'functions/lib/cfbDeepFeed.js'
+      - 'test/cfb-completed-form-integrity.test.js'
+      - '.github/workflows/fbis-cfb-completed-form-ci.yml'
+permissions:
+  contents: read
+jobs:
+  offline-tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4.2.2
+      - uses: actions/setup-node@v4.4.0
+        with:
+          node-version: '22'
+      - run: node --import ./test/offline-network.js --test test/cfb-completed-form-integrity.test.js test/cfb-deep-feed.test.js test/cfb-feature-pipeline.test.js test/cfb-core-advanced-plumbing.test.js test/cfb-fbis-v2.test.js test/cfb-fbis-v2-fit.test.js test/cfb-tier3-utilization.test.js test/cfb-current-season-repair.test.js test/cfb-core-challenger.test.js test/cfb-core-backtest.test.js
