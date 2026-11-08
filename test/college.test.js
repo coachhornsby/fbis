@@ -323,13 +323,7 @@ describe("Torvik CBB adapter", () => {
     assert.equal(four[0].efgPct, 0.58);
     assert.equal(four[0].orbRate, 0.4);
 
-    const fetchFn = async (url) => ({
-      ok: true,
-      status: 200,
-      async text() {
-        return String(url).includes("fffinal") ? ffCsv : ratingsCsv;
-      },
-    });
+    const fetchFn = async (url) => new Response(String(url).includes("fffinal") ? ffCsv : ratingsCsv, {headers:{"content-type":"text/csv"}});
     const catalog = await loadTorvikCbbCatalog({}, { cbbSeason: 2025, fetchFn });
     assert.equal(catalog.ok, true);
     assert.equal(catalog.torvikSeason, 2026);
