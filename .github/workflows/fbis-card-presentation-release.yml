@@ -1,3 +1,4 @@
+# Board-only release: remove repetitive reference-only labels; preserve eligibility gates.
 name: FBIS card presentation checks and bounded Pages release
 on:
   pull_request:

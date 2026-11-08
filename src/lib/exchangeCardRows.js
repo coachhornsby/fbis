@@ -14,10 +14,10 @@ const details=(q,clock)=>{
  const at=timestamp(q),state=exchangeMarketState(q),stale=q.stale===true||q.fresh===false||clock-Date.parse(q.receivedAt)>(q.transport==='WebSocket'?120000:900000);
  const source=Date.parse(q.sourceObservedAt||q.quoteSourceTime||'');
  const sourceTime=Number.isFinite(source)?'Provider quote time '+new Date(source).toISOString():'Provider quote time unknown';
- const statusLabel=state==='closed'?'Market closed':state==='unavailable'?'Quote unavailable':stale?'Saved · reference only':'Reference only';
+ const statusLabel=state==='closed'?'Market closed':state==='unavailable'?'Quote unavailable':stale?'Stale':null;
  const link=state==='observed'?exchangeMarketLink({source:q.venue==='Kalshi'?'Kalshi':'Polymarket US WebSocket',sourceMarketId:q.marketId,eventTicker:q.eventTicker,marketUrl:q.marketUrl,eventNavigation:q.eventNavigation}):null;
  return {stale,state,statusLabel,link,observedLabel:(state==='observed'?'Fetched ':'Status checked ')+ageText(clock-at),
-  title:(q.transport||'Capture')+' · '+statusLabel+' · fetched '+q.receivedAt+' · '+sourceTime,
+  title:(q.transport||'Capture')+' · '+(statusLabel||'Captured price')+' · fetched '+q.receivedAt+' · '+sourceTime,
   canAuthorizeWager:false,executionEligible:false};
 };
 const cell=(q,line,clock)=>{const d=details(q,clock);return {line,price:d.state==='observed'?cents(q.ask):'Unavailable',...d};};

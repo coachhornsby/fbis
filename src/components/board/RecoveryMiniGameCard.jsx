@@ -108,7 +108,6 @@ export default function RecoveryMiniGameCard({game,onOpen,clock=Date.now()}){
        ?<div className="fbis-mini-team-total-prices">{cell.lines.map(x=><CapturedQuote key={x.line} cell={x}/>)}</div>
        :<CapturedQuote cell={cell}/>}</td>)}
      </tr>)}</tbody></table>:<p className="fbis-mini-exchange-empty">No captured prices</p>}
-     {hasPrices&&<p className="fbis-mini-quote-note">Fetch age shown · Quotes are saved references, not verified live prices.</p>}
     </section>;
    })}
   </div>

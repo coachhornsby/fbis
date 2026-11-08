@@ -26,5 +26,5 @@ test('missing saved forecasts and missing actual scores remain explicitly unavai
 test('rendered exchange quote label has relative age but no absolute date',()=>{
  const html=render({...game,exchangeReferenceQuotes:[{venue:'Kalshi',marketFamily:'moneyline',side:'away',ask:.52,transport:'REST',receivedAt:new Date(clock-40000).toISOString(),eventStart:game.start}]},clock);
  assert.ok(html.includes('Fetched 40s ago'));
- assert.ok(!html.includes('Fetched Nov'));assert.ok(html.includes('Reference only'));
+ assert.ok(!html.includes('Fetched Nov'));assert.ok(!html.includes('Reference only'));assert.ok(!html.includes('reference only'));
 });
