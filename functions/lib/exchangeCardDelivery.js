@@ -45,7 +45,7 @@ export async function readExchangeCardQuotes(original,{sport,date,now=Date.now()
  const [snapshot,stream,poly,...derivativeSnapshots]=await Promise.all([
   read('kalshi/public-shadow/v1/sports/'+sport+'.json'),
   read('kalshi/public-shadow/v1/market-ws/latest.json'),
-  loadBoundedPolymarketSnapshot(original,{now:new Date(now),retainLastObserved:true}),
+  loadBoundedPolymarketSnapshot(original,{now:new Date(now),retainLastObserved:true,sport}),
   ...derivativeSports.map(key=>read('kalshi/public-shadow/v1/sports/'+key+'.json')),
   ...(sport==='cbb'?[read('kalshi/public-shadow/v1/sports/cbb_1h_total.json')]:[])
  ]);
@@ -57,7 +57,7 @@ export async function readExchangeCardQuotes(original,{sport,date,now=Date.now()
   for(const [id,quotes] of Object.entries(matched))(byEvent[id]??=[]).push(...quotes);
  });
  const selected=selectBoundedPolymarketOffers(poly,fixtures.map(g=>({id:g.id,sport,start:g.start})),sport);
- for(const [id,offers] of selected.byId)for(const o of offers){if(!['moneyline','spread','total'].includes(o.marketFamily))continue;if(o.marketFamily!=='moneyline'&&(typeof o.line!=='number'||!Number.isFinite(o.line)))continue;(byEvent[id]??=[]).push({venue:'Polymarket',marketFamily:o.marketFamily,period:o.period,line:o.marketFamily==='moneyline'?null:o.line,side:o.side,ask:o.contractPrice,receivedAt:o.collectedAt,eventStart:fixtures.find(g=>g.id===id).start,transport:'WebSocket',marketId:o.sourceMarketId,eventNavigation:o.eventNavigation??null,marketUrl:o.marketUrl||null,marketStatus:o.marketStatus||'unknown',sourceObservedAt:o.sourceObservedAt||null,providerTimestampVerified:false,stale:o.stale===true||!fresh(o.collectedAt,now,120000),quoteAgeSeconds:Math.floor((now-Date.parse(o.collectedAt))/1000),referenceOnly:true,canQualify:false,canRecommend:false,canChangeProjection:false,executionEligible:false,canAuthorizeWager:false});}
+ for(const [id,offers] of selected.byId)for(const o of offers){if(!['moneyline','spread','total'].includes(o.marketFamily))continue;if(o.marketFamily!=='moneyline'&&(typeof o.line!=='number'||!Number.isFinite(o.line)))continue;(byEvent[id]??=[]).push({venue:'Polymarket',marketFamily:o.marketFamily,period:o.period,line:o.marketFamily==='moneyline'?null:o.line,side:o.side,ask:o.contractPrice,receivedAt:o.collectedAt,eventStart:fixtures.find(g=>g.id===id).start,transport:poly.transport==='REST'?'REST':'WebSocket',marketId:o.sourceMarketId,eventNavigation:o.eventNavigation??null,marketUrl:o.marketUrl||null,marketStatus:o.marketStatus||'unknown',sourceObservedAt:o.sourceObservedAt||null,providerTimestampVerified:false,stale:o.stale===true||!fresh(o.collectedAt,now,120000),quoteAgeSeconds:Math.floor((now-Date.parse(o.collectedAt))/1000),referenceOnly:true,canQualify:false,canRecommend:false,canChangeProjection:false,executionEligible:false,canAuthorizeWager:false});}
  const inspect=source=>{
   if(!source?.ok)return {state:'NOT_CAPTURED',capturedAt:null};
   const at=Date.parse(source.capturedAt);

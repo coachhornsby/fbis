@@ -1,3 +1,4 @@
+import {pregameDiscoveryPlan,pregameDiscoveryUrl,restReferenceSnapshot} from './pregame.mjs';
 import {beginJobExecution} from '../account-budget/jobScope.mjs';
 import {POLY_REST_JOB} from '../account-budget/executionJobs.mjs';
 import {ROSTER_SPORTS,stageBoundedStreamCandidates} from '../../functions/lib/boundedPolymarketRoster.js';
@@ -58,19 +59,21 @@ export async function collectBoundedPolymarketRest(env,{sport,slot=Math.floor(Da
  const stored=await env.ARCHIVE.get(fixtureKey(sport));if(!stored)return {ok:false,sport,code:'FIXTURE_MANIFEST_MISSING'};
  const manifest=validateFixtureManifest(await stored.json(),now);if(manifest.sport!==sport)throw Error('FIXTURE_SPORT_MISMATCH');
  if(!manifest.fixtures.length)return {ok:true,sport,status:'NO_FIXTURES',canAuthorizeWager:false};
- const pages=[],candidates=[],errors=[];let matched=0;
+ const pregame=env.FBIS_POLYMARKET_PREGAME_REST==='true';
+ const pages=[],candidates=[],errors=[],referenceMarkets=new Map();let matched=0;
  // One list page + at most three exact-slug pages for CBB. The total stays
  // within the existing four-request account-budget certificate. Other sports
  // retain the original two-page-per-tag scan.
- const plan=sport==='cbb'?[{tag:manifest.providerTags[0],page:0}]:
+ const plan=pregame?pregameDiscoveryPlan(manifest,{now,slot}):sport==='cbb'?[{tag:manifest.providerTags[0],page:0}]:
   manifest.providerTags.flatMap(tag=>[0,1].map(page=>({tag,page})));
- const acceptedEvents=[],exhaustedTags=new Set();
+ const acceptedEvents=[],exhaustedTags=new Set(),failedTags=new Set();
  const processEvents=events=>{
   for(const event of events){
    if(!Array.isArray(event.markets)||event.markets.length>200)throw Error('PROVIDER_MARKET_CAPACITY');
    if(event.markets.some(m=>!Array.isArray(m.marketSides)||m.marketSides.length>4))throw Error('PROVIDER_SIDE_CAPACITY');
    const match=matchPolymarketUsEvent(event,manifest.fixtures,sport);if(!match.id)continue;matched++;
    const fixture=manifest.fixtures.find(g=>g.id===match.id);
+   if(pregame&&(Date.parse(fixture.start)<=now||(event.live===true||event.eventState?.live===true)&&event.closed!==true&&event.ended!==true))continue;
    // Only bounded full-game positive contracts. Extra markets are reported as
    // partial coverage rather than silently enlarging a job or scanning history.
    // Inspect up to 24 markets from the already bounded response; no new calls.
@@ -81,6 +84,7 @@ export async function collectBoundedPolymarketRest(env,{sport,slot=Math.floor(Da
     Number(/first_half/.test(String(b?.sportsMarketType||'').toLowerCase())&&String(b?.sportsMarketType||'').toLowerCase().includes('total'))-
     Number(/first_half/.test(String(a?.sportsMarketType||'').toLowerCase())&&String(a?.sportsMarketType||'').toLowerCase().includes('total'))):event.markets;
    for(const market of markets.slice(0,24)){
+    const referenceMarket=event.closed===true||event.ended===true?{...market,closed:true}:market;
     if(!Array.isArray(market.marketSides)||market.marketSides.length>4)throw Error('PROVIDER_SIDE_CAPACITY');
     const offers=polymarketUsMarketOffers({...event,markets:[market]},sport,{canonicalId:match.id,capturedAt:new Date(now).toISOString(),maxMarkets:1});
     // US 1H totals use one YES instrument: Over is long, Under is short.
@@ -95,6 +99,7 @@ export async function collectBoundedPolymarketRest(env,{sport,slot=Math.floor(Da
      if(!long||!short)continue;
      const displayBinding={...verifiedCbbFirstHalfTotalBinding(long,fixture),
        oppositeSide:'under',oppositeSourceOutcomeId:short.sourceOutcomeId};
+     if(pregame)referenceMarkets.set(long.sourceMarketId,referenceMarket);
      candidates.push({sport,source_market_id:long.sourceMarketId,provider_event_id:long.raw.providerEventId,eventNavigation:long.raw.eventNavigation,canonical_event_id:match.id,
        market_family:'total',event_start_time:fixture.start,collected_at:new Date(now).toISOString(),displayBinding});
      continue;
@@ -103,19 +108,21 @@ export async function collectBoundedPolymarketRest(env,{sport,slot=Math.floor(Da
      if(!['moneyline','spread','total'].includes(offer.marketFamily))continue;
      const displayBinding=verifiedFullGameDisplayBinding(offer,fixture);
      if(!displayBinding)continue;
+     if(pregame)referenceMarkets.set(offer.sourceMarketId,referenceMarket);
      candidates.push({sport,source_market_id:offer.sourceMarketId,provider_event_id:offer.raw.providerEventId,eventNavigation:offer.raw.eventNavigation,canonical_event_id:match.id,market_family:offer.marketFamily,event_start_time:fixture.start,collected_at:new Date(now).toISOString(),displayBinding});
     }
    }
   }
  };
- for(const {tag,page} of plan){
-  if(exhaustedTags.has(tag))continue;
+ for(const query of plan){
+  const {tag,page}=query;
+  if(failedTags.has(tag)||!pregame&&exhaustedTags.has(tag))continue;
   const url=new URL('/v1/events',POLY_US_API);
   for(const [key,value] of Object.entries({tagSlug:tag,active:true,closed:false,limit:20,offset:page*20,
    orderBy:'id',orderDirection:'asc',startTimeMin:new Date(now-48*3600000).toISOString(),
    startTimeMax:new Date(now+72*3600000).toISOString()}))url.searchParams.set(key,String(value));
-  const response=await env.FBIS_JOB_FETCH(url.toString(),{headers:{accept:'application/json'}});
-  if(!response.ok){await response.body?.cancel();errors.push({tag,status:response.status});exhaustedTags.add(tag);continue;}
+  const response=await env.FBIS_JOB_FETCH((pregame?pregameDiscoveryUrl(query):url).toString(),{headers:{accept:'application/json'}});
+  if(!response.ok){await response.body?.cancel();errors.push({tag,status:response.status});failedTags.add(tag);exhaustedTags.add(tag);continue;}
   const value=await response.json();
   if(!Array.isArray(value.events)||value.events.length>20)throw Error('PROVIDER_EVENT_PAGE_INVALID');
   pages.push({tag,offset:page*20,events:value.events});
@@ -126,7 +133,7 @@ export async function collectBoundedPolymarketRest(env,{sport,slot=Math.floor(Da
   }
   if(value.events.length<20)exhaustedTags.add(tag);
  }
- if(sport==='cbb'&&acceptedEvents.length){
+ if(!pregame&&sport==='cbb'&&acceptedEvents.length){
   const uniqueEvents=[...new Map(acceptedEvents.map(e=>[e.slug,e])).values()];
   const offset=Math.floor(slot/10)%uniqueEvents.length;
   for(let i=0;i<Math.min(3,uniqueEvents.length);i++){
@@ -142,9 +149,20 @@ export async function collectBoundedPolymarketRest(env,{sport,slot=Math.floor(Da
    processEvents(detail.events);
   }
  }
- const unique=new Map();for(const row of candidates){const previous=unique.get(row.source_market_id);if(previous&&previous.canonical_event_id!==row.canonical_event_id)throw Error('AMBIGUOUS_PROVIDER_CONTRACT');unique.set(row.source_market_id,row);}
+ // A provider slug is one contract. Repeated pages may refresh its quote, but
+ // must not silently relabel the same instrument's outcome, side or line.
+ const identity=row=>JSON.stringify([row.canonical_event_id,row.market_family,
+  row.event_start_time,row.displayBinding]);
+ const unique=new Map();
+ for(const row of candidates){
+  const previous=unique.get(row.source_market_id);
+  if(previous&&identity(previous)!==identity(row))throw Error('AMBIGUOUS_PROVIDER_CONTRACT');
+  unique.set(row.source_market_id,row);
+ }
  const selected=[...unique.values()].slice(0,50),receipt={version:1,sport,capturedAt:new Date(now).toISOString(),pages:pages.length,matchedEvents:matched,candidates:unique.size,selected:selected.length,complete:false,canQualify:false,canAuthorizeWager:false};
- await env.ARCHIVE.put(restKey(sport)+'/latest.json',JSON.stringify({version:1,sport,capturedAt:receipt.capturedAt,pages,complete:false,canAuthorizeWager:false}));
+ const referenceSnapshot=pregame?restReferenceSnapshot(selected,referenceMarkets,now):null;
+ // An empty or failed capture must not erase the last observed references.
+ if(!pregame||referenceSnapshot.quotes.length)await env.ARCHIVE.put(restKey(sport)+'/latest.json',JSON.stringify({version:1,sport,capturedAt:receipt.capturedAt,pages:pregame?pages.map(p=>({tag:p.tag,offset:p.offset,eventCount:p.events.length})):pages,...(pregame?{referenceSnapshot}:{}),complete:false,canAuthorizeWager:false}));
  // Staging gets its own reservation. Never pass an already scoped R2 binding
  // into a second lease: each hop uses the original environment supplied below.
  return {receipt,selected,errors};
@@ -153,7 +171,8 @@ export async function runBoundedPolymarketRest(originalEnv,options={}){
  const result=await collectBoundedPolymarketRest(originalEnv,options);
  if(!result.receipt)return result;
  const {receipt,selected,errors}=result;
- if(selected.length){const staged=await stageBoundedStreamCandidates(originalEnv,{sport:receipt.sport,candidates:selected,now:Date.parse(receipt.capturedAt)});receipt.staged=staged.ok;}
+ if(originalEnv.FBIS_POLYMARKET_PREGAME_REST==='true'){receipt.staged=false;receipt.transport='REST';}
+ else if(selected.length){const staged=await stageBoundedStreamCandidates(originalEnv,{sport:receipt.sport,candidates:selected,now:Date.parse(receipt.capturedAt)});receipt.staged=staged.ok;}
  else receipt.staged=false;
  // Receipt write remains under the collector's reservation; collect function
  // writes its bounded raw envelope. Stage outcome is returned, not re-written.
