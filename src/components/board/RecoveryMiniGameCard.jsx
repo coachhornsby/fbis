@@ -65,6 +65,11 @@ export default function RecoveryMiniGameCard({game,onOpen,clock=Date.now()}){
      <strong title={actual?'Observed score':fresh?'Away '+model.awayScore.toFixed(1)+', Home '+model.homeScore.toFixed(1):'No verified model score'}>
       {number(facts.awayScore)}<b>–</b>{number(facts.homeScore)}
      </strong>
+     {['live','final'].includes(game.status)&&<div className="fbis-mini-saved-projection" aria-label="Saved pregame projection"
+      title={facts.savedProjection?facts.savedProjection.attribution+' · '+facts.savedProjection.modelId+' · Generated '+facts.savedProjection.generatedAt+' · Source captured '+facts.savedProjection.sourceCapturedAt:'No verified pregame projection available'}>
+      <span>Projected <b>{facts.savedProjection?number(facts.savedProjection.awayScore)+' – '+number(facts.savedProjection.homeScore):'unavailable'}</b></span>
+      {facts.savedProjection&&<small>{facts.savedProjection.expired?'Saved · expired':'Saved pregame'}</small>}
+     </div>}
      <small>{fresh||actual?'AWAY · HOME':'NO CURRENT OUTPUT'}</small>
     </div>
     <div className="fbis-mini-team fbis-mini-team-home">
@@ -72,12 +77,6 @@ export default function RecoveryMiniGameCard({game,onOpen,clock=Date.now()}){
      <strong title={displayName(home)}>{displayName(home)}</strong>
     </div>
    </div>
-   {['live','final'].includes(game.status)&&<div className="fbis-mini-saved-projection" aria-label="Saved pregame projection">
-    <span>FBIS PREGAME PROJECTED</span>
-    <strong>{facts.savedProjection?number(facts.savedProjection.awayScore)+' – '+number(facts.savedProjection.homeScore):'Unavailable'}</strong>
-    <small>{facts.savedProjection?'AWAY · HOME · Saved research'+(facts.savedProjection.expired?' · Snapshot expired':''):'No verified pregame projection available'}</small>
-    {facts.savedProjection&&<small title={'Generated '+facts.savedProjection.generatedAt+' · Source captured '+facts.savedProjection.sourceCapturedAt}>{facts.savedProjection.attribution} · {facts.savedProjection.modelId}</small>}
-   </div>}
    {fresh&&<div className="fbis-mini-model-facts" aria-label="Model fair spread and total">
     <div><span>MODEL FAIR SPREAD</span><strong>{facts.fairSpread}</strong></div>
     <div><span>PROJECTED TOTAL</span><strong>{facts.total.toFixed(1)}</strong></div>
