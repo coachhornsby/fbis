@@ -359,15 +359,28 @@ async function seasonBundle(year,fetchFn,ngsAll){
   return{year,teamStatus:team.status,playerStatus:player.status,snapStatus:snaps.status,offense:teamAgg.offense,defense:teamAgg.defense,qb:aggregateQbWeeks(player.rows),tracking:ngs.teamFeatures,positionDefense:aggregatePositionDefense(player.rows),playersByTeam:enrichPlayers(aggregatePlayerWeeks(player.rows),ngs.byTeam,snapByTeam),rows:{team:team.rows.length,player:player.rows.length,snaps:snaps.rows.length}};
 }
 
+export function validateNflFeatureSnapshot(payload, season, now) {
+  if (!payload?.meta || !payload?.byTeam || !payload?.playersByTeam) return {ok:false,reason:"invalid-snapshot-shape"};
+  if (payload.season !== season) return {ok:false,reason:"snapshot-season-mismatch"};
+  const stamp = payload.meta.builtAt ?? payload.meta.createdAt;
+  if (typeof stamp !== "string" || !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{1,3})?(?:Z|[+-]\d{2}:\d{2})$/.test(stamp)) return {ok:false,reason:"snapshot-time-missing"};
+  const builtAt = Date.parse(stamp);
+  if (!Number.isFinite(builtAt)) return {ok:false,reason:"snapshot-time-missing"};
+  if (builtAt > now) return {ok:false,reason:"snapshot-time-future"};
+  const ageMs = now - builtAt;
+  if (ageMs >= 36 * 3600000) return {ok:false,reason:"snapshot-expired"};
+  return {ok:true,builtAt,ageMs};
+}
+
 async function readArchivedSnapshot(env={}, season, now){
   if(!env.ARCHIVE?.get) return null;
   try{
     const obj=await env.ARCHIVE.get(SNAPSHOT_KEY);
     if(!obj) return null;
     const payload=JSON.parse(await obj.text());
-    if(!payload?.meta || !payload?.byTeam || !payload?.playersByTeam) return null;
-    const builtAt=Date.parse(payload.meta.builtAt||payload.meta.createdAt||"");
-    const ageMs=Number.isFinite(builtAt)?Math.max(0,now-builtAt):null;
+    const validation = validateNflFeatureSnapshot(payload, season, now);
+    if (!validation.ok) return null;
+    const {ageMs} = validation;
     return {
       ...payload,
       meta:{
@@ -384,7 +397,7 @@ async function readArchivedSnapshot(env={}, season, now){
 }
 
 export async function loadNflVerseFeatures(env={}, {fetchFn=fetch,now=Date.now(),forceNetwork=false}={}){
-  const season=seasonYear(new Date(now)),cacheKey=`nflverse-features-v5-${season}`,cached=await readCache(cacheKey,env.caches,TTL_MS);if(cached?.meta&&Object.keys(cached.byTeam||{}).length>=28&&Object.keys(cached.playersByTeam||{}).length>=28)return cached;
+  const season=seasonYear(new Date(now)),cacheKey=`nflverse-features-v5-${season}`,cached=await readCache(cacheKey,env.caches,TTL_MS);if(validateNflFeatureSnapshot(cached,season,now).ok&&Object.keys(cached.byTeam||{}).length>=28&&Object.keys(cached.playersByTeam||{}).length>=28)return {...cached,meta:{...cached.meta,snapshotAgeHours:Math.round((now-Date.parse(cached.meta.builtAt??cached.meta.createdAt))/3600000*10)/10,stale:false,requestedSeason:season}};
   if(!forceNetwork){
     const archived=await readArchivedSnapshot(env,season,now);
     if(archived){
