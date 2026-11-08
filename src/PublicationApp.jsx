@@ -1,3 +1,5 @@
+import PrivateTorvikComparison from './components/board/PrivateTorvikComparison.jsx';
+import {loadPrivateTorvik} from './lib/privateTorvikRead.js';
 import {mergeRetainedExchangeQuotes,loadRetainedExchangeQuotes,saveRetainedExchangeQuotes} from './lib/retainedExchangeQuotes.js';
 import {startCbbSummaryRefresh} from './lib/cbbCardAuto.js';
 import PrivateSportProjection from './components/board/PrivateSportProjection.jsx';
@@ -25,6 +27,9 @@ function CbbReadiness({date,clock}){
   return <section className="publication-notice" aria-label="CBB projection readiness"><strong>CBB projection pipeline · {expired?'input snapshot expired':'private analysis prepared'}</strong><p>Public projections remain unavailable. Current CBBD confirmation and validated native totals are incomplete. KenPom public display requires verified written permission. No picks or wager approvals.</p><small>Snapshot for {date} · {expired?'Refresh verified inputs before further analysis.':'Private preseason estimates require confirmation before use.'}</small></section>;
 }
 function PublicationApp(){
+  const [torvikPacket,setTorvikPacket]=useState(null),[torvikStatus,setTorvikStatus]=useState('IDLE');
+  const torvikRead=useRef({controller:null,generation:0,lastAttempt:0});
+
   const [privatePacket,setPrivatePacket]=useState(null);
   const [privateOffers,setPrivateOffers]=useState([]);
   const [privateStatus,setPrivateStatus]=useState('LOADING');
@@ -61,6 +66,15 @@ function PublicationApp(){
     if(failed.length)setError(`Refresh unavailable for ${failed.map(s=>s.toUpperCase()).join(', ')}. Saved data, where present, retains its original timestamp.`);
     }catch(e){if(id===generation.current&&!abort.signal.aborted)setError('Score update unavailable. Keeping the last source timestamp.');}
     finally{if(id===generation.current){busyRef.current=false;setBusy(false);setClock(Date.now());}}
+  }
+  useEffect(()=>{torvikRead.current.generation++;torvikRead.current.controller?.abort();setTorvikPacket(null);setTorvikStatus('IDLE');return()=>torvikRead.current.controller?.abort();},[date,sport]);
+  async function showPrivateTorvik(){
+    if(Date.now()-torvikRead.current.lastAttempt<60000)return;
+    torvikRead.current.lastAttempt=Date.now();torvikRead.current.controller?.abort();
+    const controller=new AbortController(),generation=++torvikRead.current.generation;
+    torvikRead.current.controller=controller;setTorvikStatus('LOADING');setTorvikPacket(null);
+    try{const packet=await loadPrivateTorvik(date,{signal:controller.signal});if(generation===torvikRead.current.generation&&!controller.signal.aborted){setTorvikPacket(packet);setTorvikStatus('LOADED');}}
+    catch(e){if(generation===torvikRead.current.generation&&!controller.signal.aborted)setTorvikStatus(e.message||'PRIVATE_TORVIK_UNAVAILABLE');}
   }
   refreshRef.current=()=>refresh(date);
   useEffect(()=>{const u=new URL(location.href);u.searchParams.set('date',date);u.searchParams.set('sport',sport);history.replaceState({},'',u);refresh(date,true);return()=>{generation.current++;active.current?.abort();};},[date]);
@@ -152,10 +166,16 @@ function PublicationApp(){
     {sport==='cbb'&&<section className="publication-controls" aria-label="CBB projection availability" role="status">
       <span>{privatePacket?`${privateMatched} CBB research projections matched · KenPom ratings / FBIS formula · provisional`:'CBB projection output is loading or unavailable. Missing inputs stay blank.'}</span>
     </section>}
+    {sport==='cbb'&&<section className="publication-controls" aria-label="Private Torvik comparison controls">
+      <button onClick={showPrivateTorvik} disabled={torvikStatus==='LOADING'||clock-torvikRead.current.lastAttempt<60000}>Load owner-only Torvik comparison</button>
+      {torvikPacket&&<button onClick={()=>{setTorvikPacket(null);setTorvikStatus('IDLE');}}>Hide private comparison</button>}
+      <span role="status">{torvikStatus==='LOADED'?`${torvikPacket?.events.length||0} private comparisons loaded. Open a game to view its match. No source refresh was requested.`:torvikStatus==='LOADING'?'Checking the existing private snapshot…':torvikStatus==='OWNER_SIGN_IN_REQUIRED'?'Owner sign-in required. No private data was loaded.':torvikStatus==='NO_PRIVATE_TORVIK_COMPARISON'?'No verified Torvik comparison is stored for this date. This button does not collect source data.':torvikStatus==='IDLE'?'Optional private research, loaded only when you ask. Raw inputs are not public.':'Private Torvik comparison unavailable.'}</span>
+      {torvikStatus==='OWNER_SIGN_IN_REQUIRED'&&<a href={'/api/private/cbb/'+date+'?login=1'}>Owner sign-in</a>}
+    </section>}
     {sport!=='cbb'&&<section className="publication-controls" aria-label="Private sport projections" role="status">
       <span>{modelPacket?`${modelMatches} verified ${sport.toUpperCase()} research projections matched to game cards on ${date} · ${clock>=Date.parse(modelPacket.expiresAt)?'HISTORICAL / EXPIRED':'RESEARCH ONLY'}`:modelStatus==='LOADING'?`Checking public ${sport.toUpperCase()} model snapshot…`:modelStatus==='NO_PUBLIC_MODEL_SNAPSHOT'?`No generated ${sport.toUpperCase()} model snapshot for ${date}`:`Current ${sport.toUpperCase()} model output unavailable.`}</span>
     </section>}
-    <section aria-label="Game cards"><DecisionBoard compactRecovery clock={clock} key={date+sport} games={games} renderCardExtra={g=>g.sport==='cbb'?null:<PrivateSportProjection game={g} packet={modelPacket} clock={clock}/>}/></section>
+    <section aria-label="Game cards"><DecisionBoard compactRecovery clock={clock} key={date+sport} games={games} renderCardExtra={g=>g.sport==='cbb'?<PrivateTorvikComparison game={g} packet={torvikPacket} clock={clock}/>:<PrivateSportProjection game={g} packet={modelPacket} clock={clock}/>}/></section>
     <footer className="publication-footer">Four priority sports: CBB, NFL, NBA and CFB. Live scores use bounded ESPN requests; public FBIS-owned model summaries come from private R2 through a sanitized anonymous read route, never D1. CBB cards show derived research scores; raw provider inputs stay server-side; player props, wagers and broad provider collectors remain paused. Bounded exchange market reads and private research refresh are active; no model is an approved wager.</footer>
   </main>;
 }
