@@ -7,6 +7,7 @@
  * Missing, stale, unmatched or insufficient evidence -> NO PREDICTION.
  */
 import {createRecoverySourceBudget,recoveryCoverage,recoveryReceiptDiagnostics} from './lib/recoveryEvidence.mjs';
+import {captureNbaSchedule,captureNbaResponse,combineNbaCurrentCaptures,runNbaRecoveryShadow} from './lib/nbaRecoveryShadow.mjs';
 import {captureTorvikRecovery,torvikRecoveryComparison} from './lib/torvikRecovery.mjs';
 import {mkdir,writeFile} from 'node:fs/promises';
 import {createHash} from 'node:crypto';
@@ -94,11 +95,17 @@ async function fetchWeeklyFinals(sport,weeks){
  results.skipped.push(...warnings.map(x=>({sport,reason:x})));
  return final;
 }
+const nbaScheduleCaptures=[];
 async function fetchNbaFinals(){
  const all=[];
  for(let offset=1;offset<=15;offset++){
   const d=shiftDay(date,-offset),u='https://site.api.espn.com/apis/site/v2/sports/basketball/nba/scoreboard?dates='+d.replaceAll('-','')+'&limit=100';
-  try{all.push(...rawFinals(await getJson(u),'nba'));}
+  try{
+   const payload=await getJson(u),observedAt=new Date().toISOString();
+   const capture=captureNbaSchedule(payload,{observedAt,url:u,date:d});nbaScheduleCaptures.push(capture);
+   const evidence=new Map((capture.games||[]).map(g=>[g.id,g]));
+   all.push(...rawFinals(payload,'nba').map(g=>({...g,finalEvidence:evidence.get(g.id)||null})));
+  }
   catch(e){results.skipped.push({sport:'nba',reason:'DATE_'+d+':'+String(e.message||e)});}
  }
  return [...new Map(all.map(g=>[g.id,g])).values()].sort((a,b)=>Date.parse(b.start)-Date.parse(a.start));
@@ -143,7 +150,10 @@ async function nbaBoxHistory(finals,slate){
    const tov=statNumber(boxStat(stats,['turnovers','to','tov']));
    const possession=estimatePossessions({fga,fta,orb,tov});
    if(!Number.isFinite(possession)||possession<65||possession>135)continue;
-   const r={date:g.start,pointsFor,pointsAgainst,fga,fta,orb,tov,possessions:possession};
+   const r={date:g.start,pointsFor,pointsAgainst,fga,fta,orb,tov,possessions:possession,
+    gameId:g.id,teamId:id,final:g.finalEvidence?.final===true,
+    completedAt:g.finalEvidence?.completedAt||null,completionTimeKind:'observed_final_upper_bound',
+    observedAt:new Date().toISOString(),source:'https://site.api.espn.com/apis/site/v2/sports/basketball/nba/summary?event='+g.id};
    if(!out.has(id))out.set(id,[]);
    out.get(id).push(r);
   }
@@ -182,9 +192,13 @@ async function writeObject(key,payload){
  return {stored:true,key,sha256:sha(body),bytes};
 }
 async function run(){
+ const nbaCurrentCaptures=[];
  const board=await captureScoreboards({date,sports:['cbb','nfl','nba','cfb'],fetchFn:async(url,options)=>{
-  assertUrl(url);sourceBudget.reserve('ESPN');return fetch(url,options);
+  assertUrl(url);sourceBudget.reserve('ESPN');const response=await fetch(url,options);
+  if(new URL(url).pathname.includes('/basketball/nba/scoreboard'))nbaCurrentCaptures.push(await captureNbaResponse(response,url));
+  return response;
  }});
+ const nbaCurrentBoard=combineNbaCurrentCaptures(nbaCurrentCaptures,date);
  const target=Object.fromEntries(['cbb','nfl','nba','cfb'].map(s=>[s,board.games.filter(g=>g.sport===s&&g.status==='scheduled'&&Date.parse(g.start)>nowMs)]));
  results.slateCounts=Object.fromEntries(Object.entries(target).map(([s,rows])=>[s,rows.length]));
  results.feedStates=Object.fromEntries(Object.entries(board.feeds).map(([s,f])=>[s,{ok:f.ok,n:f.n}]));
@@ -196,6 +210,7 @@ async function run(){
  results.sourceCoverage={nflFinals:nflFinals.length,cfbFinals:cfbFinals.length,nbaFinals:nbaFinals.length,nbaWithBoxes:[...nbaHistory.values()].filter(x=>x.length>=3).length};
  const eventGroups={nfl:[],nba:[],cfb:[],cbb:[]};
  results.forecastCoverage={};
+ results.nbaContextShadow=[];
  for(const g of target.nfl){
   const home=verifiedSeasonScoringForm(nflFinals,String(g.home.espnId)),away=verifiedSeasonScoringForm(nflFinals,String(g.away.espnId));
   if(!home||!away||home.games<4||away.games<4){results.skipped.push({sport:'nfl',event:g.id,reason:'INSUFFICIENT_VERIFIED_2026_FORM'});continue;}
@@ -219,6 +234,8 @@ async function run(){
   if(home.length<3||away.length<3){results.skipped.push({sport:'nba',event:g.id,reason:'INSUFFICIENT_VERIFIED_POSSESSION_BOX_HISTORY'});continue;}
   const p=projectNbaGame(g,{homeHistory:home,awayHistory:away});
   if(!p.ok){results.skipped.push({sport:'nba',event:g.id,reason:p.reason||'MODEL_INVALID'});continue;}
+  try{results.nbaContextShadow.push(runNbaRecoveryShadow({game:g,baseline:p,homeHistory:home,awayHistory:away,captures:nbaScheduleCaptures,currentBoard:nbaCurrentBoard,date,asOf:new Date().toISOString()}));}
+  catch(error){results.nbaContextShadow.push({eventId:g.id,mode:'SHADOW_ONLY',productionForecastUnchanged:true,canAuthorize:false,canQualify:false,error:String(error.message||error)});}
   const e=packetEvent(g,p,{sport:'nba',sourceLabel:'ESPN actual current-season box scores; lineup/injury context unavailable (NBA-FBIS-v1 research)',modelId:NBA_MODEL_ID,version:NBA_MODEL_VERSION});
   if(e)eventGroups.nba.push(e);
  }
@@ -286,3 +303,4 @@ await writeFile(outDir+'/receipt.json',JSON.stringify(results,null,2)+'\n');
 console.log(JSON.stringify(results));
 if(results.coverageState==='PARTIAL')console.warn('::warning::Projection coverage is PARTIAL. Inspect forecastCoverage for missing forecasts and expiry before kickoff; job success is not complete board coverage.');
 if(results.errors.length||!results.written.some(x=>x.stored))process.exitCode=1;
+
