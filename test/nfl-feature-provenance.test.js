@@ -42,3 +42,8 @@ test('cached age is recomputed rather than preserved from initial read',async()=
  const out=await loadNflVerseFeatures({}, {now,fetchFn:async()=>{throw Error('forbidden');}});
  assert.equal(out.meta.snapshotAgeHours,1);resetCacheMem();
 });
+
+test('impossible calendar dates cannot normalize into valid freshness',()=>{
+ const s=valid();s.meta.builtAt='2026-11-31T16:00:00Z';
+ assert.equal(validateNflFeatureSnapshot(s,2026,Date.parse('2026-12-01T17:00:00Z')).ok,false);
+});
