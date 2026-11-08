@@ -7,6 +7,7 @@
  * Missing, stale, unmatched or insufficient evidence -> NO PREDICTION.
  */
 import {createRecoverySourceBudget,recoveryCoverage,recoveryReceiptDiagnostics} from './lib/recoveryEvidence.mjs';
+import {captureTorvikRecovery,torvikRecoveryComparison} from './lib/torvikRecovery.mjs';
 import {mkdir,writeFile} from 'node:fs/promises';
 import {createHash} from 'node:crypto';
 import {boardDate,captureScoreboards} from '../functions/lib/publicBoardSnapshot.js';
@@ -32,10 +33,12 @@ const token=String(process.env.CLOUDFLARE_API_TOKEN||'');
 const kenpomKey=String(process.env.KENPOM_API_KEY||'');
 const outDir='artifacts/four-sport-recovery';
 await mkdir(outDir,{recursive:true});
-const sourceBudget=createRecoverySourceBudget();
+// Separate operator admission; intentionally absent from the scheduled workflow.
+const torvikAdmitted=process.env.FBIS_TORVIK_RECOVERY_ADMITTED==='1';
+const sourceBudget=createRecoverySourceBudget({Torvik:torvikAdmitted?2:0});
 const results={date,generatedAt,ownerScope:'PRIVATE_RESEARCH_ONLY',modelAuthority:'RESEARCH_ONLY',
  noD1:true,paidCollectors:0,providerCalls:sourceBudget.counts,written:[],skipped:[],errors:[],
- noWagerAuthorization:true,cost:{d1Reads:0,d1Writes:0,paidCollectors:0,espnCallsCap:134,kenpomCallsCap:1}};
+ noWagerAuthorization:true,cost:{d1Reads:0,d1Writes:0,paidCollectors:0,espnCallsCap:134,kenpomCallsCap:1,torvikCallsCap:torvikAdmitted?2:0}};
 const sha=s=>createHash('sha256').update(s).digest('hex');
 const shiftDay=(d,n)=>new Date(dayNumber(d)+n*86400000).toISOString().slice(0,10);
 function assertUrl(url){
@@ -219,6 +222,11 @@ async function run(){
   const e=packetEvent(g,p,{sport:'nba',sourceLabel:'ESPN actual current-season box scores; lineup/injury context unavailable (NBA-FBIS-v1 research)',modelId:NBA_MODEL_ID,version:NBA_MODEL_VERSION});
   if(e)eventGroups.nba.push(e);
  }
+ let torvik=null;
+ if(target.cbb.length&&kenpomKey&&torvikAdmitted){
+  torvik=await captureTorvikRecovery({admitted:true,season:seasonYear+1,reserve:kind=>sourceBudget.reserve(kind)});
+  results.torvik={state:torvik.state,season:seasonYear+1,receipts:torvik.receipts||[],error:torvik.error||null,providerUpdatedAt:null};
+ }
  // The one permitted licensed current CBB ratings pull runs only if a key was ALREADY provisioned.
  if(target.cbb.length&&kenpomKey){
   try{
@@ -233,11 +241,12 @@ async function run(){
     const p=cbbKenpomRatingsV1(g,{homeAdjOe:home.adjOe,homeAdjDe:home.adjDe,homeTempo:home.tempo,
      awayAdjOe:away.adjOe,awayAdjDe:away.adjDe,awayTempo:away.tempo});
     if(!p.ok)continue;
+    const comparison=torvikRecoveryComparison(g,torvik);
     eventGroups.cbb.push({eventId:String(g.id),date:g.date,start:g.start,
       homeId:'cbb-'+g.home.espnId,awayId:'cbb-'+g.away.espnId,neutralSite:g.neutralSite,
       primary:{home:p.home,away:p.away,margin:p.margin,total:p.total,modelId:'CBB-KENPOM-RATINGS-v1',
        modelVersion:'v1',attribution:'KenPom authorized 2027 ratings + FBIS independent formula; PRELIMINARY / no CBBD validation'},
-      comparison:null,confirmationAvailable:false});
+      comparison,confirmationAvailable:false});
    }
   }catch(e){results.errors.push({sport:'cbb',reason:'KENPOM_FETCH_OR_MAPPING_FAILED:'+String(e.message||e)});}
  }else if(target.cbb.length)results.skipped.push({sport:'cbb',reason:'NO_ALREADY_PROVISIONED_KENPOM_API_KEY'});
@@ -248,7 +257,8 @@ async function run(){
   if(sport==='cbb'){
    packet={version:1,season:2027,generatedAt,expiresAt:new Date(nowMs+6*3600000).toISOString(),
      visibility:'PRIVATE_PERSONAL_ANALYSIS',canAuthorizeWager:false,
-     captures:{kenpom:generatedAt},sourceAttribution:['KenPom','ESPN'],
+     captures:{kenpom:generatedAt,...(torvik?.ok?{torvik:torvik.receipts[0].retrievedAt}:{})},sourceAttribution:['KenPom','ESPN',...(torvik?.ok?['Torvik']:[])],
+     torvikProvenance:torvik?.ok?{season:seasonYear+1,receipts:torvik.receipts,providerUpdatedAt:null,usage:'PRIVATE_COMPARISON_ONLY',fourFactorsUse:'VALIDATED_INPUT_ONLY_NOT_MODEL_WEIGHT'}:null,
      events,summary:{fixtures:target.cbb.length,primaryProjections:events.length,confirmed:0,qualified:0},
      dataQuality:'RESEARCH_PRELIMINARY',canQualify:false};
    validatePrivatePacket(packet);

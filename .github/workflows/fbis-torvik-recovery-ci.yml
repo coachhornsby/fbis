@@ -1,0 +1,23 @@
+name: Torvik recovery offline safety
+on:
+  pull_request:
+    paths:
+      - 'scripts/lib/torvikRecovery.mjs'
+      - 'scripts/lib/recoveryEvidence.mjs'
+      - 'scripts/recover-four-sport-once.mjs'
+      - 'test/torvik-recovery.test.mjs'
+      - 'test/cbb-card-summary.test.mjs'
+      - '.github/workflows/fbis-torvik-recovery-ci.yml'
+permissions:
+  contents: read
+jobs:
+  offline-tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4.2.2
+      - uses: actions/setup-node@v4.4.0
+        with:
+          node-version: '22'
+      - run: node --check scripts/recover-four-sport-once.mjs
+      - run: node --import ./test/offline-network.js --test test/recovery-source-budget.test.mjs test/torvik-recovery.test.mjs test/cbb-private-access-route.test.mjs test/four-sport-private-recovery.test.mjs test/public-four-sport-projections.test.mjs test/cbb-card-summary.test.mjs

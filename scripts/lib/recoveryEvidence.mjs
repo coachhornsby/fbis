@@ -1,6 +1,7 @@
 // Bounded recovery evidence. No provider access, model changes or persistence.
-export function createRecoverySourceBudget({ESPN=134,KenPom=1}={}) {
- const limits={ESPN,KenPom},counts={ESPN:0,KenPom:0};
+export function createRecoverySourceBudget({ESPN=134,KenPom=1,Torvik=0}={}) {
+ if(![0,2].includes(Torvik))throw Error('INVALID_TORVIK_BUDGET');
+ const limits={ESPN,KenPom,...(Torvik===2?{Torvik:2}:{})},counts={ESPN:0,KenPom:0,...(Torvik===2?{Torvik:0}:{})};
  return {counts,limits,reserve(kind){
   if(!Object.hasOwn(limits,kind))throw Error('SOURCE_KIND_NOT_ALLOWED');
   if(counts[kind]>=limits[kind])throw Error('SOURCE_CALL_BUDGET_EXCEEDED');
