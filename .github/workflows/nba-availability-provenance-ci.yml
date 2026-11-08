@@ -1,0 +1,21 @@
+name: NBA availability provenance CI
+on:
+  pull_request:
+    paths:
+      - 'functions/lib/nbaDeepFeatures.js'
+      - 'functions/lib/nbaModel.js'
+      - 'test/nba-availability-provenance.test.js'
+      - '.github/workflows/nba-availability-provenance-ci.yml'
+permissions:
+  contents: read
+jobs:
+  offline-tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4.2.2
+      - uses: actions/setup-node@v4.1.0
+        with:
+          node-version: '22'
+      - run: node --check functions/lib/nbaDeepFeatures.js
+      - run: node --import ./test/offline-network.js --test test/nba-availability-provenance.test.js test/nba-deep-v2.test.js
