@@ -4,6 +4,9 @@ on:
     paths:
       - 'functions/lib/nba*.js'
       - 'scripts/nba-research-snapshot.mjs'
+      - 'scripts/lib/nbaRecoveryShadow.mjs'
+      - 'scripts/recover-four-sport-once.mjs'
+      - 'test/nba-recovery-shadow.test.js'
       - 'test/nba-research-context.test.js'
       - '.github/workflows/nba-offline-context-ci.yml'
 permissions:
@@ -18,4 +21,4 @@ jobs:
         with:
           node-version: '22'
       - run: node --check functions/lib/nbaResearchContext.js && node --check scripts/nba-research-snapshot.mjs
-      - run: node --import ./test/offline-network.js --test test/nba-research-context.test.js test/nba-availability-provenance.test.js test/nba-deep-v2.test.js
+      - run: node --import ./test/offline-network.js --test test/nba-recovery-shadow.test.js test/nba-research-context.test.js test/nba-availability-provenance.test.js test/nba-deep-v2.test.js
