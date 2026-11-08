@@ -53,7 +53,7 @@ export default function RecoveryMiniGameCard({game,onOpen,clock=Date.now()}){
    <header className="fbis-mini-header">
     <span className="fbis-mini-sport">{String(game.sport||'').toUpperCase()}</span>
     <span className="fbis-mini-time">{liveGameLabel(game)||localTime(game.start)}</span>
-    <span className={'fbis-mini-status'+(fresh?' live-model':'')}>{actual?(game.status==='final'?'FINAL':'LIVE'):fresh?'FBIS RESEARCH':'NO MODEL'}</span>
+    <span className={'fbis-mini-status'+(fresh?' live-model':'')}>{actual?(game.status==='final'?'FINAL':'LIVE'):fresh?'PROJECTED':'NO MODEL'}</span>
    </header>
    <div className="fbis-mini-body">
     <div className="fbis-mini-team fbis-mini-team-away">
@@ -66,11 +66,9 @@ export default function RecoveryMiniGameCard({game,onOpen,clock=Date.now()}){
       {number(facts.awayScore)}<b>–</b>{number(facts.homeScore)}
      </strong>
      {['live','final'].includes(game.status)&&<div className="fbis-mini-saved-projection" aria-label="Saved pregame projection"
-      title={facts.savedProjection?facts.savedProjection.attribution+' · '+facts.savedProjection.modelId+' · Generated '+facts.savedProjection.generatedAt+' · Source captured '+facts.savedProjection.sourceCapturedAt:'No verified pregame projection available'}>
+      title={facts.savedProjection?(facts.savedProjection.expired?'Saved pregame · expired · ':'Saved pregame · ')+facts.savedProjection.attribution+' · '+facts.savedProjection.modelId+' · Generated '+facts.savedProjection.generatedAt+' · Source captured '+facts.savedProjection.sourceCapturedAt:'No verified pregame projection available'}>
       <span>Projected <b>{facts.savedProjection?number(facts.savedProjection.awayScore)+' – '+number(facts.savedProjection.homeScore):'unavailable'}</b></span>
-      {facts.savedProjection&&<small>{facts.savedProjection.expired?'Saved · expired':'Saved pregame'}</small>}
      </div>}
-     <small>{fresh||actual?'AWAY · HOME':'NO CURRENT OUTPUT'}</small>
     </div>
     <div className="fbis-mini-team fbis-mini-team-home">
      <TeamLogo team={home} size={53} tone="light"/>

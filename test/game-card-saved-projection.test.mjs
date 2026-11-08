@@ -18,7 +18,8 @@ test('rendered live/final card shows observed score and saved projected score to
   assert.ok(html.indexOf('fbis-mini-saved-projection')>html.indexOf('99<b>–</b>105'));
   assert.ok(html.indexOf('fbis-mini-saved-projection')<html.indexOf('fbis-mini-team fbis-mini-team-home'));
   assert.ok(!html.includes('FBIS PREGAME PROJECTED'));
-  assert.ok(html.includes('Saved · expired'));assert.ok(html.includes('NBA-FBIS-v1'));
+  assert.ok(html.includes('Saved pregame · expired'));
+  const visible=html.replace(/<[^>]*>/g,'');assert.ok(!visible.includes('Saved'));assert.ok(!visible.includes('AWAY · HOME'));assert.ok(!visible.includes('NBA-FBIS'));assert.ok(html.includes('NBA-FBIS-v1'));
  }
 });
 test('missing saved forecasts and missing actual scores remain explicitly unavailable',()=>{
