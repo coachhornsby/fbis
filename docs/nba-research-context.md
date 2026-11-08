@@ -18,3 +18,13 @@ Run `node scripts/nba-research-snapshot.mjs authorized-local-input.json` to calc
 Personnel statuses are retained with timestamps and source, but not converted to invented player-impact points. Verified full roster coverage, validated player impacts, calibrated context coefficients, and executable market prices remain blockers. Missing rest/travel context blocks feature generation instead of silently imputing zero travel. Numerical outputs are research only. No Dunks & Threes API entitlement, subscriber copying or scraping is implied. An authorized private CSV can be examined separately; no Dunks data is in this change.
 
 Synthetic offline fixtures verify behavior; they are not evidence that today's feeds or production integrations are complete. The existing persisted injury/lineup schemas use team keys, so a separately verified team-key-to-ID mapping is required before passing those rows here. Existing recovery history lacks some required provenance fields and must not be silently relabeled to satisfy this contract.
+
+## Recovery runner shadow connection
+
+The four-sport recovery runner now preserves already-fetched ESPN historical schedule and box-summary observations. It clones and bounds the two already-fetched current-day NBA raw scoreboard responses, retaining both actual URL dates rather than only games normalized to the selected Central date. There are no additional provider requests.
+
+`receipt.json` includes `nbaContextShadow` records with baseline, optional context-adjusted research forecast and paired differences. Published projection packets still use the unchanged incumbent projection. Missing coverage/neutral venue/history evidence suppresses the shadow forecast, not the incumbent. Shadow failures are caught separately.
+
+ESPN does not provide a verified exact final-whistle timestamp here. A captured FINAL status provides a completion upper bound; this is explicitly labeled `observed_final_upper_bound`. It is sufficient to prove that the game was complete by a later checkpoint, but must not be presented as its actual ending time. Current collection is not a historical as-of backtest.
+
+This is operational plumbing for prospective paired validation, not validation of context coefficients. Personnel remains absent from the runner and explicitly unverified. No Dunks subscriber data or new source collection is added.
