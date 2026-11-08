@@ -16,11 +16,11 @@ const q=(family,side,line,venue='Kalshi')=>({venue,marketFamily:family,side,line
 const render=quotes=>renderToStaticMarkup(React.createElement(Card,{game:{...base,exchangeReferenceQuotes:quotes},clock:now}));
 test('empty venues show two branded panels and explicit unavailable messages',()=>{const s=render([]);assert.equal((s.match(/No captured prices/g)||[]).length,2);assert.ok(s.includes('Kalshi reference prices'));assert.ok(s.includes('Polymarket reference prices'));assert.ok(s.includes('aria-hidden="true"'));assert.ok(!s.includes('current matched prices'));});
 test('current offers retain all families, signed lines and team-total sides',()=>{const s=render([q('moneyline','away',null),q('spread','home',3.5),q('total','over',147.5),q('team_total','away_under',70.5)]);for(const x of ['>ML</th>','title="Moneyline"','Spread','Total','Team totals','52.0¢','+3.5','O 147.5','U 70.5','Away Team','Home Team'])assert.ok(s.includes(x),x);assert.equal((s.match(/No captured prices/g)||[]).length,1);});
-test('stale matched quotes remain visibly dated references while wrong-event quotes stay absent',()=>{
+test('stale matched quotes retain relative age and timestamp provenance while wrong-event quotes stay absent',()=>{
  const s=render([{...q('moneyline','away',null),receivedAt:new Date(now-121000).toISOString()},{...q('moneyline','home',null,'Polymarket'),ask:.63,eventStart:'2026-11-08T01:00:00Z'}]);
  assert.equal((s.match(/No captured prices/g)||[]).length,1);
  assert.ok(s.includes('52.0¢'));assert.ok(!s.includes('63.0¢'));
- assert.ok(s.includes('Saved · reference only'));assert.match(s,/Fetched .*CT · 2m ago/);
+ assert.ok(s.includes('Saved · reference only'));assert.match(s,/Fetched 2m ago/);
  assert.ok(s.includes('Provider quote time unknown'));
  assert.ok(s.includes('last fetched reference prices'));
  assert.ok(s.includes('Quotes are saved references, not verified live prices.'));

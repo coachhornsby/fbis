@@ -72,6 +72,12 @@ export default function RecoveryMiniGameCard({game,onOpen,clock=Date.now()}){
      <strong title={displayName(home)}>{displayName(home)}</strong>
     </div>
    </div>
+   {['live','final'].includes(game.status)&&<div className="fbis-mini-saved-projection" aria-label="Saved pregame projection">
+    <span>FBIS PREGAME PROJECTED</span>
+    <strong>{facts.savedProjection?number(facts.savedProjection.awayScore)+' – '+number(facts.savedProjection.homeScore):'Unavailable'}</strong>
+    <small>{facts.savedProjection?'AWAY · HOME · Saved research'+(facts.savedProjection.expired?' · Snapshot expired':''):'No verified pregame projection available'}</small>
+    {facts.savedProjection&&<small title={'Generated '+facts.savedProjection.generatedAt+' · Source captured '+facts.savedProjection.sourceCapturedAt}>{facts.savedProjection.attribution} · {facts.savedProjection.modelId}</small>}
+   </div>}
    {fresh&&<div className="fbis-mini-model-facts" aria-label="Model fair spread and total">
     <div><span>MODEL FAIR SPREAD</span><strong>{facts.fairSpread}</strong></div>
     <div><span>PROJECTED TOTAL</span><strong>{facts.total.toFixed(1)}</strong></div>
@@ -102,7 +108,7 @@ export default function RecoveryMiniGameCard({game,onOpen,clock=Date.now()}){
        ?<div className="fbis-mini-team-total-prices">{cell.lines.map(x=><CapturedQuote key={x.line} cell={x}/>)}</div>
        :<CapturedQuote cell={cell}/>}</td>)}
      </tr>)}</tbody></table>:<p className="fbis-mini-exchange-empty">No captured prices</p>}
-     {hasPrices&&<p className="fbis-mini-quote-note">Fetch times shown · Quotes are saved references, not verified live prices.</p>}
+     {hasPrices&&<p className="fbis-mini-quote-note">Fetch age shown · Quotes are saved references, not verified live prices.</p>}
     </section>;
    })}
   </div>

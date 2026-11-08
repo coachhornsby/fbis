@@ -199,3 +199,8 @@
 .fbis-shell-main.route-board .fbis-mini-quote-note{position:relative;margin:4px 8px 10px;font-size:14px;line-height:1.4;color:#e5e7eb}
 .fbis-shell-main.route-board .fbis-mini-team-total-prices>.fbis-mini-captured-quote{flex-direction:column;align-items:stretch}
 .fbis-shell-main.route-board .fbis-mini-team-total-prices .fbis-mini-quote-time,.fbis-shell-main.route-board .fbis-mini-team-total-prices .fbis-mini-quote-status{white-space:normal;font-size:14px;font-weight:500}
+
+.fbis-shell-main.route-board .fbis-mini-saved-projection{display:flex;flex-direction:column;gap:4px;padding:12px;text-align:center;background:#101b26;border-bottom:1px solid #34404c}
+.fbis-shell-main.route-board .fbis-mini-saved-projection span{font-size:14px;font-weight:800;color:#e5e7eb}
+.fbis-shell-main.route-board .fbis-mini-saved-projection strong{font-size:24px;color:#fbd279;font-variant-numeric:tabular-nums}
+.fbis-shell-main.route-board .fbis-mini-saved-projection small{font-size:13px;line-height:1.4;color:#e5e7eb;overflow-wrap:anywhere}

@@ -1,0 +1,44 @@
+name: FBIS card presentation checks and bounded Pages release
+on:
+  pull_request:
+    paths:
+      - 'src/lib/exchangeCardRows.js'
+      - 'src/lib/recoveryCardFacts.js'
+      - 'src/lib/productionRecoveryOverlay.js'
+      - 'src/components/board/RecoveryMiniGameCard.jsx'
+      - 'src/components/board/recoveryMiniGameCard.css'
+      - 'functions/lib/cbbCardSummary.js'
+      - 'test/game-card-saved-projection.test.mjs'
+      - '.github/workflows/fbis-card-presentation-release.yml'
+  push:
+    branches: [main]
+    paths: ['.github/workflows/fbis-card-presentation-release.yml']
+permissions:
+  contents: read
+concurrency:
+  group: fbis-card-presentation-release
+  cancel-in-progress: false
+jobs:
+  validate-and-release-board:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4.2.2
+      - uses: actions/setup-node@v4.1.0
+        with:
+          node-version: '22'
+      - run: npm ci --ignore-scripts --no-audit --no-fund
+      - name: Verify current and saved score separation and relative quote age
+        run: node --test test/game-card-saved-projection.test.mjs test/recovery-card-facts.test.mjs test/four-sport-private-recovery.test.mjs test/exchange-card-rows.test.mjs test/cbb-card-summary.test.mjs test/retained-exchange-quotes.test.mjs test/recovery-lean-shopping.test.mjs
+      - name: Build existing production board
+        run: npm run build --prefix deploy/board
+      - name: Release Pages only, without collector or budget changes
+        if: github.event_name == 'push'
+        working-directory: deploy/board
+        env:
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        run: |
+          test -n "$CLOUDFLARE_ACCOUNT_ID"
+          test -n "$CLOUDFLARE_API_TOKEN"
+          npx wrangler pages deploy dist --project-name fbis --branch main --commit-hash "${GITHUB_SHA}"
