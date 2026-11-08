@@ -1,0 +1,24 @@
+name: NBA offline context CI
+on:
+  pull_request:
+    paths:
+      - 'functions/lib/nba*.js'
+      - 'scripts/nba-research-snapshot.mjs'
+      - 'scripts/lib/nbaRecoveryShadow.mjs'
+      - 'scripts/recover-four-sport-once.mjs'
+      - 'test/nba-recovery-shadow.test.js'
+      - 'test/nba-research-context.test.js'
+      - '.github/workflows/nba-offline-context-ci.yml'
+permissions:
+  contents: read
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4.2.2
+      - uses: actions/setup-node@v4.1.0
+        with:
+          node-version: '22'
+      - run: node --check functions/lib/nbaResearchContext.js && node --check scripts/nba-research-snapshot.mjs
+      - run: node --import ./test/offline-network.js --test test/nba-recovery-shadow.test.js test/nba-research-context.test.js test/nba-availability-provenance.test.js test/nba-deep-v2.test.js
