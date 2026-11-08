@@ -17,4 +17,8 @@ jobs:
       - uses: actions/setup-node@v4.4.0
         with:
           node-version: '22'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install numpy==2.2.6 pandas==2.2.3
       - run: node --import ./test/offline-network.js --test test/nfl-feature-provenance.test.js test/nfl-feature-snapshot.test.js test/nfl-model.test.js test/nfl-personnel-challenger.test.js test/nfl-pbp-enrich-canon.test.js
