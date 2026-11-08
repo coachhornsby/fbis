@@ -1,0 +1,40 @@
+name: NBA independent archive recovery aggregate certificate
+on:
+  push:
+    branches: [main]
+    paths:
+      - "scripts/nba-independent-recovery-certify.mjs"
+      - ".github/workflows/nba-independent-recovery-certify.yml"
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  certify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: {node-version: "22"}
+      - uses: actions/download-artifact@v4
+        with:
+          repository: coachhornsby/fbis
+          run-id: 40141566499
+          pattern: nba-independent-r2-recovery-*
+          path: archive-evidence/independent
+          merge-multiple: false
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+      - uses: actions/download-artifact@v4
+        with:
+          repository: coachhornsby/fbis
+          run-id: 40060554881
+          pattern: nba-primary-archive-certified-receipt
+          path: archive-evidence/original
+          merge-multiple: false
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+      - run: node scripts/nba-independent-recovery-certify.mjs
+      - uses: actions/upload-artifact@v4
+        with:
+          name: nba-independent-recovery-aggregate-certified
+          path: archive-evidence/certified/nba-independent-recovery.json
+          retention-days: 180
