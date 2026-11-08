@@ -1,0 +1,28 @@
+name: Private Torvik consumer safety
+on:
+  pull_request:
+    paths:
+      - 'functions/lib/privateTorvikSummary.js'
+      - 'deploy/board/functions/api/private/cbb/**'
+      - 'src/lib/privateTorvikRead.js'
+      - 'src/components/board/PrivateTorvikComparison.jsx'
+      - 'src/PublicationApp.jsx'
+      - 'test/private-torvik-consumer.test.mjs'
+      - '.github/workflows/fbis-private-torvik-consumer-ci.yml'
+permissions:
+  contents: read
+jobs:
+  offline-tests-and-build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4.2.2
+      - uses: actions/setup-node@v4.4.0
+        with:
+          node-version: '22'
+      - run: npm ci --ignore-scripts --no-audit --no-fund
+      - run: node --import ./test/offline-network.js --test test/private-torvik-consumer.test.mjs test/cbb-private-access-route.test.mjs test/cbb-card-summary.test.mjs
+      - name: Compile actual publication without source collection
+        run: |
+          mkdir -p deploy/board/snapshots data/public/cbb-readiness
+          node node_modules/vite/bin/vite.js build --config vite.publication.config.js

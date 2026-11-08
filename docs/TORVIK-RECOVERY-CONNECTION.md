@@ -32,3 +32,20 @@ CBB summaries continue to exclude comparisons and raw inputs.
 - Verify current private packet publication and authorized private presentation.
   The public board does not consume Torvik comparisons. Do not describe this
   prepared producer as an end-to-end connected board or automatic live feed.
+
+## Private consumer (code prepared, deployment unverified)
+
+The board's CBB controls offer **Load owner-only Torvik comparison**. This is an
+explicit read of the existing private snapshot, not a source refresh. The request
+uses the existing owner-authenticated endpoint with `?view=torvik`; authentication
+still precedes storage. This view reads one projection object and skips markets.
+It returns only derived comparison scores, exact fixture identities, retrieval
+and expiry labels. Raw input rows and receipt hashes are excluded. Anonymous CBB
+summaries remain unchanged. Nothing is loaded automatically or saved in browser
+storage; Hide clears the private comparison from view.
+
+Open a matching game to view its comparison. The UI distinguishes expired, started,
+and status-unverified games; provider update time remains unknown. Source ratings
+plus FBIS formula are labeled separately from Torvik's published game forecasts.
+No comparison affects the primary score, prices, sorting, edges, or wagers.
+A missing admitted producer snapshot remains unavailable rather than fabricated.

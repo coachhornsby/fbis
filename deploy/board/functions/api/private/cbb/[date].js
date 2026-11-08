@@ -1,3 +1,4 @@
+import {privateTorvikSummary} from '../../../../../../functions/lib/privateTorvikSummary.js';
 // Owner-only CBB delivery. No D1, provider fetches, AI, schedules, or writes.
 // Cloudflare Access enforces the route; we independently verify its signed JWT.
 const noStore={'cache-control':'private, no-store, max-age=0','x-content-type-options':'nosniff','vary':'Cookie'};
@@ -68,6 +69,11 @@ export async function onRequestGet({request,env,params}){
   if(packet.version!==1||packet.visibility!=='PRIVATE_PERSONAL_ANALYSIS'||!Number.isFinite(Date.parse(packet.expiresAt))||
       !Array.isArray(packet.events)||packet.events.length>1000||packet.events.some(e=>e.date!==date)||
       packet.canAuthorizeWager===true)return json({state:'INVALID_PRIVATE_PACKET'},503);
+  // Explicit private comparison view: one projection object read, no market read.
+  if(new URL(request.url).searchParams.get('view')==='torvik'){
+   try{return json({state:'PRIVATE_TORVIK_COMPARISONS',date,packet:privateTorvikSummary(packet,{date})});}
+   catch{return json({state:'NO_PRIVATE_TORVIK_COMPARISON',date},404);}
+  }
   const stored=await readBounded(env.FBIS_PRIVATE_CBB,'private/cbb/markets/'+date+'.json',1024*1024);
   const validOffers=stored?.version===1&&stored?.sport==='cbb'&&stored?.date===date&&
        Array.isArray(stored.offers)&&stored.offers.length<=10000;
