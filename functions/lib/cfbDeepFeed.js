@@ -123,14 +123,23 @@ function put(index, name, patch = {}) {
   if (row.espnId) index.byEspnId[String(row.espnId)] = row;
 }
 
-function buildCompletedForm(rows = [], now = Date.now()) {
+function completedKickoffTime(value) {
+  if (typeof value !== "string") return NaN;
+  const match = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2}):(\d{2})(?:\.\d{1,9})?(?:Z|[+-]\d{2}:\d{2})$/.exec(value);
+  if (!match) return NaN;
+  const [, y, m, d, h, min, sec] = match.map(Number);
+  if (m < 1 || m > 12 || d < 1 || d > new Date(Date.UTC(y, m, 0)).getUTCDate() || h > 23 || min > 59 || sec > 59) return NaN;
+  return Date.parse(value);
+}
+
+export function buildCompletedForm(rows = [], now = Date.now()) {
   const bySchool = new Map();
   const add = (name, pf, pa, start) => {
     const hit = canonicalTeam(name);
     const pFor = num(pf), pAgainst = num(pa);
     if (!hit || pFor == null || pAgainst == null) return;
-    const ts = Date.parse(String(start || ""));
-    if (Number.isFinite(ts) && ts >= now) return;
+    const ts = completedKickoffTime(start);
+    if (!Number.isFinite(ts) || !Number.isFinite(now) || ts >= now) return;
     const key = String(hit.school).toLowerCase();
     const cur = bySchool.get(key) || { school: hit.school, gamesPlayed: 0, pointsFor: 0, pointsAgainst: 0 };
     cur.gamesPlayed += 1;
@@ -142,7 +151,9 @@ function buildCompletedForm(rows = [], now = Date.now()) {
     const hp = g.homePoints ?? g.homeScore ?? g.home_points;
     const ap = g.awayPoints ?? g.awayScore ?? g.away_points;
     const status = String(g.status || g.gameStatus || "").toLowerCase();
-    const completed = g.completed === true || g.isCompleted === true || ["final","complete","completed"].includes(status) || (num(hp) != null && num(ap) != null);
+    const explicitlyUnfinished = g.completed === false || g.isCompleted === false ||
+      ["scheduled", "in_progress", "in progress", "live", "postponed", "cancelled", "canceled", "suspended"].includes(status);
+    const completed = !explicitlyUnfinished && (g.completed === true || g.isCompleted === true || ["final","complete","completed"].includes(status));
     if (!completed) continue;
     const start = g.startDate || g.start_date || g.startTime || g.kickoff || null;
     add(g.homeTeam || g.home || g.home_team, hp, ap, start);
