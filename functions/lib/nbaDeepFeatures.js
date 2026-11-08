@@ -135,5 +135,5 @@ export function buildNbaDeepFeatures(game,{
  const vector=NBA_DEEP_FEATURE_NAMES.map(k=>finite(values[k])??0);
  return {ok:true,vector,values,incumbent:v1,homeState:h,awayState:a,homeShot:hShot,awayShot:aShot,
    schedule:{home:hs,away:as},lineups:{home:hl,away:al},
-   provenance:{marketUsed:false,availabilityVerified:hl.availabilityVerified||al.availabilityVerified}};
+   provenance:{marketUsed:false,availabilityVerified:hl.availabilityVerified&&al.availabilityVerified}};
 }
