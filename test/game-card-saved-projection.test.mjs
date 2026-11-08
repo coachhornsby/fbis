@@ -14,8 +14,12 @@ test('rendered live/final card shows observed score and saved projected score to
   const html=render({...game,status},clock);
   assert.ok(html.includes(status==='live'?'LIVE SCORE':'FINAL SCORE'));
   assert.match(html,/99<b>–<\/b>105/);
-  assert.ok(html.includes('FBIS PREGAME PROJECTED'));assert.ok(html.includes('110 – 112'));
-  assert.ok(html.includes('Snapshot expired'));assert.ok(html.includes('NBA-FBIS-v1'));
+  assert.ok(html.includes('Projected '));assert.ok(html.includes('110 – 112'));
+  assert.ok(html.indexOf('fbis-mini-saved-projection')>html.indexOf('99<b>–</b>105'));
+  assert.ok(html.indexOf('fbis-mini-saved-projection')<html.indexOf('fbis-mini-team fbis-mini-team-home'));
+  assert.ok(!html.includes('FBIS PREGAME PROJECTED'));
+  assert.ok(html.includes('Saved pregame · expired'));
+  const visible=html.replace(/<[^>]*>/g,'');assert.ok(!visible.includes('Saved'));assert.ok(!visible.includes('AWAY · HOME'));assert.ok(!visible.includes('NBA-FBIS'));assert.ok(html.includes('NBA-FBIS-v1'));
  }
 });
 test('missing saved forecasts and missing actual scores remain explicitly unavailable',()=>{
@@ -26,5 +30,5 @@ test('missing saved forecasts and missing actual scores remain explicitly unavai
 test('rendered exchange quote label has relative age but no absolute date',()=>{
  const html=render({...game,exchangeReferenceQuotes:[{venue:'Kalshi',marketFamily:'moneyline',side:'away',ask:.52,transport:'REST',receivedAt:new Date(clock-40000).toISOString(),eventStart:game.start}]},clock);
  assert.ok(html.includes('Fetched 40s ago'));
- assert.ok(!html.includes('Fetched Nov'));assert.ok(html.includes('Reference only'));
+ assert.ok(!html.includes('Fetched Nov'));assert.ok(!html.includes('Reference only'));assert.ok(!html.includes('reference only'));
 });

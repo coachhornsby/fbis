@@ -20,10 +20,10 @@ test('stale matched quotes retain relative age and timestamp provenance while wr
  const s=render([{...q('moneyline','away',null),receivedAt:new Date(now-121000).toISOString()},{...q('moneyline','home',null,'Polymarket'),ask:.63,eventStart:'2026-11-08T01:00:00Z'}]);
  assert.equal((s.match(/No captured prices/g)||[]).length,1);
  assert.ok(s.includes('52.0¢'));assert.ok(!s.includes('63.0¢'));
- assert.ok(s.includes('Saved · reference only'));assert.match(s,/Fetched 2m ago/);
+ assert.ok(s.includes('Stale'));assert.match(s,/Fetched 2m ago/);
  assert.ok(s.includes('Provider quote time unknown'));
  assert.ok(s.includes('last fetched reference prices'));
- assert.ok(s.includes('Quotes are saved references, not verified live prices.'));
+ assert.ok(!s.includes('reference only'));assert.ok(!s.includes('Reference only'));
  assert.ok(!s.includes('current matched prices'));assert.ok(!s.includes('BEST PRICE'));
 });
 test('closed and invalid contract states show unavailable, without old prices or links',()=>{
@@ -41,7 +41,7 @@ test('retained lines link only to supported exact venue destinations',()=>{
  const s=render([kalshi,poly]);
  assert.ok(s.includes('href="https://kalshi.com/markets/kxncaambgame/mens-college-basketball-mens-game/kxncaambgame-26nov06dukeunc?op_market_ticker=KXNCAAMBGAME-26NOV06DUKEUNC-DUKE"'));
  assert.ok(s.includes('href="https://polymarket.us/markets/source-contract-1"'));assert.ok(s.includes('rel="noopener noreferrer"'));
- assert.ok(s.includes('Saved · reference only'));
+ assert.ok(s.includes('Stale'));
  const bad=render([{...poly,marketUrl:'https://evil.invalid/markets/source-contract-1'}]);
  assert.ok(bad.includes('52.0¢'));assert.ok(!bad.includes('href="https://evil.invalid'));
  const mismatched=render([{...poly,marketUrl:'https://polymarket.us/markets/another-contract'}]);

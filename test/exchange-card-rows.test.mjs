@@ -58,3 +58,13 @@ test('both venues show only relative fetch age with timestamp provenance retaine
   assert.equal(closed.observedLabel,'Status checked '+label);assert.equal(closed.price,'Unavailable');
  }
 });
+
+test('price labels omit reference-only wording while stale and stopped states remain explicit',()=>{
+ for(const venue of ['Kalshi','Polymarket'])for(const age of [40000,3600000]){
+  const q={...quote('moneyline','away',null),venue,receivedAt:new Date(now-age).toISOString()};
+  const c=exchangeCardRows({start,exchangeReferenceQuotes:[q]},now)[venue==='Kalshi'?0:4].cells[0];
+  assert.equal(c.statusLabel,age===40000?null:'Stale');
+  assert.equal(c.canAuthorizeWager,false);assert.equal(c.executionEligible,false);
+  assert.ok(!c.observedLabel.includes('reference'));assert.ok(c.observedLabel.startsWith('Fetched '));
+ }
+});
