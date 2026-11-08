@@ -49,7 +49,13 @@ jobs:
             {name:'FBIS_ACCOUNT_BUDGET',type:'durable_object_namespace',class_name:'AccountBudget',script_name:'fbis-account-budget'},
             {name:'FBIS_POLYMARKET_TAGS_JSON',type:'plain_text',text:'{"nfl":["nfl"],"cfb":["cfb"],"nba":["nba"],"cbb":["cbb"],"nhl":["nhl"]'}
           ].sort((a,b)=>a.name.localeCompare(b.name));
-          if(JSON.stringify(normalized)!==JSON.stringify(expected))throw Error('WORKER_BINDINGS_CHANGED_STOP');
+          if(JSON.stringify(normalized)!==JSON.stringify(expected)){
+            const differences=[...new Set([...normalized,...expected].map(b=>b.name))].flatMap(name=>{
+              const a=normalized.find(b=>b.name===name),b=expected.find(b=>b.name===name);
+              if(!a||!b)return [{name,presence:false}];
+              return [...new Set([...Object.keys(a),...Object.keys(b)])].filter(k=>a[k]!==b[k]).map(field=>({name,field,actualType:typeof a[field],expectedType:typeof b[field],actualLength:typeof a[field]==='string'?a[field].length:null,expectedLength:typeof b[field]==='string'?b[field].length:null}));
+            });console.log('BINDING_DIAGNOSTIC '+JSON.stringify(differences));throw Error('WORKER_BINDINGS_CHANGED_STOP');
+          }
           if(settings.compatibility_date!=='2026-10-01'||settings.compatibility_flags?.length||settings.limits?.cpu_ms!==100||settings.observability?.enabled===true||settings.logpush===true||Object.keys(settings.placement||{}).length||(settings.tail_consumers||[]).length)throw Error('WORKER_SETTINGS_CHANGED_STOP');
           const subdomain=await get('/workers/scripts/fbis-polymarket-rest-collector/subdomain');
           if(subdomain.enabled!==false||subdomain.previews_enabled===true)throw Error('WORKER_PUBLIC_ACCESS_CHANGED_STOP');
