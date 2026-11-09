@@ -26,6 +26,8 @@ jobs:
       CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
       CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
       NODE_OPTIONS: "--max-old-space-size=2048"
+      # Conservative rollout hold after diagnostic calls, not a provider quota reset.
+      FBIS_TORVIK_NOT_BEFORE_DATE: "2026-11-10"
     steps:
       - uses: actions/checkout@v4.2.2
       - uses: actions/setup-node@v4.1.0
@@ -34,12 +36,15 @@ jobs:
       - name: Verify bounded runner and original projection contract
         run: |
           node --check scripts/recover-four-sport-once.mjs
-          node --test test/cbb-private-access-route.test.mjs test/four-sport-private-recovery.test.mjs test/recovery-lean-shopping.test.mjs test/nfl-automatic-projection-form.test.mjs test/public-four-sport-projections.test.mjs test/cbb-recovery-input.test.mjs
+          node --test test/cbb-private-access-route.test.mjs test/four-sport-private-recovery.test.mjs test/recovery-lean-shopping.test.mjs test/nfl-automatic-projection-form.test.mjs test/public-four-sport-projections.test.mjs test/cbb-recovery-input.test.mjs test/torvik-recovery.test.mjs test/torvik-recovery-input.test.mjs test/private-torvik-consumer.test.mjs
       - name: Refresh today's free-input research projections once
         env:
           # Licensed credential is available only to this bounded same-day step.
           KENPOM_API_KEY: ${{ secrets.KENPOM_API_KEY || secrets.KENPOM }}
           FBIS_CBB_OUTPUT_PATH: ${{ runner.temp }}/fbis-cbb-ratings.json
+          # One daily bulk pair; next-day preparation reuses these exact receipts.
+          FBIS_TORVIK_RECOVERY_ADMITTED: ${{ github.event_name == 'schedule' && github.run_attempt == 1 && '1' || '0' }}
+          FBIS_TORVIK_OUTPUT_PATH: ${{ runner.temp }}/fbis-torvik-ratings.json
         run: |
           status=0
           node scripts/recover-four-sport-once.mjs || status=$?
@@ -52,13 +57,15 @@ jobs:
           # Never double-consume the licensed KenPom feed for next-day research.
           KENPOM_API_KEY: ""
           FBIS_CBB_INPUT_PATH: ${{ runner.temp }}/fbis-cbb-ratings.json
+          FBIS_TORVIK_RECOVERY_ADMITTED: ${{ github.event_name == 'schedule' && github.run_attempt == 1 && '1' || '0' }}
+          FBIS_TORVIK_INPUT_PATH: ${{ runner.temp }}/fbis-torvik-ratings.json
         run: |
           NEXT_DATE=$(node --input-type=module -e "import {boardDate,shiftBoardDate} from './functions/lib/publicBoardSnapshot.js'; console.log(shiftBoardDate(boardDate(),1));")
           FBIS_RECOVERY_DATE="$NEXT_DATE" node scripts/recover-four-sport-once.mjs
           cp artifacts/four-sport-recovery/receipt.json artifacts/four-sport-recovery/receipt-next-day.json
-      - name: Remove ephemeral licensed input
+      - name: Remove ephemeral private inputs
         if: always()
-        run: rm -f "$RUNNER_TEMP/fbis-cbb-ratings.json"
+        run: rm -f "$RUNNER_TEMP/fbis-cbb-ratings.json" "$RUNNER_TEMP/fbis-torvik-ratings.json"
       - name: Retain bounded, non-public job evidence
         if: always()
         uses: actions/upload-artifact@v4.6.2

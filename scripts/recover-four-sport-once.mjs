@@ -6,6 +6,7 @@
  * for CBB only, one licensed KenPom rating feed when the owner already has a key.
  * Missing, stale, unmatched or insufficient evidence -> NO PREDICTION.
  */
+import {obtainTorvikRecoveryInput,torvikRecoveryAdmitted} from './lib/torvikRecoveryInput.mjs';
 import {obtainCbbRecoveryInput} from './lib/cbbRecoveryInput.mjs';
 import {createRecoverySourceBudget,recoveryCoverage,recoveryReceiptDiagnostics} from './lib/recoveryEvidence.mjs';
 import {captureNbaSchedule,captureNbaResponse,combineNbaCurrentCaptures,runNbaRecoveryShadow} from './lib/nbaRecoveryShadow.mjs';
@@ -37,12 +38,15 @@ const cbbInputPath=process.env.FBIS_CBB_INPUT_PATH||null,cbbOutputPath=process.e
 let cbbCapturedAt=null;
 const outDir='artifacts/four-sport-recovery';
 await mkdir(outDir,{recursive:true});
-// Separate operator admission; intentionally absent from the scheduled workflow.
-const torvikAdmitted=process.env.FBIS_TORVIK_RECOVERY_ADMITTED==='1';
-const sourceBudget=createRecoverySourceBudget({Torvik:torvikAdmitted?2:0});
+// Explicit source admission. Reused same-job input never admits another fetch.
+const torvikAdmitted=torvikRecoveryAdmitted({enabled:process.env.FBIS_TORVIK_RECOVERY_ADMITTED,
+ notBefore:process.env.FBIS_TORVIK_NOT_BEFORE_DATE,now:nowMs});
+const torvikInputPath=process.env.FBIS_TORVIK_INPUT_PATH||null,torvikOutputPath=process.env.FBIS_TORVIK_OUTPUT_PATH||null;
+const torvikFetchAdmitted=torvikAdmitted&&!torvikInputPath;
+const sourceBudget=createRecoverySourceBudget({Torvik:torvikFetchAdmitted?2:0});
 const results={date,generatedAt,ownerScope:'PRIVATE_RESEARCH_ONLY',modelAuthority:'RESEARCH_ONLY',
  noD1:true,paidCollectors:0,providerCalls:sourceBudget.counts,written:[],skipped:[],errors:[],
- noWagerAuthorization:true,cost:{d1Reads:0,d1Writes:0,paidCollectors:0,espnCallsCap:134,kenpomCallsCap:1,torvikCallsCap:torvikAdmitted?2:0}};
+ noWagerAuthorization:true,cost:{d1Reads:0,d1Writes:0,paidCollectors:0,espnCallsCap:134,kenpomCallsCap:1,torvikCallsCap:torvikFetchAdmitted?2:0}};
 const sha=s=>createHash('sha256').update(s).digest('hex');
 const shiftDay=(d,n)=>new Date(dayNumber(d)+n*86400000).toISOString().slice(0,10);
 function assertUrl(url){
@@ -243,9 +247,11 @@ async function run(){
   if(e)eventGroups.nba.push(e);
  }
  let torvik=null;
- if(target.cbb.length&&kenpomKey&&torvikAdmitted){
-  torvik=await captureTorvikRecovery({admitted:true,season:seasonYear+1,reserve:kind=>sourceBudget.reserve(kind)});
-  results.torvik={state:torvik.state,season:seasonYear+1,receipts:torvik.receipts||[],error:torvik.error||null,providerUpdatedAt:null};
+ if((target.cbb.length||torvikOutputPath)&&(kenpomKey||cbbInputPath)&&torvikAdmitted){
+  try{torvik=await obtainTorvikRecoveryInput({inputPath:torvikInputPath,outputPath:torvikOutputPath,season:seasonYear+1,
+   capture:()=>captureTorvikRecovery({admitted:torvikFetchAdmitted,season:seasonYear+1,reserve:kind=>sourceBudget.reserve(kind)})});}
+  catch(e){torvik={ok:false,state:'UNAVAILABLE',error:String(e.message||e)};}
+  results.torvik={state:torvik.state,source:torvikInputPath?'SAME_JOB_REUSE':'BULK_CAPTURE',season:seasonYear+1,receipts:torvik.receipts||[],error:torvik.error||null,providerUpdatedAt:null};
  }
  // The one permitted licensed current CBB ratings pull runs only if a key was ALREADY provisioned.
  if((target.cbb.length||cbbOutputPath)&&(kenpomKey||cbbInputPath)){
