@@ -26,9 +26,10 @@ jobs:
         run: |
           node --check scripts/publish-cfb-week11-fitted.mjs
           node --test test/cfbd-frozen-prior.test.mjs test/public-four-sport-projections.test.mjs test/private-four-sport-projections.test.mjs
-      - name: Capture missing frozen inputs with five requests and publish verified forecasts
+      - name: Refresh current PPA and completion with two requests; reuse verified frozen prior
         if: github.event_name == 'push'
         env:
+          FBIS_CFB_REFRESH_CURRENT: "1"
           CFBD_CBBD_KEY: ${{ secrets.CFBD_CBBD_KEY || secrets.CFBD_API_KEY }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
