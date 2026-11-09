@@ -1,3 +1,4 @@
+import {verifiedOppositeBinding} from '../../functions/lib/polymarketOppositeBinding.js';
 import {pregameDiscoveryPlan,pregameDiscoveryUrl,restReferenceSnapshot} from './pregame.mjs';
 import {beginJobExecution} from '../account-budget/jobScope.mjs';
 import {POLY_REST_JOB} from '../account-budget/executionJobs.mjs';
@@ -35,6 +36,25 @@ export function verifiedFullGameDisplayBinding(offer,fixture){
   return {...base,side,line};
  }
  return null;
+}
+/** Enrich only an unambiguous pair from this exact provider market response. */
+export function verifiedFullGamePairBinding(long,offers,fixture){
+ const binding=verifiedFullGameDisplayBinding(long,fixture);
+ if(!binding)return null;
+ const genuineId=o=>typeof o?.raw?.providerSide?.id==='string'&&o.raw.providerSide.id.length>0&&o.raw.providerSide.id===o.sourceOutcomeId;
+ // Reject fallback labels as outcome IDs, duplicate/ambiguous polarity, and
+ // negated labels: an opposite team/side must actually be source-authored.
+ if(offers.length!==2||offers.filter(o=>o.raw?.contractLong===true).length!==1||!genuineId(long)||
+   /^not\s/i.test(String(long.raw.providerSide.team?.name||long.raw.providerSide.description||'')))return binding;
+ const short=offers.find(o=>o.raw?.contractLong===false);
+ if(!short||!genuineId(short)||short.sourceOutcomeId===long.sourceOutcomeId||
+   short.sourceMarketId!==long.sourceMarketId||short.period!==long.period||short.marketFamily!==long.marketFamily||
+   /^not\s/i.test(String(short.raw.providerSide.team?.name||short.raw.providerSide.description||'')))return binding;
+ // Reuse identity parsing, explicitly checking original short polarity above.
+ const opposite=verifiedFullGameDisplayBinding({...short,raw:{...short.raw,contractLong:true}},fixture);
+ if(!opposite)return binding;
+ const paired={...binding,oppositeSide:opposite.side,oppositeLine:opposite.line,oppositeSourceOutcomeId:opposite.sourceOutcomeId};
+ return verifiedOppositeBinding(paired,long.marketFamily,long.sport)?paired:binding;
 }
 /** Strict source-authored CBB 1H total binding. Never infer a period from the UI or a full-game line. */
 export function verifiedCbbFirstHalfTotalBinding(offer,fixture){
@@ -106,7 +126,7 @@ export async function collectBoundedPolymarketRest(env,{sport,slot=Math.floor(Da
     }
     for(const offer of offers){
      if(!['moneyline','spread','total'].includes(offer.marketFamily))continue;
-     const displayBinding=verifiedFullGameDisplayBinding(offer,fixture);
+     const displayBinding=verifiedFullGamePairBinding(offer,offers,fixture);
      if(!displayBinding)continue;
      if(pregame)referenceMarkets.set(offer.sourceMarketId,referenceMarket);
      candidates.push({sport,source_market_id:offer.sourceMarketId,provider_event_id:offer.raw.providerEventId,eventNavigation:offer.raw.eventNavigation,canonical_event_id:match.id,market_family:offer.marketFamily,event_start_time:fixture.start,collected_at:new Date(now).toISOString(),displayBinding});
@@ -128,14 +148,17 @@ export async function collectBoundedPolymarketRest(env,{sport,slot=Math.floor(Da
   pages.push({tag,offset:page*20,events:value.events});
   processEvents(value.events);
   if(sport==='cbb')for(const e of value.events){
-   if(typeof e.slug==='string'&&/^cbb-[a-z0-9-]{1,140}$/.test(e.slug)
-     &&matchPolymarketUsEvent(e,manifest.fixtures,sport).id)acceptedEvents.push(e);
+   const match=matchPolymarketUsEvent(e,manifest.fixtures,sport);
+   const fixture=manifest.fixtures.find(g=>g.id===match.id);
+   if(pregame&&(!fixture||Date.parse(fixture.start)<=now||
+     (e.live===true||e.eventState?.live===true)&&e.closed!==true&&e.ended!==true))continue;
+   if(typeof e.slug==='string'&&/^cbb-[a-z0-9-]{1,140}$/.test(e.slug)&&match.id)acceptedEvents.push(e);
   }
   if(value.events.length<20)exhaustedTags.add(tag);
  }
- if(!pregame&&sport==='cbb'&&acceptedEvents.length){
+ if(sport==='cbb'&&acceptedEvents.length){
   const uniqueEvents=[...new Map(acceptedEvents.map(e=>[e.slug,e])).values()];
-  const offset=Math.floor(slot/10)%uniqueEvents.length;
+  const offset=(pregame?plan[0].detailRotation:Math.floor(slot/10))%uniqueEvents.length;
   for(let i=0;i<Math.min(3,uniqueEvents.length);i++){
    const selected=uniqueEvents[(offset+i)%uniqueEvents.length];
    const url=new URL('/v1/events',POLY_US_API);

@@ -12,8 +12,13 @@ export async function refreshExchangeFixtures(original,{sport,slot,now=Date.now(
  // bounded request and the same response/fixture caps. ESPN football rejects
  // date ranges; its default current-week scoreboard covers upcoming games.
  // Apply the existing 72-hour horizon locally instead of skipping weekdays.
- const dates=(sport==='nfl'||sport==='cfb')?[0,1,2,3].map(n=>shiftBoardDate(date,n)):[date];
- const dateQuery=dates.length>1?'':'&dates='+date.replaceAll('-','');
+ const football=sport==='nfl'||sport==='cfb';
+ const pregame=original.FBIS_POLYMARKET_PREGAME_REST==='true';
+ // Pregame discovery needs tomorrow's fixtures too. ESPN basketball/hockey
+ // support a date range in the same single bounded request; football does not.
+ const dates=(football?[0,1,2,3]:pregame?[0,1]:[0]).map(n=>shiftBoardDate(date,n));
+ const dateQuery=football?'':'&dates='+dates[0].replaceAll('-','')+
+  (pregame?'-'+dates.at(-1).replaceAll('-',''):'');
  const response=await env.FBIS_JOB_FETCH('https://site.api.espn.com'+path+'?limit=499'+dateQuery+(sport==='cfb'?'&groups=80':sport==='cbb'?'&groups=50':''));
  if(!response.ok)throw Error('FIXTURE_SOURCE_HTTP_'+response.status);
  const payload=await response.json();

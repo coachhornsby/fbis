@@ -1,3 +1,4 @@
+import {verifiedOppositeBinding} from './polymarketOppositeBinding.js';
 import {beginJobExecution} from '../../services/account-budget/jobScope.mjs';
 import {POLY_SNAPSHOT_READ_JOB} from '../../services/account-budget/executionJobs.mjs';
 import {STREAM_SNAPSHOT_KEY,validateStreamRoster} from '../../services/polymarket-us-stream/boundedSession.mjs';
@@ -68,14 +69,13 @@ export function selectBoundedPolymarketOffers(snapshot,games=[],sport){
   if(row.sport!==sport||!fixture||!binding||!q||String(fixture.sport||sport)!==sport||!Number.isFinite(Date.parse(fixture.start))||Math.abs(Date.parse(fixture.start)-Date.parse(row.event_start_time))>60000)continue;
   const offer={source:snapshot.transport==='REST'?'Polymarket US REST':'Polymarket US WebSocket',marketFamily:row.market_family,period:binding.period,side:binding.side,line:binding.line,contractPrice:q.bestAsk,sourceMarketId:row.source_market_id,eventNavigation:row.eventNavigation??null,marketUrl:q.marketUrl??null,sourceOutcomeId:binding.sourceOutcomeId,collectedAt:q.receivedAt,observedAt:q.sourceObservedAt,sourceObservedAt:q.sourceObservedAt,providerObservedAt:q.sourceObservedAt,quoteKind:'DISPLAY_REFERENCE_NOT_EXECUTABLE',deliveryStore:snapshot.transport==='REST'?'R2_BOUNDED_REST':'R2_BOUNDED_STREAM',stale:q.stale===true,fresh:q.fresh===true,ageSeconds:q.ageSeconds??null,sourceAgeSeconds:q.sourceAgeSeconds??null,marketStatus:q.marketStatus??'unknown',referenceOnly:true,raw:{bestBid:q.bestBid,bestAsk:q.bestAsk},priceVerified:false,providerTimestampVerified:false,identityVerified:false,marketAvailable:false,executionEligible:false,canQualify:false,canAuthorizeWager:false};
   const list=byId.get(row.canonical_event_id)||[];list.push(offer);
-  if(row.sport==='cbb'&&row.market_family==='total'&&binding.period==='first_half'&&
-     binding.side==='over'&&binding.oppositeSide==='under'&&
-     typeof binding.oppositeSourceOutcomeId==='string'&&price(q.bestBid)!=null){
+  const opposite=verifiedOppositeBinding(binding,row.market_family,row.sport);
+  if(opposite&&price(q.bestBid)!=null&&price(q.bestAsk)!=null&&q.bestBid<=q.bestAsk){
     // Single US instrument: buying synthetic NO costs 1 - the observed YES bid.
     // This is a raw reference, before fees/collateral and never an executable price.
     const noCost=Math.round((1-q.bestBid)*10000)/10000;
-    if(price(noCost)!=null)list.push({...offer,side:'under',contractPrice:noCost,
-      sourceOutcomeId:binding.oppositeSourceOutcomeId,quoteKind:'SYNTHETIC_NO_FROM_YES_BID_REFERENCE',
+    if(price(noCost)!=null)list.push({...offer,side:opposite.side,line:opposite.line,contractPrice:noCost,
+      sourceOutcomeId:opposite.sourceOutcomeId,quoteKind:'SYNTHETIC_NO_FROM_YES_BID_REFERENCE',
       raw:{...offer.raw,priceDerivation:'COMPLEMENT_OF_YES_BID'},priceVerified:false,
       executionEligible:false,canQualify:false,canAuthorizeWager:false});
   }
