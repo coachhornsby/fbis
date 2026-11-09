@@ -34,11 +34,12 @@ jobs:
       - name: Verify bounded runner and original projection contract
         run: |
           node --check scripts/recover-four-sport-once.mjs
-          node --test test/cbb-private-access-route.test.mjs test/four-sport-private-recovery.test.mjs test/recovery-lean-shopping.test.mjs test/nfl-automatic-projection-form.test.mjs test/public-four-sport-projections.test.mjs
+          node --test test/cbb-private-access-route.test.mjs test/four-sport-private-recovery.test.mjs test/recovery-lean-shopping.test.mjs test/nfl-automatic-projection-form.test.mjs test/public-four-sport-projections.test.mjs test/cbb-recovery-input.test.mjs
       - name: Refresh today's free-input research projections once
         env:
           # Licensed credential is available only to this bounded same-day step.
           KENPOM_API_KEY: ${{ secrets.KENPOM_API_KEY || secrets.KENPOM }}
+          FBIS_CBB_OUTPUT_PATH: ${{ runner.temp }}/fbis-cbb-ratings.json
         run: |
           node scripts/recover-four-sport-once.mjs
           cp artifacts/four-sport-recovery/receipt.json artifacts/four-sport-recovery/receipt-today.json
@@ -46,10 +47,14 @@ jobs:
         env:
           # Never double-consume the licensed KenPom feed for next-day research.
           KENPOM_API_KEY: ""
+          FBIS_CBB_INPUT_PATH: ${{ runner.temp }}/fbis-cbb-ratings.json
         run: |
           NEXT_DATE=$(node --input-type=module -e "import {boardDate,shiftBoardDate} from './functions/lib/publicBoardSnapshot.js'; console.log(shiftBoardDate(boardDate(),1));")
           FBIS_RECOVERY_DATE="$NEXT_DATE" node scripts/recover-four-sport-once.mjs
           cp artifacts/four-sport-recovery/receipt.json artifacts/four-sport-recovery/receipt-next-day.json
+      - name: Remove ephemeral licensed input
+        if: always()
+        run: rm -f "$RUNNER_TEMP/fbis-cbb-ratings.json"
       - name: Retain bounded, non-public job evidence
         if: always()
         uses: actions/upload-artifact@v4.6.2
