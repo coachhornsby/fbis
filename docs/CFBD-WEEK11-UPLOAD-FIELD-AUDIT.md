@@ -113,3 +113,9 @@ Research-only passing/rushing matchup code had reversed EPA-allowed direction. I
 Weekly archive and holdout code previously inferred a verified cutoff from the week label and fabricated prekickoff collection times when missing or late. Those fallbacks are removed. Historical eligibility now requires explicit cutoff evidence plus an actual prekickoff source clock. Unknown or postgame evidence remains unverified instead of being rewritten.
 
 Private frozen-model provenance now carries prior artifact hashes, prior endpoint receipt hashes and completion-evidence receipt hashes when available. Public summaries continue to omit private source payloads. The primary scores are unchanged by these auditability fields.
+
+## Latest completed-game coverage, verified November 9
+
+Read-only inspection of the actual stored PPA and completion packets captured at 12:08:47.985 UTC and 12:08:49.022 UTC found all 134 teams across the 67 fixtures had their latest completed regular-season game represented with numeric offense and defense PPA. No earlier completed games were missing among 1,209 team-game observations. The newest completed-game kickoff was November 8 at 03:30 UTC. No provider requests were made for this inspection.
+
+A source being fifteen minutes old is not a problem when its completed-game coverage is intact. Source age, inclusion of the latest completed game, and historical prekickoff leakage are distinct checks. The new audit helper tests those distinctions and does not impose a fifteen-minute rule or change existing packet expiry. Coverage is verified against the captured completion schedule, not an assertion about unobserved later provider updates. It does not prove the weekly upload's feature cutoff.
