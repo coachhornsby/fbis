@@ -24,7 +24,7 @@ jobs:
       - run: npm ci --ignore-scripts --no-audit --no-fund
       - name: Verify Torvik and private access offline
         run: node --import ./test/offline-network.js --test test/private-torvik-consumer.test.mjs test/torvik-recovery.test.mjs test/cbb-private-access-route.test.mjs test/cbb-card-summary.test.mjs test/torvik-transport-safety.test.js test/polymarket-pregame-rest.test.mjs test/polymarket-board.test.js
-      - name: Verify PinnOdds captured references offline
+      - name: Verify PinnOdds elapsed-age presentation and references offline
         run: node --test test/pinnodds-detailed-basketball.test.mjs test/pinnodds-direct-publication.test.mjs test/pinnodds-restart.test.mjs test/pinnodds-recovery-card-render.test.mjs test/pinnodds-card-rows.test.mjs
       - name: Preserve approved Pages display flag
         run: |

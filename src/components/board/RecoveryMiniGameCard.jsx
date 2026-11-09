@@ -107,7 +107,6 @@ export default function RecoveryMiniGameCard({game,onOpen,clock=Date.now()}){
        ?<div className="fbis-mini-team-total-prices">{cell.lines.map(x=><CapturedQuote key={x.line} cell={x}/>)}</div>
        :<CapturedQuote cell={cell}/>}</td>)}
      </tr>)}</tbody></table>:<p className="fbis-mini-exchange-empty">No captured prices</p>}
-     {venue==='Pinnacle'&&<p className="fbis-mini-pinnacle-source"><img src="/brands/pinnacle-user-icon.png" width="16" height="16" alt=""/>Pinnacle via PinnOdds · Partial capture<span>Last fetched {new Date(game.pinnoddsResearch.latestCapturedAt).toLocaleString('en-US',{timeZone:'America/Chicago',month:'short',day:'numeric',hour:'numeric',minute:'2-digit',timeZoneName:'short'})} · Provider quote time unknown</span></p>}
     </section>;
    })}
   </div>
