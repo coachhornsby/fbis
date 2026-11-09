@@ -10,6 +10,7 @@ test('unsupported content type blocks',async()=>{const r=await captureTorvikReco
 test('budget denial happens before network',async()=>{let calls=0;const r=await captureTorvikRecovery({admitted:true,reserve:()=>{throw Error('budget')},fetchFn:async()=>calls++});assert.equal(calls,0);assert.equal(r.error,'budget');});
 test('bad coverage cannot trigger second read',async()=>{let calls=0;const r=await captureTorvikRecovery({admitted:true,reserve:()=>{},fetchFn:async()=>{calls++;return response('team,adjoe,adjde,adjt\nDuke,120,90,70')}});assert.equal(calls,1);assert.equal(r.error,'TORVIK_RATINGS_COVERAGE_INVALID');});
 test('invalid season fails before network',async()=>{await assert.rejects(captureTorvikRecovery({admitted:true,season:NaN,reserve:()=>{}}),/INVALID_ENDING_SEASON/);});
+import {parseCsvLine} from '../functions/lib/torvikCbb.js';
 import {listTeams} from '../functions/lib/teams.js';
 import {createRecoverySourceBudget} from '../scripts/lib/recoveryEvidence.mjs';
 const names=listTeams('cbb').slice(0,330).map(t=>t.school),q=s=>'"'+s.replaceAll('"','""')+'"';
@@ -31,8 +32,31 @@ test('offline source capture to private comparison preserves computation time an
  const ids=Object.keys(capture.index.byCanonicalId),date='2026-11-08';
  const game={id:'123',sport:'cbb',date,status:'scheduled',neutralSite:false,start:'2026-11-08T16:00Z',home:{canonicalId:ids[0],espnId:ids[0].replace('cbb-','')},away:{canonicalId:ids[1],espnId:ids[1].replace('cbb-','')}};
  const comparison=torvikRecoveryComparison(game,capture,{now:computed});assert.ok(comparison);
- const packet={version:1,visibility:'PRIVATE_PERSONAL_ANALYSIS',season:2027,canAuthorizeWager:false,generatedAt:new Date(retrieved-60000).toISOString(),expiresAt:'2026-11-08T17:59:00Z',torvikProvenance:{season:2027,usage:'PRIVATE_COMPARISON_ONLY',providerUpdatedAt:null,receipts:capture.receipts},events:[{eventId:game.id,date,start:game.start,homeId:ids[0],awayId:ids[1],neutralSite:false,comparison}]};
- const view=privateTorvikSummary(packet,{date,now:computed});assert.equal(torvikComparisonFor(game,view,computed).comparison.generatedAt,new Date(computed).toISOString());assert.equal(n,2);
+ const packet={version:1,visibility:'PRIVATE_PERSONAL_ANALYSIS',season:2027,canAuthorizeWager:false,generatedAt:new Date(computed+1000).toISOString(),expiresAt:'2026-11-08T17:59:00Z',torvikProvenance:{season:2027,usage:'PRIVATE_COMPARISON_ONLY',providerUpdatedAt:null,receipts:capture.receipts},events:[{eventId:game.id,date,start:game.start,homeId:ids[0],awayId:ids[1],neutralSite:false,comparison}]};
+ assert.ok(Date.parse(packet.generatedAt)>Date.parse(comparison.generatedAt));
+ const view=privateTorvikSummary(packet,{date,now:computed+2000});assert.equal(torvikComparisonFor(game,view,computed+2000).comparison.generatedAt,new Date(computed).toISOString());assert.equal(n,2);
  for(const at of [retrieved-1,Date.parse(game.start),retrieved+7*3600000])assert.equal(torvikRecoveryComparison(game,capture,{now:at}),null);
  assert.equal(torvikRecoveryComparison({...game,start:'2026-11-09T16:00Z'},capture,{now:retrieved+6*3600000}),null);
+});
+
+
+// Structural fixture matches the observed 2027 header, not provider team values.
+const extendedHeader=',ft%,rk,ft%D,rk,3P rate,rk,3P rate D,rk,arate,rk,arateD,rk';
+const extendedFactors=factors.split('\n').map((line,i)=>i?line+','+Array.from({length:16},(_,j)=>j%2?'100':'50').join(','):line+extendedHeader).join('\n');
+test('2027 extended bulk shape preserves known factors and ignores unlabelled extras',()=>{
+ const core=parseRecoveryFactors(factors),current=parseRecoveryFactors(extendedFactors);
+ assert.deepEqual(current,core);
+ // Extra cells cannot silently become ratings, four factors, or weights.
+ const lines=extendedFactors.split('\n'),cells=parseCsvLine(lines[1]);
+ cells.splice(25,16,...Array.from({length:16},(_,i)=>'UNUSED_'+i));
+ assert.deepEqual(parseRecoveryFactors(lines[0]+'\n'+cells.map(q).join(','))[0],core[0]);
+});
+test('extended bulk schema rejects renamed, reordered and unexpected-width inputs',()=>{
+ for(const text of [extendedFactors.replace('ft%D','unknown'),extendedFactors.replace('arateD','arate'),extendedFactors.replace('eFG% Def','TO% Def.')])assert.throws(()=>parseRecoveryFactors(text),/SCHEMA_UNVERIFIED/);
+ const [header,line]=extendedFactors.split('\n');
+ for(const n of [25,37,40,42]){const cells=parseCsvLine(line);cells.length=n;assert.throws(()=>parseRecoveryFactors(header+'\n'+cells.map(x=>q(x||'0')).join(',')),/SCHEMA_UNVERIFIED/);}
+});
+test('extended 2027 factors complete the same two-request source capture',async()=>{
+ let calls=0;const capture=await captureTorvikRecovery({admitted:true,reserve:()=>{},fetchFn:async()=>response(calls++?extendedFactors:ratings)});
+ assert.equal(calls,2);assert.equal(capture.ok,true,capture.error);assert.equal(capture.rows.length,330);assert.equal(capture.rows[0].efgPct,.5);assert.equal(capture.providerUpdatedAt,null);assert.equal(capture.canAuthorizeWager,false);
 });

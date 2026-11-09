@@ -3,7 +3,7 @@ import {privateTorvikSummary,torvikComparisonFor} from '../functions/lib/private
 import {loadPrivateTorvik} from '../src/lib/privateTorvikRead.js';
 import {readFileSync} from 'node:fs';
 const now=Date.parse('2026-11-08T14:00:00Z'),date='2026-11-08';
-function fixture(){return {version:1,visibility:'PRIVATE_PERSONAL_ANALYSIS',season:2027,canAuthorizeWager:false,generatedAt:'2026-11-08T12:00:00Z',expiresAt:'2026-11-08T18:00:00Z',rawInputs:'DO_NOT_EXPOSE',torvikProvenance:{season:2027,usage:'PRIVATE_COMPARISON_ONLY',providerUpdatedAt:null,receipts:['team_results','fffinal'].map(path=>({url:`https://barttorvik.com/2027_${path}.csv`,httpStatus:200,sha256:'a'.repeat(64),retrievedAt:'2026-11-08T12:01:00Z'}))},events:[{eventId:'123',date,start:'2026-11-08T17:00:00Z',homeId:'cbb-1',awayId:'cbb-2',neutralSite:false,comparison:{generatedAt:'2026-11-08T12:02:00Z',home:75,away:70,margin:5,total:145,comparisonOnly:true,canAuthorizeWager:false,raw:'DO_NOT_EXPOSE'}}]};}
+function fixture(){return {version:1,visibility:'PRIVATE_PERSONAL_ANALYSIS',season:2027,canAuthorizeWager:false,generatedAt:'2026-11-08T12:03:00Z',expiresAt:'2026-11-08T18:00:00Z',rawInputs:'DO_NOT_EXPOSE',torvikProvenance:{season:2027,usage:'PRIVATE_COMPARISON_ONLY',providerUpdatedAt:null,receipts:['team_results','fffinal'].map(path=>({url:`https://barttorvik.com/2027_${path}.csv`,httpStatus:200,sha256:'a'.repeat(64),retrievedAt:'2026-11-08T12:01:00Z'}))},events:[{eventId:'123',date,start:'2026-11-08T17:00:00Z',homeId:'cbb-1',awayId:'cbb-2',neutralSite:false,comparison:{generatedAt:'2026-11-08T12:02:00Z',home:75,away:70,margin:5,total:145,comparisonOnly:true,canAuthorizeWager:false,raw:'DO_NOT_EXPOSE'}}]};}
 const game={id:'123',sport:'cbb',date,start:'2026-11-08T17:00:00Z',home:{espnId:'1'},away:{espnId:'2'},neutralSite:false,status:'scheduled'};
 test('private summary strictly whitelists comparison and provenance labels',()=>{const r=privateTorvikSummary(fixture(),{date,now});assert.equal(r.events[0].comparison.total,145);assert.equal(r.providerUpdatedAt,null);assert.ok(!JSON.stringify(r).includes('DO_NOT_EXPOSE'));assert.equal(r.torvikProvenance,undefined);assert.equal(r.canAuthorizeWager,false);});
 for(const [name,mutate] of [['wrong season',p=>p.season=2026],['public packet',p=>p.visibility='PUBLIC'],['missing receipts',p=>p.torvikProvenance.receipts=[]],['wrong source',p=>p.torvikProvenance.receipts[0].url='https://example.com/x'],['fake hash',p=>p.torvikProvenance.receipts[0].sha256='z'.repeat(64)],['future retrieval',p=>p.torvikProvenance.receipts[0].retrievedAt='2026-11-09T12:00Z'],['after-tip',p=>p.events[0].start='2026-11-08T12:00Z'],['duplicate',p=>p.events.push(p.events[0])],['wrong date',p=>p.events[0].date='2026-11-09'],['bad scores',p=>p.events[0].comparison.total=999],['wager authority',p=>p.events[0].comparison.canAuthorizeWager=true]])test(name+' rejected',()=>{const p=fixture();mutate(p);assert.throws(()=>privateTorvikSummary(p,{date,now}));});
@@ -47,3 +47,17 @@ test('source freshness never extends an earlier packet expiry',()=>{
 });
 
 test('comparison computation must follow receipts and precede tip and source expiry',()=>{for(const generatedAt of [undefined,'2026-11-08T11:59:00Z','2026-11-08T12:00:00Z','2026-11-08T17:00:00Z','2026-11-09T12:00:00Z']){const p=fixture();p.events[0].comparison.generatedAt=generatedAt;assert.throws(()=>privateTorvikSummary(p,{date,now}));}});
+
+
+test('finalized producer envelope follows source capture and comparison computation',()=>{
+ const p=fixture();
+ const result=privateTorvikSummary(p,{date,now});
+ assert.equal(result.generatedAt,'2026-11-08T12:03:00Z');
+ assert.equal(result.events[0].comparison.generatedAt,'2026-11-08T12:02:00Z');
+ assert.equal(torvikComparisonFor(game,result,now).expired,false);
+ // Capturing the envelope cannot create a comparison that has not happened yet.
+ p.events[0].comparison.generatedAt='2026-11-08T12:03:00.001Z';
+ assert.throws(()=>privateTorvikSummary(p,{date,now}),/INVALID_PRIVATE_TORVIK_EVENT/);
+ p.events[0].comparison.generatedAt=p.generatedAt;
+ assert.equal(privateTorvikSummary(p,{date,now}).events.length,1);
+});

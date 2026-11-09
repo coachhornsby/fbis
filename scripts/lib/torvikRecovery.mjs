@@ -11,9 +11,15 @@ export function parseRecoveryFactors(raw){
  const lines=raw.trim().split(/\r?\n/),key=s=>s.toLowerCase().replace(/[^a-z0-9]/g,'');
  const expected=['TeamName','eFG%','Rk','eFG% Def','Rk','FTR','Rk','FTR Def','Rk','OR%','Rk','DR%','Rk','TO%','Rk','TO% Def.','Rk','3P%','Rk','3pD%','Rk','2p%','Rk','2p%D','Rk'].map(key);
  const header=parseCsvLine(lines[0]).map(key);
- if(JSON.stringify(header)!==JSON.stringify(expected))throw Error('TORVIK_FACTOR_SCHEMA_UNVERIFIED');
+ // The 2027 feed preserves the core factors, then names six additional metric/
+ // rank pairs. Its rows also carry four unlabelled cells; do not interpret them.
+ const extension=['ft%','Rk','ft%D','Rk','3P rate','Rk','3P rate D','Rk','arate','Rk','arateD','Rk'].map(key);
+ const legacy=JSON.stringify(header)===JSON.stringify(expected);
+ const current=JSON.stringify(header)===JSON.stringify([...expected,...extension]);
+ if(!legacy&&!current)throw Error('TORVIK_FACTOR_SCHEMA_UNVERIFIED');
+ const width=legacy?25:41;
  const fields=['efgPct','efgPctD','ftr','ftrD','orbRate','drbRate','tovRate','tovRateD','threePtPct','threePtPctD','twoPtPct','twoPtPctD'];
- return lines.slice(1).map(line=>{const c=parseCsvLine(line);if(c.length!==25||!c[0].trim())throw Error('TORVIK_FACTOR_SCHEMA_UNVERIFIED');
+ return lines.slice(1).map(line=>{const c=parseCsvLine(line);if(c.length!==width||!c[0].trim())throw Error('TORVIK_FACTOR_SCHEMA_UNVERIFIED');
   const row={team:c[0].trim()};for(let j=0;j<fields.length;j++){
    const raw=c[1+j*2].trim(),n=Number(raw),rank=Number(c[2+j*2]);
    if(!raw||!Number.isFinite(n)||n<0||n>(fields[j].startsWith('ftr')?200:100)||!Number.isInteger(rank)||rank<1||rank>400)throw Error('TORVIK_FACTOR_SCALE_INVALID');
