@@ -1,0 +1,47 @@
+name: NFL scoped gateway offline checks
+on:
+  pull_request:
+    paths:
+      - 'services/nfl/**'
+      - 'services/account-budget/**'
+      - 'services/sports-projection-orchestrator/server.mjs'
+      - 'workers/nfl-feature-operations-route.mjs'
+      - 'workers/sports-projection-orchestrator-worker.mjs'
+      - 'test/nfl-*.test.mjs'
+      - '.github/workflows/fbis-nfl-scoped-gateway-ci.yml'
+permissions:
+  contents: read
+jobs:
+  offline:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4.2.2
+      - uses: actions/setup-node@v4.1.0
+        with:
+          node-version: '22'
+      - run: npm ci --ignore-scripts --no-audit --no-fund
+      - name: Verify fixed-key boundaries, budgets and identity isolation without external calls
+        run: >-
+          node --test
+          test/nfl-budget-activation-plan.test.mjs
+          test/nfl-feature-inspection.test.mjs
+          test/nfl-feature-writer.test.mjs
+          test/nfl-feature-operation-route.test.mjs
+          test/nfl-projection-packet-writer.test.mjs
+          test/nfl-scoped-github-identity.test.mjs
+          test/nfl-scoped-gateway.test.mjs
+          test/account-budget-admission.test.mjs
+          test/exchange-cycle-allocation.test.mjs
+          test/job-execution-budget.test.mjs
+          test/pinnodds-account-certification.test.mjs
+          test/pinnodds-account-usage.test.mjs
+          test/pinnodds-capture-certification.test.mjs
+          test/pinnodds-governed-capture.test.mjs
+          test/nfl-epa-sign-regression.test.js
+          test/nfl-verified-projection-inputs.test.mjs
+          test/nfl-verified-schedule-context.test.mjs
+      - name: Compile only; no deployment or credential access
+        run: |
+          npx --no-install esbuild workers/sports-projection-orchestrator-worker.mjs --bundle --format=esm --platform=neutral '--external:node:*' '--external:cloudflare:*' --outfile=/tmp/nfl-orchestrator.mjs
+          npx --no-install esbuild services/account-budget/worker.mjs --bundle --format=esm --platform=neutral '--external:cloudflare:*' --outfile=/tmp/nfl-budget.mjs
