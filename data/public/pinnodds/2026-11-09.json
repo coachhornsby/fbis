@@ -1,0 +1,1019 @@
+{
+  "retainLastObserved": true,
+  "contract": "fbis-pinnodds-public-reference-v1",
+  "captureCompleteness": "partial",
+  "capturedAt": "2026-11-09T03:08:25Z",
+  "expiresAt": "2026-11-09T03:53:25.000Z",
+  "providerQuoteClockVerified": false,
+  "canAuthorizeWager": false,
+  "games": [
+    {
+      "id": "401916315",
+      "sport": "cbb",
+      "start": "2026-11-09T23:00Z",
+      "home_name": "Ohio State Buckeyes",
+      "away_name": "Marshall Thundering Herd",
+      "offers": [
+        {
+          "source": "PinnOdds",
+          "marketFamily": "spread",
+          "team": null,
+          "side": "home",
+          "line": -26,
+          "decimalOdds": 1.97,
+          "period": "full_game",
+          "sourceMarketId": "1639912423:full_game:spread:main:",
+          "standardOrAlt": "unknown",
+          "capturedAt": "2026-11-09T03:08:25Z"
+        },
+        {
+          "source": "PinnOdds",
+          "marketFamily": "spread",
+          "team": null,
+          "side": "away",
+          "line": 26,
+          "decimalOdds": 1.884,
+          "period": "full_game",
+          "sourceMarketId": "1639912423:full_game:spread:main:",
+          "standardOrAlt": "unknown",
+          "capturedAt": "2026-11-09T03:08:25Z"
+        },
+        {
+          "source": "PinnOdds",
+          "marketFamily": "total",
+          "team": null,
+          "side": "over",
+          "line": 162.5,
+          "decimalOdds": 1.917,
+          "period": "full_game",
+          "sourceMarketId": "1639912423:full_game:total:main:",
+          "standardOrAlt": "unknown",
+          "capturedAt": "2026-11-09T03:08:25Z"
+        },
+        {
+          "source": "PinnOdds",
+          "marketFamily": "total",
+          "team": null,
+          "side": "under",
+          "line": 162.5,
+          "decimalOdds": 1.9,
+          "period": "full_game",
+          "sourceMarketId": "1639912423:full_game:total:main:",
+          "standardOrAlt": "unknown",
+          "capturedAt": "2026-11-09T03:08:25Z"
+        }
+      ]
+    },
+    {
+      "id": "401909718",
+      "sport": "cbb",
+      "start": "2026-11-09T23:30Z",
+      "home_name": "Indiana Hoosiers",
+      "away_name": "Syracuse Orange",
+      "offers": [
+        {
+          "source": "PinnOdds",
+          "marketFamily": "moneyline",
+          "team": null,
+          "side": "home",
+          "line": null,
+          "decimalOdds": 1.561,
+          "period": "full_game",
+          "sourceMarketId": "1640271050:full_game:moneyline:money_line:",
+          "standardOrAlt": "unknown",
+          "capturedAt": "2026-11-09T03:08:25Z"
+        },
+        {
+          "source": "PinnOdds",
+          "marketFamily": "moneyline",
+          "team": null,
+          "side": "away",
+          "line": null,
+          "decimalOdds": 2.51,
+          "period": "full_game",
+          "sourceMarketId": "1640271050:full_game:moneyline:money_line:",
+          "standardOrAlt": "unknown",
+          "capturedAt": "2026-11-09T03:08:25Z"
+        },
+        {
+          "source": "PinnOdds",
+          "marketFamily": "spread",
+          "team": null,
+          "side": "home",
+          "line": -4,
+          "decimalOdds": 1.925,
+          "period": "full_game",
+          "sourceMarketId": "1640271050:full_game:spread:main:",
+          "standardOrAlt": "unknown",
+          "capturedAt": "2026-11-09T03:08:25Z"
+        },
+        {
+          "source": "PinnOdds",
+          "marketFamily": "spread",
+          "team": null,
+          "side": "away",
+          "line": 4,
+          "decimalOdds": 1.925,
+          "period": "full_game",
+          "sourceMarketId": "1640271050:full_game:spread:main:",
+          "standardOrAlt": "unknown",
+          "capturedAt": "2026-11-09T03:08:25Z"
+        },
+        {
+          "source": "PinnOdds",
+          "marketFamily": "total",
+          "team": null,
+          "side": "over",
+          "line": 148.5,
+          "decimalOdds": 1.909,
+          "period": "full_game",
+          "sourceMarketId": "1640271050:full_game:total:main:",
+          "standardOrAlt": "unknown",
+          "capturedAt": "2026-11-09T03:08:25Z"
+        },
+        {
+          "source": "PinnOdds",
+          "marketFamily": "total",
+          "team": null,
+          "side": "under",
+          "line": 148.5,
+          "decimalOdds": 1.909,
+          "period": "full_game",
+          "sourceMarketId": "1640271050:full_game:total:main:",
+          "standardOrAlt": "unknown",
+          "capturedAt": "2026-11-09T03:08:25Z"
+        }
+      ]
+    },
+    {
+      "id": "401911010",
+      "sport": "cbb",
+      "start": "2026-11-10T00:00Z",
+      "home_name": "Bowling Green Falcons",
+      "away_name": "Cleveland State Vikings",
+      "offers": [
+        {
+          "source": "PinnOdds",
+          "marketFamily": "moneyline",
+          "team": null,
+          "side": "home",
+          "line": null,
+          "decimalOdds": 1.107,
+          "period": "full_game",
+          "sourceMarketId": "1639918785:full_game:moneyline:money_line:",
+          "standardOrAlt": "unknown",
+          "capturedAt": "2026-11-09T03:08:25Z"
+        },
+        {
+          "source": "PinnOdds",
+          "marketFamily": "moneyline",
+          "team": null,
+          "side": "away",
+          "line": null,
+          "decimalOdds": 7.37,
+          "period": "full_game",
+          "sourceMarketId": "1639918785:full_game:moneyline:money_line:",
+          "standardOrAlt": "unknown",
+          "capturedAt": "2026-11-09T03:08:25Z"
+        },
+        {
+          "source": "PinnOdds",
+          "marketFamily": "spread",
+          "team": null,
+          "side": "home",
+          "line": -12.5,
+          "decimalOdds": 1.884,
+          "period": "full_game",
+          "sourceMarketId": "1639918785:full_game:spread:main:",
+          "standardOrAlt": "unknown",
+          "capturedAt": "2026-11-09T03:08:25Z"
+        },
+        {
+          "source": "PinnOdds",
+          "marketFamily": "spread",
+          "team": null,
+          "side": "away",
+          "line": 12.5,
+          "decimalOdds": 1.952,
+          "period": "full_game",
+          "sourceMarketId": "1639918785:full_game:spread:main:",
+          "standardOrAlt": "unknown",
+          "capturedAt": "2026-11-09T03:08:25Z"
+        },
+        {
+          "source": "PinnOdds",
+          "marketFamily": "total",
+          "team": null,
+          "side": "over",
+          "line": 157.5,
+          "decimalOdds": 1.917,
+          "period": "full_game",
+          "sourceMarketId": "1639918785:full_game:total:main:",
+          "standardOrAlt": "unknown",
+          "capturedAt": "2026-11-09T03:08:25Z"
+        },
+        {
+          "source": "PinnOdds",
+          "marketFamily": "total",
+          "team": null,
+          "side": "under",
+          "line": 157.5,
+          "decimalOdds": 1.9,
+          "period": "full_game",
+          "sourceMarketId": "1639918785:full_game:total:main:",
+          "standardOrAlt": "unknown",
+          "capturedAt": "2026-11-09T03:08:25Z"
+        }
+      ]
+    },
+    {
+      "id": "401916305",
+      "sport": "cbb",
+      "start": "2026-11-10T00:00Z",
+      "home_name": "Cincinnati Bearcats",
+      "away_name": "Minnesota Golden Gophers",
+      "offers": [
+        {
+          "source": "PinnOdds",
+          "marketFamily": "moneyline",
+          "team": null,
+          "side": "home",
+          "line": null,
+          "decimalOdds": 1.315,
+          "period": "full_game",
+          "sourceMarketId": "1640271092:full_game:moneyline:money_line:",
+          "standardOrAlt": "unknown",
+          "capturedAt": "2026-11-09T03:08:25Z"
+        },
+        {
+          "source": "PinnOdds",
+          "marketFamily": "moneyline",
+          "team": null,
+          "side": "away",
+          "line": null,
+          "decimalOdds": 3.59,
+          "period": "full_game",
+          "sourceMarketId": "1640271092:full_game:moneyline:money_line:",
+          "standardOrAlt": "unknown",
+          "capturedAt": "2026-11-09T03:08:25Z"
+        },
+        {
+          "source": "PinnOdds",
+          "marketFamily": "spread",
+          "team": null,
+          "side": "home",
+          "line": -7,
+          "decimalOdds": 1.877,
+          "period": "full_game",
+          "sourceMarketId": "1640271092:full_game:spread:main:",
+          "standardOrAlt": "unknown",
+          "capturedAt": "2026-11-09T03:08:25Z"
+        },
+        {
+          "source": "PinnOdds",
+          "marketFamily": "spread",
+          "team": null,
+          "side": "away",
+          "line": 7,
+          "decimalOdds": 1.961,
+          "period": "full_game",
+          "sourceMarketId": "1640271092:full_game:spread:main:",
+          "standardOrAlt": "unknown",
+          "capturedAt": "2026-11-09T03:08:25Z"
+        },
+        {
+          "source": "PinnOdds",
+          "marketFamily": "total",
+          "team": null,
+          "side": "over",
+          "line": 143,
+          "decimalOdds": 1.917,
+          "period": "full_game",
+          "sourceMarketId": "1640271092:full_game:total:main:",
+          "standardOrAlt": "unknown",
+          "capturedAt": "2026-11-09T03:08:25Z"
+        },
+        {
+          "source": "PinnOdds",
+          "marketFamily": "total",
+          "team": null,
+          "side": "under",
+          "line": 143,
+          "decimalOdds": 1.877,
+          "period": "full_game",
+          "sourceMarketId": "1640271092:full_game:total:main:",
+          "standardOrAlt": "unknown",
+          "capturedAt": "2026-11-09T03:08:25Z"
+        }
+      ]
+    },
+    {
+      "id": "401918074",
+      "sport": "cbb",
+      "start": "2026-11-10T00:00Z",
+      "home_name": "Clemson Tigers",
+      "away_name": "North Dakota Fighting Hawks",
+      "offers": [
+        {
+          "source": "PinnOdds",
+          "marketFamily": "spread",
+          "team": null,
+          "side": "home",
+          "line": -21.5,
+          "decimalOdds": 1.943,
+          "period": "full_game",
+          "sourceMarketId": "1639922594:full_game:spread:main:",
+          "standardOrAlt": "unknown",
+          "capturedAt": "2026-11-09T03:08:25Z"
+        },
+        {
+          "source": "PinnOdds",
+          "marketFamily": "spread",
+          "team": null,
+          "side": "away",
+          "line": 21.5,
+          "decimalOdds": 1.892,
+          "period": "full_game",
+          "sourceMarketId": "1639922594:full_game:spread:main:",
+          "standardOrAlt": "unknown",
+          "capturedAt": "2026-11-09T03:08:25Z"
+        },
+        {
+          "source": "PinnOdds",
+          "marketFamily": "total",
+          "team": null,
+          "side": "over",
+          "line": 153,
+          "decimalOdds": 1.892,
+          "period": "full_game",
+          "sourceMarketId": "1639922594:full_game:total:main:",
+          "standardOrAlt": "unknown",
+          "capturedAt": "2026-11-09T03:08:25Z"
+        },
+        {
+          "source": "PinnOdds",
+          "marketFamily": "total",
+          "team": null,
+          "side": "under",
+          "line": 153,
+          "decimalOdds": 1.909,
+          "period": "full_game",
+          "sourceMarketId": "1639922594:full_game:total:main:",
+          "standardOrAlt": "unknown",
+          "capturedAt": "2026-11-09T03:08:25Z"
+        }
+      ]
+    },
+    {
+      "id": "401926181",
+      "sport": "cbb",
+      "start": "2026-11-10T00:00Z",
+      "home_name": "UIC Flames",
+      "away_name": "UNC Greensboro Spartans",
+      "offers": [
+        {
+          "source": "PinnOdds",
+          "marketFamily": "spread",
+          "team": null,
+          "side": "home",
+          "line": -20,
+          "decimalOdds": 1.917,
+          "period": "full_game",
+          "sourceMarketId": "1639912417:full_game:spread:main:",
+          "standardOrAlt": "unknown",
+          "capturedAt": "2026-11-09T03:08:25Z"
+        },
+        {
+          "source": "PinnOdds",
+          "marketFamily": "spread",
+          "team": null,
+          "side": "away",
+          "line": 20,
+          "decimalOdds": 1.934,
+          "period": "full_game",
+          "sourceMarketId": "1639912417:full_game:spread:main:",
+          "standardOrAlt": "unknown",
+          "capturedAt": "2026-11-09T03:08:25Z"
+        },
+        {
+          "source": "PinnOdds",
+          "marketFamily": "total",
+          "team": null,
+          "side": "over",
+          "line": 150,
+          "decimalOdds": 1.909,
+          "period": "full_game",
+          "sourceMarketId": "1639912417:full_game:total:main:",
+          "standardOrAlt": "unknown",
+          "capturedAt": "2026-11-09T03:08:25Z"
+        },
+        {
+          "source": "PinnOdds",
+          "marketFamily": "total",
+          "team": null,
+          "side": "under",
+          "line": 150,
+          "decimalOdds": 1.909,
+          "period": "full_game",
+          "sourceMarketId": "1639912417:full_game:total:main:",
+          "standardOrAlt": "unknown",
+          "capturedAt": "2026-11-09T03:08:25Z"
+        }
+      ]
+    },
+    {
+      "id": "401925681",
+      "sport": "cbb",
+      "start": "2026-11-10T00:00Z",
+      "home_name": "Notre Dame Fighting Irish",
+      "away_name": "Eastern Illinois Panthers",
+      "offers": [
+        {
+          "source": "PinnOdds",
+          "marketFamily": "spread",
+          "team": null,
+          "side": "home",
+          "line": -28,
+          "decimalOdds": 1.925,
+          "period": "full_game",
+          "sourceMarketId": "1639918783:full_game:spread:main:",
+          "standardOrAlt": "unknown",
+          "capturedAt": "2026-11-09T03:08:25Z"
+        },
+        {
+          "source": "PinnOdds",
+          "marketFamily": "spread",
+          "team": null,
+          "side": "away",
+          "line": 28,
+          "decimalOdds": 1.925,
+          "period": "full_game",
+          "sourceMarketId": "1639918783:full_game:spread:main:",
+          "standardOrAlt": "unknown",
+          "capturedAt": "2026-11-09T03:08:25Z"
+        },
+        {
+          "source": "PinnOdds",
+          "marketFamily": "total",
+          "team": null,
+          "side": "over",
+          "line": 142,
+          "decimalOdds": 1.909,
+          "period": "full_game",
+          "sourceMarketId": "1639918783:full_game:total:main:",
+          "standardOrAlt": "unknown",
+          "capturedAt": "2026-11-09T03:08:25Z"
+        },
+        {
+          "source": "PinnOdds",
+          "marketFamily": "total",
+          "team": null,
+          "side": "under",
+          "line": 142,
+          "decimalOdds": 1.909,
+          "period": "full_game",
+          "sourceMarketId": "1639918783:full_game:total:main:",
+          "standardOrAlt": "unknown",
+          "capturedAt": "2026-11-09T03:08:25Z"
+        }
+      ]
+    },
+    {
+      "id": "401906759",
+      "sport": "cbb",
+      "start": "2026-11-10T00:30Z",
+      "home_name": "Alabama Crimson Tide",
+      "away_name": "Oakland Golden Grizzlies",
+      "offers": [
+        {
+          "source": "PinnOdds",
+          "marketFamily": "spread",
+          "team": null,
+          "side": "home",
+          "line": -33,
+          "decimalOdds": 1.943,
+          "period": "full_game",
+          "sourceMarketId": "1639922598:full_game:spread:main:",
+          "standardOrAlt": "unknown",
+          "capturedAt": "2026-11-09T03:08:25Z"
+        },
+        {
+          "source": "PinnOdds",
+          "marketFamily": "spread",
+          "team": null,
+          "side": "away",
+          "line": 33,
+          "decimalOdds": 1.909,
+          "period": "full_game",
+          "sourceMarketId": "1639922598:full_game:spread:main:",
+          "standardOrAlt": "unknown",
+          "capturedAt": "2026-11-09T03:08:25Z"
+        },
+        {
+          "source": "PinnOdds",
+          "marketFamily": "total",
+          "team": null,
+          "side": "over",
+          "line": 171.5,
+          "decimalOdds": 1.9,
+          "period": "full_game",
+          "sourceMarketId": "1639922598:full_game:total:main:",
+          "standardOrAlt": "unknown",
+          "capturedAt": "2026-11-09T03:08:25Z"
+        },
+        {
+          "source": "PinnOdds",
+          "marketFamily": "total",
+          "team": null,
+          "side": "under",
+          "line": 171.5,
+          "decimalOdds": 1.917,
+          "period": "full_game",
+          "sourceMarketId": "1639922598:full_game:total:main:",
+          "standardOrAlt": "unknown",
+          "capturedAt": "2026-11-09T03:08:25Z"
+        }
+      ]
+    },
+    {
+      "id": "401921810",
+      "sport": "cbb",
+      "start": "2026-11-10T01:00Z",
+      "home_name": "LSU Tigers",
+      "away_name": "Louisiana Tech Bulldogs",
+      "offers": [
+        {
+          "source": "PinnOdds",
+          "marketFamily": "spread",
+          "team": null,
+          "side": "home",
+          "line": -29.5,
+          "decimalOdds": 1.97,
+          "period": "full_game",
+          "sourceMarketId": "1639922593:full_game:spread:main:",
+          "standardOrAlt": "unknown",
+          "capturedAt": "2026-11-09T03:08:25Z"
+        },
+        {
+          "source": "PinnOdds",
+          "marketFamily": "spread",
+          "team": null,
+          "side": "away",
+          "line": 29.5,
+          "decimalOdds": 1.884,
+          "period": "full_game",
+          "sourceMarketId": "1639922593:full_game:spread:main:",
+          "standardOrAlt": "unknown",
+          "capturedAt": "2026-11-09T03:08:25Z"
+        },
+        {
+          "source": "PinnOdds",
+          "marketFamily": "total",
+          "team": null,
+          "side": "over",
+          "line": 151.5,
+          "decimalOdds": 1.877,
+          "period": "full_game",
+          "sourceMarketId": "1639922593:full_game:total:main:",
+          "standardOrAlt": "unknown",
+          "capturedAt": "2026-11-09T03:08:25Z"
+        },
+        {
+          "source": "PinnOdds",
+          "marketFamily": "total",
+          "team": null,
+          "side": "under",
+          "line": 151.5,
+          "decimalOdds": 1.925,
+          "period": "full_game",
+          "sourceMarketId": "1639922593:full_game:total:main:",
+          "standardOrAlt": "unknown",
+          "capturedAt": "2026-11-09T03:08:25Z"
+        }
+      ]
+    },
+    {
+      "id": "401921815",
+      "sport": "cbb",
+      "start": "2026-11-10T01:00Z",
+      "home_name": "Missouri Tigers",
+      "away_name": "SIU Edwardsville Cougars",
+      "offers": [
+        {
+          "source": "PinnOdds",
+          "marketFamily": "spread",
+          "team": null,
+          "side": "home",
+          "line": -28.5,
+          "decimalOdds": 1.925,
+          "period": "full_game",
+          "sourceMarketId": "1639922596:full_game:spread:main:",
+          "standardOrAlt": "unknown",
+          "capturedAt": "2026-11-09T03:08:25Z"
+        },
+        {
+          "source": "PinnOdds",
+          "marketFamily": "spread",
+          "team": null,
+          "side": "away",
+          "line": 28.5,
+          "decimalOdds": 1.925,
+          "period": "full_game",
+          "sourceMarketId": "1639922596:full_game:spread:main:",
+          "standardOrAlt": "unknown",
+          "capturedAt": "2026-11-09T03:08:25Z"
+        },
+        {
+          "source": "PinnOdds",
+          "marketFamily": "total",
+          "team": null,
+          "side": "over",
+          "line": 149,
+          "decimalOdds": 1.909,
+          "period": "full_game",
+          "sourceMarketId": "1639922596:full_game:total:main:",
+          "standardOrAlt": "unknown",
+          "capturedAt": "2026-11-09T03:08:25Z"
+        },
+        {
+          "source": "PinnOdds",
+          "marketFamily": "total",
+          "team": null,
+          "side": "under",
+          "line": 149,
+          "decimalOdds": 1.909,
+          "period": "full_game",
+          "sourceMarketId": "1639922596:full_game:total:main:",
+          "standardOrAlt": "unknown",
+          "capturedAt": "2026-11-09T03:08:25Z"
+        }
+      ]
+    },
+    {
+      "id": "401906803",
+      "sport": "cbb",
+      "start": "2026-11-10T01:00Z",
+      "home_name": "Oklahoma Sooners",
+      "away_name": "North Alabama Lions",
+      "offers": [
+        {
+          "source": "PinnOdds",
+          "marketFamily": "spread",
+          "team": null,
+          "side": "home",
+          "line": -26.5,
+          "decimalOdds": 1.97,
+          "period": "full_game",
+          "sourceMarketId": "1639935733:full_game:spread:main:",
+          "standardOrAlt": "unknown",
+          "capturedAt": "2026-11-09T03:08:25Z"
+        },
+        {
+          "source": "PinnOdds",
+          "marketFamily": "spread",
+          "team": null,
+          "side": "away",
+          "line": 26.5,
+          "decimalOdds": 1.884,
+          "period": "full_game",
+          "sourceMarketId": "1639935733:full_game:spread:main:",
+          "standardOrAlt": "unknown",
+          "capturedAt": "2026-11-09T03:08:25Z"
+        },
+        {
+          "source": "PinnOdds",
+          "marketFamily": "total",
+          "team": null,
+          "side": "over",
+          "line": 147.5,
+          "decimalOdds": 1.934,
+          "period": "full_game",
+          "sourceMarketId": "1639935733:full_game:total:main:",
+          "standardOrAlt": "unknown",
+          "capturedAt": "2026-11-09T03:08:25Z"
+        },
+        {
+          "source": "PinnOdds",
+          "marketFamily": "total",
+          "team": null,
+          "side": "under",
+          "line": 147.5,
+          "decimalOdds": 1.884,
+          "period": "full_game",
+          "sourceMarketId": "1639935733:full_game:total:main:",
+          "standardOrAlt": "unknown",
+          "capturedAt": "2026-11-09T03:08:25Z"
+        }
+      ]
+    },
+    {
+      "id": "401917978",
+      "sport": "cbb",
+      "start": "2026-11-10T01:00Z",
+      "home_name": "Texas A&M Aggies",
+      "away_name": "UL Monroe Warhawks",
+      "offers": [
+        {
+          "source": "PinnOdds",
+          "marketFamily": "spread",
+          "team": null,
+          "side": "home",
+          "line": -37,
+          "decimalOdds": 1.97,
+          "period": "full_game",
+          "sourceMarketId": "1639922603:full_game:spread:main:",
+          "standardOrAlt": "unknown",
+          "capturedAt": "2026-11-09T03:08:25Z"
+        },
+        {
+          "source": "PinnOdds",
+          "marketFamily": "spread",
+          "team": null,
+          "side": "away",
+          "line": 37,
+          "decimalOdds": 1.884,
+          "period": "full_game",
+          "sourceMarketId": "1639922603:full_game:spread:main:",
+          "standardOrAlt": "unknown",
+          "capturedAt": "2026-11-09T03:08:25Z"
+        },
+        {
+          "source": "PinnOdds",
+          "marketFamily": "total",
+          "team": null,
+          "side": "over",
+          "line": 168,
+          "decimalOdds": 1.917,
+          "period": "full_game",
+          "sourceMarketId": "1639922603:full_game:total:main:",
+          "standardOrAlt": "unknown",
+          "capturedAt": "2026-11-09T03:08:25Z"
+        },
+        {
+          "source": "PinnOdds",
+          "marketFamily": "total",
+          "team": null,
+          "side": "under",
+          "line": 168,
+          "decimalOdds": 1.884,
+          "period": "full_game",
+          "sourceMarketId": "1639922603:full_game:total:main:",
+          "standardOrAlt": "unknown",
+          "capturedAt": "2026-11-09T03:08:25Z"
+        }
+      ]
+    },
+    {
+      "id": "401926132",
+      "sport": "cbb",
+      "start": "2026-11-10T01:30Z",
+      "home_name": "Purdue Boilermakers",
+      "away_name": "Illinois State Redbirds",
+      "offers": [
+        {
+          "source": "PinnOdds",
+          "marketFamily": "moneyline",
+          "team": null,
+          "side": "home",
+          "line": null,
+          "decimalOdds": 1.053,
+          "period": "full_game",
+          "sourceMarketId": "1639922590:full_game:moneyline:money_line:",
+          "standardOrAlt": "unknown",
+          "capturedAt": "2026-11-09T03:08:25Z"
+        },
+        {
+          "source": "PinnOdds",
+          "marketFamily": "moneyline",
+          "team": null,
+          "side": "away",
+          "line": null,
+          "decimalOdds": 11.19,
+          "period": "full_game",
+          "sourceMarketId": "1639922590:full_game:moneyline:money_line:",
+          "standardOrAlt": "unknown",
+          "capturedAt": "2026-11-09T03:08:25Z"
+        },
+        {
+          "source": "PinnOdds",
+          "marketFamily": "spread",
+          "team": null,
+          "side": "home",
+          "line": -16,
+          "decimalOdds": 1.934,
+          "period": "full_game",
+          "sourceMarketId": "1639922590:full_game:spread:main:",
+          "standardOrAlt": "unknown",
+          "capturedAt": "2026-11-09T03:08:25Z"
+        },
+        {
+          "source": "PinnOdds",
+          "marketFamily": "spread",
+          "team": null,
+          "side": "away",
+          "line": 16,
+          "decimalOdds": 1.917,
+          "period": "full_game",
+          "sourceMarketId": "1639922590:full_game:spread:main:",
+          "standardOrAlt": "unknown",
+          "capturedAt": "2026-11-09T03:08:25Z"
+        },
+        {
+          "source": "PinnOdds",
+          "marketFamily": "total",
+          "team": null,
+          "side": "over",
+          "line": 145,
+          "decimalOdds": 1.884,
+          "period": "full_game",
+          "sourceMarketId": "1639922590:full_game:total:main:",
+          "standardOrAlt": "unknown",
+          "capturedAt": "2026-11-09T03:08:25Z"
+        },
+        {
+          "source": "PinnOdds",
+          "marketFamily": "total",
+          "team": null,
+          "side": "under",
+          "line": 145,
+          "decimalOdds": 1.909,
+          "period": "full_game",
+          "sourceMarketId": "1639922590:full_game:total:main:",
+          "standardOrAlt": "unknown",
+          "capturedAt": "2026-11-09T03:08:25Z"
+        }
+      ]
+    },
+    {
+      "id": "401920799",
+      "sport": "cbb",
+      "start": "2026-11-10T02:00Z",
+      "home_name": "Auburn Tigers",
+      "away_name": "App State Mountaineers",
+      "offers": [
+        {
+          "source": "PinnOdds",
+          "marketFamily": "spread",
+          "team": null,
+          "side": "home",
+          "line": -23.5,
+          "decimalOdds": 1.884,
+          "period": "full_game",
+          "sourceMarketId": "1639922608:full_game:spread:main:",
+          "standardOrAlt": "unknown",
+          "capturedAt": "2026-11-09T03:08:25Z"
+        },
+        {
+          "source": "PinnOdds",
+          "marketFamily": "spread",
+          "team": null,
+          "side": "away",
+          "line": 23.5,
+          "decimalOdds": 1.97,
+          "period": "full_game",
+          "sourceMarketId": "1639922608:full_game:spread:main:",
+          "standardOrAlt": "unknown",
+          "capturedAt": "2026-11-09T03:08:25Z"
+        },
+        {
+          "source": "PinnOdds",
+          "marketFamily": "total",
+          "team": null,
+          "side": "over",
+          "line": 146,
+          "decimalOdds": 1.9,
+          "period": "full_game",
+          "sourceMarketId": "1639922608:full_game:total:main:",
+          "standardOrAlt": "unknown",
+          "capturedAt": "2026-11-09T03:08:25Z"
+        },
+        {
+          "source": "PinnOdds",
+          "marketFamily": "total",
+          "team": null,
+          "side": "under",
+          "line": 146,
+          "decimalOdds": 1.917,
+          "period": "full_game",
+          "sourceMarketId": "1639922608:full_game:total:main:",
+          "standardOrAlt": "unknown",
+          "capturedAt": "2026-11-09T03:08:25Z"
+        }
+      ]
+    },
+    {
+      "id": "401920718",
+      "sport": "cbb",
+      "start": "2026-11-10T02:30Z",
+      "home_name": "Oregon State Beavers",
+      "away_name": "Eastern Washington Eagles",
+      "offers": [
+        {
+          "source": "PinnOdds",
+          "marketFamily": "spread",
+          "team": null,
+          "side": "home",
+          "line": -17,
+          "decimalOdds": 1.952,
+          "period": "full_game",
+          "sourceMarketId": "1639912416:full_game:spread:main:",
+          "standardOrAlt": "unknown",
+          "capturedAt": "2026-11-09T03:08:25Z"
+        },
+        {
+          "source": "PinnOdds",
+          "marketFamily": "spread",
+          "team": null,
+          "side": "away",
+          "line": 17,
+          "decimalOdds": 1.869,
+          "period": "full_game",
+          "sourceMarketId": "1639912416:full_game:spread:main:",
+          "standardOrAlt": "unknown",
+          "capturedAt": "2026-11-09T03:08:25Z"
+        },
+        {
+          "source": "PinnOdds",
+          "marketFamily": "total",
+          "team": null,
+          "side": "over",
+          "line": 160,
+          "decimalOdds": 1.884,
+          "period": "full_game",
+          "sourceMarketId": "1639912416:full_game:total:main:",
+          "standardOrAlt": "unknown",
+          "capturedAt": "2026-11-09T03:08:25Z"
+        },
+        {
+          "source": "PinnOdds",
+          "marketFamily": "total",
+          "team": null,
+          "side": "under",
+          "line": 160,
+          "decimalOdds": 1.9,
+          "period": "full_game",
+          "sourceMarketId": "1639912416:full_game:total:main:",
+          "standardOrAlt": "unknown",
+          "capturedAt": "2026-11-09T03:08:25Z"
+        }
+      ]
+    },
+    {
+      "id": "401921095",
+      "sport": "cbb",
+      "start": "2026-11-10T03:00Z",
+      "home_name": "Stanford Cardinal",
+      "away_name": "Rice Owls",
+      "offers": [
+        {
+          "source": "PinnOdds",
+          "marketFamily": "spread",
+          "team": null,
+          "side": "home",
+          "line": -17,
+          "decimalOdds": 1.884,
+          "period": "full_game",
+          "sourceMarketId": "1639918796:full_game:spread:main:",
+          "standardOrAlt": "unknown",
+          "capturedAt": "2026-11-09T03:08:25Z"
+        },
+        {
+          "source": "PinnOdds",
+          "marketFamily": "spread",
+          "team": null,
+          "side": "away",
+          "line": 17,
+          "decimalOdds": 1.952,
+          "period": "full_game",
+          "sourceMarketId": "1639918796:full_game:spread:main:",
+          "standardOrAlt": "unknown",
+          "capturedAt": "2026-11-09T03:08:25Z"
+        },
+        {
+          "source": "PinnOdds",
+          "marketFamily": "total",
+          "team": null,
+          "side": "over",
+          "line": 146,
+          "decimalOdds": 1.9,
+          "period": "full_game",
+          "sourceMarketId": "1639918796:full_game:total:main:",
+          "standardOrAlt": "unknown",
+          "capturedAt": "2026-11-09T03:08:25Z"
+        },
+        {
+          "source": "PinnOdds",
+          "marketFamily": "total",
+          "team": null,
+          "side": "under",
+          "line": 146,
+          "decimalOdds": 1.9,
+          "period": "full_game",
+          "sourceMarketId": "1639918796:full_game:total:main:",
+          "standardOrAlt": "unknown",
+          "capturedAt": "2026-11-09T03:08:25Z"
+        }
+      ]
+    }
+  ]
+}

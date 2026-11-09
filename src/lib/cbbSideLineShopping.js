@@ -57,7 +57,7 @@ export function cbbLineShopping(game,projection,clock=Date.now(),maxAgeMs=300000
  const baseline={projectedWinner,fairHomeSpread};
  if(projection.historical||projection.expired||clock>=Date.parse(projection.expiresAt))return unavailable('HISTORICAL_PROJECTION',baseline);
  if(game.status!=='scheduled'||!Number.isFinite(Date.parse(game.start))||Date.parse(game.start)<=clock)return unavailable('GAME_NOT_PREGAME',baseline);
- const offersRaw=[...(Array.isArray(game.cbbVerifiedOffers)?game.cbbVerifiedOffers:[]),...(Array.isArray(game.market?.venueOffers)?game.market.venueOffers:[]),...(Array.isArray(game.pinnoddsResearch?.offers)?game.pinnoddsResearch.offers:[])];
+ const offersRaw=[...(Array.isArray(game.cbbVerifiedOffers)?game.cbbVerifiedOffers:[]),...(Array.isArray(game.market?.venueOffers)?game.market.venueOffers:[]),...(!game.pinnoddsResearch?.displayOnly&&!game.pinnoddsResearch?.stale&&Array.isArray(game.pinnoddsResearch?.offers)?game.pinnoddsResearch.offers:[])];
  // A score projection indicates a possible winner, not an independently calibrated ML edge.
  const mlDedupe=new Map();
  for(const raw of offersRaw){const q=cbbMoneylineQuote(raw,game,clock,maxAgeMs);if(!q)continue;const key=q.source+'|'+q.side,old=mlDedupe.get(key);if(!old||Date.parse(q.capturedAt)>Date.parse(old.capturedAt))mlDedupe.set(key,q);}
