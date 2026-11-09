@@ -5,6 +5,8 @@ on:
       - 'services/pinnodds-restart/**'
       - 'services/account-budget/**'
       - 'workers/pinnodds-*-route.mjs'
+      - 'workers/pinnodds-restart-worker.mjs'
+      - 'test/pinnodds-restart-worker.test.mjs'
       - 'workers/sports-projection-orchestrator-worker.mjs'
       - 'scripts/lib/pinnodds*Launcher.mjs'
       - 'test/pinnodds-*-certification.test.mjs'
@@ -26,6 +28,6 @@ jobs:
       - uses: actions/setup-node@v4.1.0
         with:
           node-version: '22'
-      - run: node --import ./test/offline-network.js --test test/pinnodds-restart.test.mjs test/pinnodds-account-certification.test.mjs test/pinnodds-capture-certification.test.mjs test/pinnodds-account-launcher.test.mjs test/pinnodds-capture-launcher.test.mjs test/account-budget-admission.test.mjs test/job-execution-budget.test.mjs test/pinnodds-markets.test.js test/pinnodds-account-usage.test.mjs test/pinnodds-governed-capture.test.mjs
+      - run: node --import ./test/offline-network.js --test test/pinnodds-restart-worker.test.mjs test/pinnodds-restart.test.mjs test/pinnodds-account-certification.test.mjs test/pinnodds-capture-certification.test.mjs test/pinnodds-account-launcher.test.mjs test/pinnodds-capture-launcher.test.mjs test/account-budget-admission.test.mjs test/job-execution-budget.test.mjs test/pinnodds-markets.test.js test/pinnodds-account-usage.test.mjs test/pinnodds-governed-capture.test.mjs
       - run: npm ci --ignore-scripts --no-audit --no-fund
       - run: node scripts/build-pinnodds-publication-offline.mjs
