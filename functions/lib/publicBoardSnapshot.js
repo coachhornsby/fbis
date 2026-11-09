@@ -18,14 +18,20 @@ export function shiftBoardDate(date, days) {
   d.setUTCDate(d.getUTCDate()+days); return d.toISOString().slice(0,10);
 }
 const number = v => v == null || v === '' ? null : Number.isFinite(Number(v)) ? Number(v) : null;
-function participant(row, sport) {
+function reportedOverallRecord(row,teamId,capturedAt,season){
+  const records=(Array.isArray(row.records)?row.records:[]).filter(r=>r?.type==='total'&&typeof r.summary==='string'&&/^\d{1,3}-\d{1,3}(?:-\d{1,3})?$/.test(r.summary));
+  if(records.length!==1||!Number.isFinite(Date.parse(capturedAt)))return null;
+  const [wins,losses,ties]=records[0].summary.split('-').map(Number);
+  return {recordType:'SU',verified:true,teamId,source:'ESPN_SCOREBOARD',sourceScope:'overall',season:Number.isInteger(season)?season:null,capturedAt,wins,losses,...(ties!=null?{ties}:{})};
+}
+function participant(row, sport, capturedAt, season) {
   const t = row.team || row.athlete;
   if (!(t?.id || row.id) || !t.displayName) return null;
   const logo = t.logo || t.headshot?.href;
   return {sport, name:t.displayName,fullName:t.displayName,abbr:t.abbreviation||t.shortName||null,
     espnId:String(t.id || row.id),providerTeamId:String(t.id || row.id),
     logo:typeof logo==='string' && logo.startsWith('https://a.espncdn.com/')?logo:null,
-    score:number(row.score),color:t.color||null};
+    score:number(row.score),color:t.color||null,verifiedRecords:{su:reportedOverallRecord(row,String(t.id||row.id),capturedAt,season)}};
 }
 export function scoreboardGames(payload, {sport,tour=null,date,capturedAt}) {
   if (!PUBLIC_SPORTS.includes(sport) || !Array.isArray(payload?.events)) throw Error('INVALID_SCOREBOARD');
@@ -39,7 +45,7 @@ export function scoreboardGames(payload, {sport,tour=null,date,capturedAt}) {
     if (rows.length!==2 || (sport==='tennis' && rows.some(r=>!r.athlete))) continue;
     const h=rows.find(r=>r.homeAway==='home')||(sport==='tennis'?rows[0]:null);
     const a=rows.find(r=>r.homeAway==='away')||(sport==='tennis'?rows[1]:null);
-    const home=h&&participant(h,sport),away=a&&participant(a,sport);
+    const home=h&&participant(h,sport,capturedAt,payload.season?.year),away=a&&participant(a,sport,capturedAt,payload.season?.year);
     if(!home||!away||home.espnId===away.espnId||!/^\d+$/.test(String(c.id||event.id))) continue;
     const s=c.status||event.status, type=s?.type;
     if (!type?.state) continue;
@@ -102,4 +108,5 @@ export function assemblePublicBoard(results,{date,capturedAt,sports=PUBLIC_SPORT
     costContract:{publicD1Queries:0,publicCloudflareFunctions:0,paidModelCalls:0},
     sources:results.map(({games,...r})=>({...r,count:games.length}))};
 }
+
 

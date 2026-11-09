@@ -1,4 +1,4 @@
-# Board-only release: improve comparison readability and bound expanded markets.
+# Board-only release: exact-threshold comparisons, larger team logos and reported records.
 name: FBIS card presentation checks and bounded Pages release
 on:
   pull_request:
@@ -56,7 +56,7 @@ jobs:
           path.write_text(text)
           PYTHON
       - name: Verify current and saved score separation and relative quote age
-        run: node --import ./test/offline-network.js --test test/cfb-future-exchange-fixtures.test.mjs test/kalshi-football-rule-identity.test.mjs test/card-presentation-release.test.mjs test/polymarket-retained-display.test.mjs test/retained-exchange-card-quotes.test.mjs test/exchange-card-delivery.test.mjs test/game-card-saved-projection.test.mjs test/recovery-card-facts.test.mjs test/four-sport-private-recovery.test.mjs test/exchange-card-rows.test.mjs test/cbb-card-summary.test.mjs test/retained-exchange-quotes.test.mjs test/recovery-lean-shopping.test.mjs test/market-comparison-grid.test.mjs test/market-comparison-display.test.mjs test/exchange-panel-presentation.test.mjs test/recovery-exchange-logo.test.mjs test/pinnodds-recovery-card-render.test.mjs test/pinnodds-cfb-card-render.test.mjs
+        run: node --import ./test/offline-network.js --test test/cfb-future-exchange-fixtures.test.mjs test/kalshi-football-rule-identity.test.mjs test/card-presentation-release.test.mjs test/polymarket-retained-display.test.mjs test/retained-exchange-card-quotes.test.mjs test/exchange-card-delivery.test.mjs test/game-card-saved-projection.test.mjs test/recovery-card-facts.test.mjs test/four-sport-private-recovery.test.mjs test/exchange-card-rows.test.mjs test/cbb-card-summary.test.mjs test/retained-exchange-quotes.test.mjs test/recovery-lean-shopping.test.mjs test/market-comparison-grid.test.mjs test/team-record-display.test.mjs test/market-comparison-display.test.mjs test/exchange-panel-presentation.test.mjs test/recovery-exchange-logo.test.mjs test/pinnodds-recovery-card-render.test.mjs test/pinnodds-cfb-card-render.test.mjs
       - name: Compile offline for pull requests
         if: github.event_name == 'pull_request'
         run: |
