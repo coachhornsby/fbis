@@ -3,9 +3,11 @@ on:
   pull_request:
     paths:
       - 'scripts/lib/torvikRecovery.mjs'
+      - 'scripts/lib/torvikRecoveryInput.mjs'
       - 'scripts/lib/recoveryEvidence.mjs'
       - 'scripts/recover-four-sport-once.mjs'
       - 'test/torvik-recovery.test.mjs'
+      - 'test/torvik-recovery-input.test.mjs'
       - 'test/cbb-card-summary.test.mjs'
       - '.github/workflows/fbis-torvik-recovery-ci.yml'
 permissions:
@@ -20,4 +22,4 @@ jobs:
         with:
           node-version: '22'
       - run: node --check scripts/recover-four-sport-once.mjs
-      - run: node --import ./test/offline-network.js --test test/recovery-source-budget.test.mjs test/torvik-recovery.test.mjs test/cbb-private-access-route.test.mjs test/four-sport-private-recovery.test.mjs test/public-four-sport-projections.test.mjs test/cbb-card-summary.test.mjs
+      - run: node --import ./test/offline-network.js --test test/recovery-source-budget.test.mjs test/torvik-recovery.test.mjs test/torvik-recovery-input.test.mjs test/private-torvik-consumer.test.mjs test/cbb-private-access-route.test.mjs test/four-sport-private-recovery.test.mjs test/public-four-sport-projections.test.mjs test/cbb-card-summary.test.mjs

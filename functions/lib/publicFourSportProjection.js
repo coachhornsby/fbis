@@ -1,5 +1,6 @@
 // Public, minimal projection summaries derived from independently owned FBIS models.
 // Never expose provider payloads, private research files, markets, account data, or tokens.
+import FITTED_CFB from '../../data/models/cfb-fbis-v2-fitted-aa.js';
 import {PRIVATE_RECOVERY_SPORTS,validateFourSportPacket} from './privateFourSportProjection.js';
 
 export const PUBLIC_MODEL_IDS=Object.freeze({
@@ -9,11 +10,21 @@ export const PUBLIC_MODEL_IDS=Object.freeze({
 });
 const permitted=sport=>PRIVATE_RECOVERY_SPORTS.includes(sport)&&Boolean(PUBLIC_MODEL_IDS[sport]);
 const advancedNfl=e=>e.projection?.modelId==='NFL-PRO-v1'&&e.projection.modelVersion==='v1.2.1'&&e.sourceLabel==='nflverse verified current-season inputs; NFL-PRO-v1.2.1 research; no wagering'&&e.nflVerifiedInput?.source==='nflverse'&&e.nflVerifiedInput.canAuthorizeWager===false&&e.nflVerifiedInput.observedAt===e.sourceCapturedAt&&/^[a-f0-9]{64}$/.test(e.nflVerifiedInput.snapshotSha256||'');
+export function publicModelAllowed(e,sport,{requireProvenance=false}={}){
+ const p=e?.projection;
+ if(sport==='nfl'&&p?.modelId==='NFL-PRO-v1'&&p.modelVersion==='v1.2.1')return !requireProvenance||advancedNfl(e);
+ if(p?.modelId===PUBLIC_MODEL_IDS[sport])return !requireProvenance||/^ESPN (verified|actual) /.test(String(e.sourceLabel||''));
+ if(sport!=='cfb'||p?.modelId!=='CFB-FBIS-v2'||p.modelVersion!==FITTED_CFB.version)return false;
+ if(!requireProvenance)return true;
+ const v=e.provenance;
+ return e.sourceLabel==='CFBD verified per-game PPA and frozen prior; CFB-FBIS-v2'&&v?.featureContract===FITTED_CFB.featureContract&&
+  v?.coefficientsSha256===FITTED_CFB.sourceArtifacts.fittedCoefficientsFinalSha256&&v?.priorSourceSeason===2025&&
+  /^[a-f0-9]{64}$/.test(v?.ppaResponseSha256||'')&&Array.isArray(v?.homeGameIds)&&v.homeGameIds.length>=3&&Array.isArray(v?.awayGameIds)&&v.awayGameIds.length>=3;
+}
 function summaryEvent(e,sport,packet){
   // The recovery producer uses ESPN-derived form/box scores only for these ids.
   // An altered or unverifiable source label cannot be silently made public.
-  if(!(sport==='nfl'&&advancedNfl(e))&&(e.projection.modelId!==PUBLIC_MODEL_IDS[sport]||
-    !/^ESPN (verified|actual) /.test(String(e.sourceLabel||''))))return null;
+  if(!publicModelAllowed(e,sport,{requireProvenance:true}))return null;
   return {eventId:e.eventId,date:e.date,start:e.start,homeId:e.homeId,awayId:e.awayId,
     sourceCapturedAt:e.sourceCapturedAt,canAuthorizeWager:false,
     ...(sport==='nfl'&&advancedNfl(e)&&e.nflDirectionalResearch?{nflDirectionalResearch:structuredClone(e.nflDirectionalResearch)}:{}),
@@ -38,6 +49,6 @@ export function validatePublicProjectionSummary(packet,{sport,date}={}){
     throw Error('INVALID_PUBLIC_MODEL_SUMMARY');
   const privateEquivalent={...packet,visibility:'PRIVATE_PERSONAL_ANALYSIS'};
   validateFourSportPacket(privateEquivalent,{sport,date});
-  if(packet.events.some(e=>e.projection.modelId!==PUBLIC_MODEL_IDS[sport]&&!(sport==='nfl'&&e.projection.modelId==='NFL-PRO-v1'&&e.projection.modelVersion==='v1.2.1')))throw Error('NON_PUBLIC_MODEL');
+  if(packet.events.some(e=>!publicModelAllowed(e,sport)))throw Error('NON_PUBLIC_MODEL');
   return packet;
 }
