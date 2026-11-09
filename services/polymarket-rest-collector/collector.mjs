@@ -1,3 +1,4 @@
+import {balancedCbbMarkets,balancedCbbCandidates} from './fairSelection.mjs';
 import {verifiedOppositeBinding} from '../../functions/lib/polymarketOppositeBinding.js';
 import {pregameDiscoveryPlan,pregameDiscoveryUrl,restReferenceSnapshot} from './pregame.mjs';
 import {beginJobExecution} from '../account-budget/jobScope.mjs';
@@ -77,32 +78,30 @@ export async function collectBoundedPolymarketRest(env,{sport,slot=Math.floor(Da
  if(!ROSTER_SPORTS.includes(sport)||!Number.isSafeInteger(slot)||Math.abs(slot-Math.floor(now/60000))>1)throw Error('INVALID_REST_SCOPE');
  env=await beginJobExecution(env,POLY_REST_JOB,{reservationId:'poly-rest-'+sport+'-'+slot,fetchImpl,network:{origin:POLY_US_API,path:'/v1/events'}});
  const stored=await env.ARCHIVE.get(fixtureKey(sport));if(!stored)return {ok:false,sport,code:'FIXTURE_MANIFEST_MISSING'};
- const manifest=validateFixtureManifest(await stored.json(),now);if(manifest.sport!==sport)throw Error('FIXTURE_SPORT_MISMATCH');
+ const manifest=validateFixtureManifest(await stored.json(),now,{allowCfbRestLookahead:env.FBIS_POLYMARKET_PREGAME_REST==='true'});if(manifest.sport!==sport)throw Error('FIXTURE_SPORT_MISMATCH');
  if(!manifest.fixtures.length)return {ok:true,sport,status:'NO_FIXTURES',canAuthorizeWager:false};
  const pregame=env.FBIS_POLYMARKET_PREGAME_REST==='true';
  const pages=[],candidates=[],errors=[],referenceMarkets=new Map();let matched=0;
- // One list page + at most three exact-slug pages for CBB. The total stays
- // within the existing four-request account-budget certificate. Other sports
- // retain the original two-page-per-tag scan.
+ // Broader fixture-backed list windows share the existing four-call ceiling
+ // with CBB/CFB detail reads. Legacy mode retains its original request plan.
  const plan=pregame?pregameDiscoveryPlan(manifest,{now,slot}):sport==='cbb'?[{tag:manifest.providerTags[0],page:0}]:
   manifest.providerTags.flatMap(tag=>[0,1].map(page=>({tag,page})));
- const acceptedEvents=[],exhaustedTags=new Set(),failedTags=new Set();
- const processEvents=events=>{
+ const acceptedEvents=[],exhaustedTags=new Set(),failedTags=new Set(),detailCandidates=new WeakSet(),matchedFixtures=new WeakMap();
+ const fixturesById=new Map(manifest.fixtures.map(g=>[g.id,g]));let requests=0;
+ const processEvents=(events,{detail=false}={})=>{
   for(const event of events){
    if(!Array.isArray(event.markets)||event.markets.length>200)throw Error('PROVIDER_MARKET_CAPACITY');
    if(event.markets.some(m=>!Array.isArray(m.marketSides)||m.marketSides.length>4))throw Error('PROVIDER_SIDE_CAPACITY');
    const match=matchPolymarketUsEvent(event,manifest.fixtures,sport);if(!match.id)continue;matched++;
-   const fixture=manifest.fixtures.find(g=>g.id===match.id);
+   const fixture=fixturesById.get(match.id);matchedFixtures.set(event,fixture);
    if(pregame&&(Date.parse(fixture.start)<=now||(event.live===true||event.eventState?.live===true)&&event.closed!==true&&event.ended!==true))continue;
    // Only bounded full-game positive contracts. Extra markets are reported as
    // partial coverage rather than silently enlarging a job or scanning history.
    // Inspect up to 24 markets from the already bounded response; no new calls.
    // Never stage contracts with unverifiable side, threshold, or period.
-   // Prefer source-labeled CBB first-half totals within the existing 24-market cap.
-   // No additional provider calls or increase to the bounded roster.
-   const markets=sport==='cbb'?[...event.markets].sort((a,b)=>
+   const markets=sport==='cbb'?(pregame?balancedCbbMarkets(event.markets):[...event.markets].sort((a,b)=>
     Number(/first_half/.test(String(b?.sportsMarketType||'').toLowerCase())&&String(b?.sportsMarketType||'').toLowerCase().includes('total'))-
-    Number(/first_half/.test(String(a?.sportsMarketType||'').toLowerCase())&&String(a?.sportsMarketType||'').toLowerCase().includes('total'))):event.markets;
+    Number(/first_half/.test(String(a?.sportsMarketType||'').toLowerCase())&&String(a?.sportsMarketType||'').toLowerCase().includes('total')))):event.markets;
    for(const market of markets.slice(0,24)){
     const referenceMarket=event.closed===true||event.ended===true?{...market,closed:true}:market;
     if(!Array.isArray(market.marketSides)||market.marketSides.length>4)throw Error('PROVIDER_SIDE_CAPACITY');
@@ -129,7 +128,8 @@ export async function collectBoundedPolymarketRest(env,{sport,slot=Math.floor(Da
      const displayBinding=verifiedFullGamePairBinding(offer,offers,fixture);
      if(!displayBinding)continue;
      if(pregame)referenceMarkets.set(offer.sourceMarketId,referenceMarket);
-     candidates.push({sport,source_market_id:offer.sourceMarketId,provider_event_id:offer.raw.providerEventId,eventNavigation:offer.raw.eventNavigation,canonical_event_id:match.id,market_family:offer.marketFamily,event_start_time:fixture.start,collected_at:new Date(now).toISOString(),displayBinding});
+     const candidate={sport,source_market_id:offer.sourceMarketId,provider_event_id:offer.raw.providerEventId,eventNavigation:offer.raw.eventNavigation,canonical_event_id:match.id,market_family:offer.marketFamily,event_start_time:fixture.start,collected_at:new Date(now).toISOString(),displayBinding};
+     candidates.push(candidate);if(detail)detailCandidates.add(candidate);
     }
    }
   }
@@ -141,35 +141,38 @@ export async function collectBoundedPolymarketRest(env,{sport,slot=Math.floor(Da
   for(const [key,value] of Object.entries({tagSlug:tag,active:true,closed:false,limit:20,offset:page*20,
    orderBy:'id',orderDirection:'asc',startTimeMin:new Date(now-48*3600000).toISOString(),
    startTimeMax:new Date(now+72*3600000).toISOString()}))url.searchParams.set(key,String(value));
+  requests++;
   const response=await env.FBIS_JOB_FETCH((pregame?pregameDiscoveryUrl(query):url).toString(),{headers:{accept:'application/json'}});
   if(!response.ok){await response.body?.cancel();errors.push({tag,status:response.status});failedTags.add(tag);exhaustedTags.add(tag);continue;}
   const value=await response.json();
   if(!Array.isArray(value.events)||value.events.length>20)throw Error('PROVIDER_EVENT_PAGE_INVALID');
   pages.push({tag,offset:page*20,events:value.events});
   processEvents(value.events);
-  if(sport==='cbb')for(const e of value.events){
-   const match=matchPolymarketUsEvent(e,manifest.fixtures,sport);
-   const fixture=manifest.fixtures.find(g=>g.id===match.id);
+  if(sport==='cbb'||pregame&&sport==='cfb')for(const e of value.events){
+   // Reuse the exact independent match already checked for this object.
+   const fixture=matchedFixtures.get(e);
    if(pregame&&(!fixture||Date.parse(fixture.start)<=now||
      (e.live===true||e.eventState?.live===true)&&e.closed!==true&&e.ended!==true))continue;
-   if(typeof e.slug==='string'&&/^cbb-[a-z0-9-]{1,140}$/.test(e.slug)&&match.id)acceptedEvents.push(e);
+   if(typeof e.slug==='string'&&new RegExp('^'+sport+'-[a-z0-9-]{1,140}$').test(e.slug)&&fixture)acceptedEvents.push(e);
   }
   if(value.events.length<20)exhaustedTags.add(tag);
  }
- if(sport==='cbb'&&acceptedEvents.length){
+ if((sport==='cbb'||pregame&&sport==='cfb')&&acceptedEvents.length){
   const uniqueEvents=[...new Map(acceptedEvents.map(e=>[e.slug,e])).values()];
   const offset=(pregame?plan[0].detailRotation:Math.floor(slot/10))%uniqueEvents.length;
-  for(let i=0;i<Math.min(3,uniqueEvents.length);i++){
+  const detailSlots=Math.min(3,4-requests,uniqueEvents.length);
+  for(let i=0;i<detailSlots;i++){
    const selected=uniqueEvents[(offset+i)%uniqueEvents.length];
    const url=new URL('/v1/events',POLY_US_API);
    url.searchParams.set('slug',selected.slug);
    url.searchParams.set('limit','1');
+   requests++;
    const response=await env.FBIS_JOB_FETCH(url.toString(),{headers:{accept:'application/json'}});
    if(!response.ok){await response.body?.cancel();errors.push({slugScope:'DETAIL_UNAVAILABLE',status:response.status});continue;}
    const detail=await response.json();
    if(!Array.isArray(detail.events)||detail.events.length>1)throw Error('PROVIDER_EVENT_DETAIL_INVALID');
    if(detail.events.length!==1||detail.events[0].slug!==selected.slug)throw Error('PROVIDER_EVENT_SLUG_MISMATCH');
-   processEvents(detail.events);
+   processEvents(detail.events,{detail:true});
   }
  }
  // A provider slug is one contract. Repeated pages may refresh its quote, but
@@ -179,10 +182,19 @@ export async function collectBoundedPolymarketRest(env,{sport,slot=Math.floor(Da
  const unique=new Map();
  for(const row of candidates){
   const previous=unique.get(row.source_market_id);
-  if(previous&&identity(previous)!==identity(row))throw Error('AMBIGUOUS_PROVIDER_CONTRACT');
+  if(previous&&identity(previous)!==identity(row)){
+   // Exact-event detail may add a genuine opposite side to a list's long-only
+   // binding. Every existing identity field must remain identical. Conflicting
+   // IDs, sides, lines, fixtures, event IDs or already-present opposite data fail.
+   const {oppositeSide,oppositeLine,oppositeSourceOutcomeId,...base}=row.displayBinding;
+   const enriched={...row,displayBinding:base};
+   if(!pregame||!detailCandidates.has(row)||previous.provider_event_id!==row.provider_event_id||!previous.provider_event_id||
+    Object.hasOwn(previous.displayBinding,'oppositeSide')||!verifiedOppositeBinding(row.displayBinding,row.market_family,sport)||
+    identity(previous)!==identity(enriched))throw Error('AMBIGUOUS_PROVIDER_CONTRACT');
+  }
   unique.set(row.source_market_id,row);
  }
- const selected=[...unique.values()].slice(0,50),receipt={version:1,sport,capturedAt:new Date(now).toISOString(),pages:pages.length,matchedEvents:matched,candidates:unique.size,selected:selected.length,complete:false,canQualify:false,canAuthorizeWager:false};
+ const selected=pregame&&['cbb','cfb'].includes(sport)?balancedCbbCandidates([...unique.values()]):[...unique.values()].slice(0,50),receipt={version:1,sport,capturedAt:new Date(now).toISOString(),pages:pages.length,providerRequests:requests,matchedEvents:matched,candidates:unique.size,selected:selected.length,complete:false,canQualify:false,canAuthorizeWager:false};
  const referenceSnapshot=pregame?restReferenceSnapshot(selected,referenceMarkets,now):null;
  // An empty or failed capture must not erase the last observed references.
  if(!pregame||referenceSnapshot.quotes.length)await env.ARCHIVE.put(restKey(sport)+'/latest.json',JSON.stringify({version:1,sport,capturedAt:receipt.capturedAt,pages:pregame?pages.map(p=>({tag:p.tag,offset:p.offset,eventCount:p.events.length})):pages,...(pregame?{referenceSnapshot}:{}),complete:false,canAuthorizeWager:false}));

@@ -32,9 +32,10 @@ export function decodeBoundedPolymarketSnapshot(value,{now=new Date(),retainLast
   const displayAgeMs=retainLastObserved&&transport==='REST'?900000:MAX_QUOTE_AGE_MS;
   const at=Date.parse(value?.capturedAt),started=Date.parse(value?.startedAt),clock=+now;
   if(!Number.isFinite(clock)||value?.version!==1||value.source!=='Polymarket US'||value.scope!=='BOUNDED_RESEARCH_CAPTURE'||!Number.isFinite(at)||!Number.isFinite(started)||started>at||at>clock||(!retainLastObserved&&clock-at>MAX_QUOTE_AGE_MS)||!Array.isArray(value.roster)||!value.roster.length||value.roster.length>50||!Array.isArray(value.quotes)||value.quotes.length>50)return {ok:false,code:'STALE_OR_INVALID_BOUNDED_SNAPSHOT'};
+  if(value.fixtureHorizonHours!==undefined&&(transport!=='REST'||value.fixtureHorizonHours!==168||value.roster.some(r=>r.sport!=='cfb')))return {ok:false,code:'INVALID_REST_FIXTURE_HORIZON'};
   // Validate the captured roster in its original time context for display only;
   // never rewrite its collected_at, event time or binding metadata.
-  const roster=validateStreamRoster({version:2,source:value.source,capturedAt:value.capturedAt,expiresAt:new Date(at+900000).toISOString(),roster:value.roster},retainLastObserved?at:clock);
+  const roster=validateStreamRoster({version:2,source:value.source,capturedAt:value.capturedAt,expiresAt:new Date(at+900000).toISOString(),roster:value.roster},retainLastObserved?at:clock,{allowCfbRestLookahead:transport==='REST'&&value.fixtureHorizonHours===168});
   const sourceRows=new Map(value.roster.map(r=>[r.source_market_id,r]));
   const rosterIds=new Set(roster.map(r=>r.source_market_id)),seen=new Set(),quotes=[],unavailableMarkets=[];
   for(const q of value.quotes){

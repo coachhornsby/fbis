@@ -9,13 +9,13 @@ const SPORTS=new Set(['nfl','cfb','cbb','nba','mlb','nhl','tennis']);
 const UPSTREAM='https://api.polymarket.us/v1/ws/markets';
 const BROKER='https://fbis-myz.pages.dev/api/polymarket-stream-sign';
 const encoder=new TextEncoder();
-export function validateStreamRoster(value,now=Date.now()){
+export function validateStreamRoster(value,now=Date.now(),{allowCfbRestLookahead=false}={}){
  const at=Date.parse(value?.capturedAt),until=Date.parse(value?.expiresAt);
  if(value?.version!==2||value.source!=='Polymarket US'||!Number.isFinite(at)||at>now||now-at>900000||!Number.isFinite(until)||until<=now||until>at+900000||!Array.isArray(value.roster)||!value.roster.length||value.roster.length>50)throw Error('INVALID_OR_STALE_STREAM_ROSTER');
  const seen=new Set();
  return value.roster.map(row=>{
   const slug=row?.source_market_id,start=Date.parse(row?.event_start_time),collected=Date.parse(row?.collected_at);
-  if(!SPORTS.has(row?.sport)||typeof slug!=='string'||!/^[a-z0-9-]{1,160}$/i.test(slug)||seen.has(slug)||typeof row.canonical_event_id!=='string'||!row.canonical_event_id.length||row.canonical_event_id.length>160||!['moneyline','spread','total'].includes(row.market_family)||!Number.isFinite(start)||start<now-48*3600000||start>now+72*3600000||!Number.isFinite(collected)||collected>now||now-collected>900000)throw Error('INVALID_STREAM_ROSTER_ROW');
+  if(!SPORTS.has(row?.sport)||typeof slug!=='string'||!/^[a-z0-9-]{1,160}$/i.test(slug)||seen.has(slug)||typeof row.canonical_event_id!=='string'||!row.canonical_event_id.length||row.canonical_event_id.length>160||!['moneyline','spread','total'].includes(row.market_family)||!Number.isFinite(start)||start<now-48*3600000||start>now+(allowCfbRestLookahead&&row.sport==='cfb'?168:72)*3600000||!Number.isFinite(collected)||collected>now||now-collected>900000)throw Error('INVALID_STREAM_ROSTER_ROW');
   let displayBinding;
   const b=row.displayBinding;
   if(b){
