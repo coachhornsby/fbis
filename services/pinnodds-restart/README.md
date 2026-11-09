@@ -167,3 +167,11 @@ time. Never claim the hash or event count belongs to the unobserved full feed.
 The cards label partial captures; unmatched/started/expired events are omitted.
 Source receipt authenticity depends on the trusted acquisition handoff, not on
 a hash alone. Synthetic fixtures cannot establish live provenance.
+
+The direct CLI optionally accepts a fifth fixture-proofs JSON argument: an
+array of fresh ESPN summary proofs with exact source URL, HTTP200, receivedAt,
+canonical event ID, sport, scheduled status, start and home/away names. This
+lets an older board be identity-checked without relabeling its capturedAt.
+The documented native `/kit/v1/prematch/fixtures?sport_id=5` endpoint is also
+accepted; credentials, other sports, live feeds and extra query parameters are
+rejected. Preserve request/observation clock distinctions in acquisition input.

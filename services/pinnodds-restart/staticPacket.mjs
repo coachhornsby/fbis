@@ -18,9 +18,15 @@ export async function buildStaticPacket({raw,receipt,fixtures,now=Date.now()}){
 }
 // Local direct acquisition receipt only. It cannot impersonate an R2 archive
 // receipt and never causes a source call, archive access or publication.
+function approvedDirectSource(value){
+ try{const u=new URL(value);if(u.origin!=='https://pinnodds.com'||u.username||u.password||u.hash)return false;
+ const allowed=u.pathname==='/kit/v1/prematch/fixtures'?['sport_id','include_specials']:u.pathname==='/kit/v1/markets'?['sport_id','event_type','include_specials']:[];
+ return allowed.length>0&&[...u.searchParams.keys()].every(k=>allowed.includes(k)&&u.searchParams.getAll(k).length===1)&&u.searchParams.get('sport_id')==='5'&&(u.pathname!=='/kit/v1/markets'||u.searchParams.get('event_type')==='prematch')&&(!u.searchParams.has('include_specials')||u.searchParams.get('include_specials')==='0');
+ }catch{return false;}
+}
 export async function buildDirectStaticPacket({raw,receipt,fixtures,now=Date.now()}){
  if(typeof raw!=='string'||new TextEncoder().encode(raw).length>2097152)throw Error('PINNODDS_PACKET_RAW_LIMIT');
- if(receipt?.ok!==true||receipt.acquisition!=='direct'||typeof receipt.completeFeed!=='boolean'||receipt.sportId!==5||receipt.feed!=='prematch'||receipt.sourceUrl!==SOURCE||receipt.rawKey!=null||receipt.snapshotId!=='pinnodds-direct-'+receipt.rawHash||await sha256(raw)!==receipt.rawHash)throw Error('PINNODDS_DIRECT_RECEIPT_MISMATCH');
+ if(receipt?.ok!==true||receipt.acquisition!=='direct'||typeof receipt.completeFeed!=='boolean'||receipt.sportId!==5||receipt.feed!=='prematch'||!approvedDirectSource(receipt.sourceUrl)||receipt.rawKey!=null||receipt.snapshotId!=='pinnodds-direct-'+receipt.rawHash||await sha256(raw)!==receipt.rawHash)throw Error('PINNODDS_DIRECT_RECEIPT_MISMATCH');
  return buildValidatedPacket({raw,receipt,fixtures,now});
 }
 function buildValidatedPacket({raw,receipt,fixtures,now}){
