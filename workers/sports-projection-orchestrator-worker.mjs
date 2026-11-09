@@ -1,3 +1,5 @@
+import {isNflRestrictedWorkflow} from '../services/nfl/restrictedWorkflow.mjs';
+import {handleNflFeatureOperation} from './nfl-feature-operations-route.mjs';
 import {handlePinnoddsCapture} from './pinnodds-capture-route.mjs';
 import {handlePinnoddsAccountCheck} from './pinnodds-account-check-route.mjs';
 import {handlePinnedManifestInspection} from './pinned-manifest-inspection-route.mjs';
@@ -62,6 +64,7 @@ async function verifyGithubOidc(jwt, env) {
     if (parts.length !== 3) return false;
     const header = decodePart(parts[0]);
     const claims = decodePart(parts[1]);
+    if(isNflRestrictedWorkflow(claims))return false;
     const audience = env.GITHUB_OIDC_AUDIENCE || "sports-projection-orchestrator";
     const allowedRepo = env.GITHUB_OIDC_REPOSITORY || "coachhornsby/fbis";
     if (header.alg !== "RS256" || !header.kid) return false;
@@ -270,6 +273,8 @@ async function runRecoveryWithTennisResearch(env,controller){
 }
 
 async function handleFetch(request, env) {
+  const nflOperation=await handleNflFeatureOperation(request,env);
+  if(nflOperation)return nflOperation;
   const inspection=await handlePinnedManifestInspection(request,env);
   if(inspection)return inspection;
   const capture=await handlePinnoddsCapture(request,env);

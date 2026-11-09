@@ -3,7 +3,7 @@ import {PINNODDS_ACCOUNT_JOB,PINNODDS_ACCOUNT_ATTEMPT,accountPolicyError} from '
 // One coordinator per Cloudflare account, used only for bounded job admission.
 // Reservations are never refunded: delayed billing and failed jobs cannot free
 // capacity for another run. This is an application stop, not a provider hard cap.
-import {PINNED_INSPECTION_JOB} from './executionJobs.mjs';
+import {isInspectionJob} from './executionJobs.mjs';
 import {validCycleAllocation} from './cycleAllocation.mjs';
 export const STOP_MICRO_USD = 8_000_000;
 const integer = n => Number.isSafeInteger(n) && n >= 0;
@@ -21,7 +21,7 @@ export async function reserveJob(storage, policy, request, now = Date.now()) {
   const job = policy.jobs && Object.hasOwn(policy.jobs,request?.job) ? policy.jobs[request.job] : null;
   if (!job || !integer(job.worstCaseMicroUsd) || job.worstCaseMicroUsd<1)
     return {allowed:false,reason:'UNAPPROVED_JOB'};
-  const inspection=request.job===PINNED_INSPECTION_JOB;
+  const inspection=isInspectionJob(request.job);
   const capture=request.job===PINNODDS_CAPTURE_JOB;
   if(capture){const error=capturePolicyError(policy);if(error)return {allowed:false,reason:error};if(request.id!==PINNODDS_CAPTURE_ATTEMPT)return {allowed:false,reason:'PINNODDS_CAPTURE_FIXED_ID_REQUIRED'};}
   const account=request.job===PINNODDS_ACCOUNT_JOB;

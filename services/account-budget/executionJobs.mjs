@@ -17,8 +17,21 @@ export const POLY_SNAPSHOT_READ_JOB='functions/lib/boundedPolymarketBoard.js:rea
 export const POLY_REST_JOB='services/polymarket-rest-collector/worker.mjs';
 export const POLY_FIXTURE_JOB='functions/lib/polymarketFixtureArchive.js:write';
 export const PINNED_INSPECTION_JOB='services/archive/inspectPinnedManifest.mjs';
+export const NFL_SNAPSHOT_INSPECTION_JOB='services/nfl/inspectFeatureSnapshot.mjs';
+export const NFL_SNAPSHOT_VERIFY_JOB='services/nfl/inspectFeatureSnapshot.mjs:verify';
+export const NFL_SNAPSHOT_WRITE_JOB='services/nfl/writeFeatureSnapshot.mjs';
+export const NFL_PACKET_INSPECT_JOB='services/nfl/writeProjectionPacket.mjs:inspect';
+export const NFL_PACKET_VERIFY_JOB='services/nfl/writeProjectionPacket.mjs:verify';
+export const NFL_PACKET_WRITE_JOB='services/nfl/writeProjectionPacket.mjs';
+export const isInspectionJob=job=>[PINNED_INSPECTION_JOB,NFL_SNAPSHOT_INSPECTION_JOB,NFL_SNAPSHOT_WRITE_JOB,NFL_SNAPSHOT_VERIFY_JOB,NFL_PACKET_WRITE_JOB,NFL_PACKET_VERIFY_JOB,NFL_PACKET_INSPECT_JOB].includes(job);
 const noD1={d1Queries:0,reads:0,writes:0,r2Lists:0};
 export const CERTIFIED_EXECUTION_JOBS=Object.freeze({
+ [NFL_PACKET_WRITE_JOB]:Object.freeze({cpuMs:100,units:Object.freeze({...noD1,requests:0,responseBytes:0,r2Reads:1,r2Writes:1,r2Bytes:1024000,nflPacketWriteAttempts:1,coordinatorCalls:1,coordinatorStorageGets:2,coordinatorStoragePuts:2})}),
+ [NFL_PACKET_VERIFY_JOB]:Object.freeze({cpuMs:100,units:Object.freeze({...noD1,requests:0,responseBytes:0,r2Reads:1,r2Writes:0,r2Bytes:512000,nflPacketVerifyAttempts:1,coordinatorCalls:1,coordinatorStorageGets:2,coordinatorStoragePuts:2})}),
+ [NFL_PACKET_INSPECT_JOB]:Object.freeze({cpuMs:100,units:Object.freeze({...noD1,requests:0,responseBytes:0,r2Reads:1,r2Writes:0,r2Bytes:512000,nflPacketInspectAttempts:1,coordinatorCalls:1,coordinatorStorageGets:2,coordinatorStoragePuts:2})}),
+ [NFL_SNAPSHOT_WRITE_JOB]:Object.freeze({cpuMs:100,units:Object.freeze({...noD1,requests:0,responseBytes:0,r2Reads:1,r2Writes:1,r2Bytes:8388608,snapshotWriteAttempts:1,coordinatorCalls:1,coordinatorStorageGets:2,coordinatorStoragePuts:2})}),
+ [NFL_SNAPSHOT_INSPECTION_JOB]:Object.freeze({cpuMs:100,units:Object.freeze({...noD1,requests:0,responseBytes:0,r2Reads:1,r2Writes:0,r2Bytes:8388608,inspectionAttempts:1,coordinatorCalls:1,coordinatorStorageGets:2,coordinatorStoragePuts:2})}),
+ [NFL_SNAPSHOT_VERIFY_JOB]:Object.freeze({cpuMs:100,units:Object.freeze({...noD1,requests:0,responseBytes:0,r2Reads:1,r2Writes:0,r2Bytes:8388608,snapshotVerifyAttempts:1,coordinatorCalls:1,coordinatorStorageGets:2,coordinatorStoragePuts:2})}),
  [PINNODDS_CAPTURE_JOB]:Object.freeze({cpuMs:100,units:PINNODDS_CAPTURE_UNITS}),
  [PINNODDS_ACCOUNT_JOB]:Object.freeze({cpuMs:100,units:PINNODDS_ACCOUNT_UNITS}),
  [PINNED_INSPECTION_JOB]:Object.freeze({cpuMs:10,units:Object.freeze({...noD1,requests:0,responseBytes:0,r2Reads:2,r2Writes:0,r2Bytes:4096,inspectionAttempts:1,coordinatorCalls:1,coordinatorStorageGets:2,coordinatorStoragePuts:2})}),
@@ -55,9 +68,9 @@ export function executionPolicyError(policy,job){
  const units=policy?.jobs?.[job]?.maxUnits;
  if(!units||!Object.keys(units).length)return 'MISSING_UNIT_BOUNDS';
  const caps=CERTIFIED_EXECUTION_JOBS[job].units;
- if(job===PINNED_INSPECTION_JOB){
+ if(isInspectionJob(job)){
   const definition=policy.jobs[job];
-  if(!Number.isSafeInteger(definition.coordinatorOverheadMicroUsd)||definition.coordinatorOverheadMicroUsd<1||definition.preAdmissionAttemptCeiling!==1||definition.runtimeCpuLimitMs!==10||policy.unitCeilings?.inspectionAttempts!==1)return 'INSPECTION_COORDINATOR_OVERHEAD_NOT_APPROVED';
+  if(!Number.isSafeInteger(definition.coordinatorOverheadMicroUsd)||definition.coordinatorOverheadMicroUsd<1||definition.preAdmissionAttemptCeiling!==1||definition.runtimeCpuLimitMs!==CERTIFIED_EXECUTION_JOBS[job].cpuMs||policy.unitCeilings?.[job===NFL_PACKET_INSPECT_JOB?'nflPacketInspectAttempts':job===NFL_PACKET_VERIFY_JOB?'nflPacketVerifyAttempts':job===NFL_PACKET_WRITE_JOB?'nflPacketWriteAttempts':job===NFL_SNAPSHOT_WRITE_JOB?'snapshotWriteAttempts':job===NFL_SNAPSHOT_VERIFY_JOB?'snapshotVerifyAttempts':'inspectionAttempts']!==1)return 'INSPECTION_COORDINATOR_OVERHEAD_NOT_APPROVED';
   if(Object.keys(units).length!==Object.keys(caps).length||Object.entries(caps).some(([key,value])=>units[key]!==value))return 'INSPECTION_EXACT_UNITS_REQUIRED';
  }
  for(const [unit,value]of Object.entries(units))if(!Object.hasOwn(caps,unit)||!Number.isSafeInteger(value)||value<0||value>caps[unit])return 'JOB_POLICY_EXCEEDS_CODE_CEILINGS';

@@ -1,3 +1,4 @@
+import {isNflRestrictedWorkflow} from '../nfl/restrictedWorkflow.mjs';
 import http from 'node:http';
 import crypto from 'node:crypto';
 import {healthSummary,validateModels,validateSheetsAccess,selectCandidates,processQueue,runSnapshot,syncLearningDashboard} from './orchestrator.mjs';
@@ -31,6 +32,7 @@ async function verifyGithubOidc(jwt){
     const parts=String(jwt||'').split('.');
     if(parts.length!==3) return false;
     const header=decodePart(parts[0]), claims=decodePart(parts[1]);
+    if(isNflRestrictedWorkflow(claims))return false;
     if(header.alg!=='RS256'||!header.kid) return false;
     if(claims.iss!=='https://token.actions.githubusercontent.com') return false;
     const aud=Array.isArray(claims.aud)?claims.aud:[claims.aud];
