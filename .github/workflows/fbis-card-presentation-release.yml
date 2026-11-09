@@ -1,9 +1,15 @@
-# Board-only release: remove repetitive reference-only labels; preserve eligibility gates.
+# Board-only release: correct REST reference freshness; preserve eligibility gates.
 name: FBIS card presentation checks and bounded Pages release
 on:
   pull_request:
     paths:
       - 'src/lib/exchangeCardRows.js'
+      - 'src/lib/retainedExchangeQuotes.js'
+      - 'functions/lib/boundedPolymarketBoard.js'
+      - 'functions/lib/exchangeCardDelivery.js'
+      - 'test/polymarket-retained-display.test.mjs'
+      - 'test/retained-exchange-quotes.test.mjs'
+      - 'test/card-presentation-release.test.mjs'
       - 'src/lib/recoveryCardFacts.js'
       - 'src/lib/productionRecoveryOverlay.js'
       - 'src/components/board/RecoveryMiniGameCard.jsx'
@@ -25,13 +31,39 @@ jobs:
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4.2.2
+        with:
+          ref: ${{ github.sha }}
       - uses: actions/setup-node@v4.1.0
         with:
           node-version: '22'
       - run: npm ci --ignore-scripts --no-audit --no-fund
+      - name: Preserve the approved Pages REST display flag only
+        run: |
+          python3 - <<'PYTHON'
+          import copy, pathlib, tomllib
+          path = pathlib.Path('deploy/board/wrangler.toml')
+          text = path.read_text()
+          before = tomllib.loads(text)
+          expected = copy.deepcopy(before)
+          assert isinstance(expected.get('vars'), dict), 'Missing Pages vars'
+          current = expected['vars'].get('FBIS_POLYMARKET_PREGAME_REST')
+          assert current in (None, 'true'), 'Unexpected repository REST flag'
+          expected['vars']['FBIS_POLYMARKET_PREGAME_REST'] = 'true'
+          if current is None:
+              assert text.count('[vars]') == 1, 'Ambiguous Pages vars'
+              text += '\nFBIS_POLYMARKET_PREGAME_REST = "true"\n'
+          assert tomllib.loads(text) == expected, 'Unexpected configuration change'
+          path.write_text(text)
+          PYTHON
       - name: Verify current and saved score separation and relative quote age
-        run: node --test test/game-card-saved-projection.test.mjs test/recovery-card-facts.test.mjs test/four-sport-private-recovery.test.mjs test/exchange-card-rows.test.mjs test/cbb-card-summary.test.mjs test/retained-exchange-quotes.test.mjs test/recovery-lean-shopping.test.mjs
+        run: node --import ./test/offline-network.js --test test/card-presentation-release.test.mjs test/polymarket-retained-display.test.mjs test/retained-exchange-card-quotes.test.mjs test/exchange-card-delivery.test.mjs test/game-card-saved-projection.test.mjs test/recovery-card-facts.test.mjs test/four-sport-private-recovery.test.mjs test/exchange-card-rows.test.mjs test/cbb-card-summary.test.mjs test/retained-exchange-quotes.test.mjs test/recovery-lean-shopping.test.mjs
+      - name: Compile offline for pull requests
+        if: github.event_name == 'pull_request'
+        run: |
+          mkdir -p deploy/board/snapshots data/public/cbb-readiness
+          ./node_modules/.bin/vite build --config vite.publication.config.js
       - name: Build existing production board
+        if: github.event_name == 'push'
         run: npm run build --prefix deploy/board
       - name: Release Pages only, without collector or budget changes
         if: github.event_name == 'push'

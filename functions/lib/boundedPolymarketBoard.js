@@ -21,14 +21,15 @@ export async function loadBoundedPolymarketSnapshot(env,{now=new Date(),retainLa
   const object=await env.ARCHIVE.get(rest?'market-sources/polymarket-us/bounded-rest-v1/'+sport+'/latest.json':STREAM_SNAPSHOT_KEY);
   if(!object)return {ok:false,code:'NO_BOUNDED_SNAPSHOT'};
   const value=await object.json();
-  const result=decodeBoundedPolymarketSnapshot(rest?value.referenceSnapshot:value,{now,retainLastObserved});
+  const result=decodeBoundedPolymarketSnapshot(rest?value.referenceSnapshot:value,{now,retainLastObserved,transport:rest?'REST':'WebSocket'});
   return {...result,transport:rest?'REST':'WebSocket'};
  }catch{return {ok:false,code:'BOUNDED_SNAPSHOT_UNAVAILABLE'};}
 }
 // Historical display is explicitly opt-in. Live/qualification readers keep their
 // existing freshness limits, and all returned prices remain non-executable.
-export function decodeBoundedPolymarketSnapshot(value,{now=new Date(),retainLastObserved=false}={}){
+export function decodeBoundedPolymarketSnapshot(value,{now=new Date(),retainLastObserved=false,transport='WebSocket'}={}){
  try{
+  const displayAgeMs=retainLastObserved&&transport==='REST'?900000:MAX_QUOTE_AGE_MS;
   const at=Date.parse(value?.capturedAt),started=Date.parse(value?.startedAt),clock=+now;
   if(!Number.isFinite(clock)||value?.version!==1||value.source!=='Polymarket US'||value.scope!=='BOUNDED_RESEARCH_CAPTURE'||!Number.isFinite(at)||!Number.isFinite(started)||started>at||at>clock||(!retainLastObserved&&clock-at>MAX_QUOTE_AGE_MS)||!Array.isArray(value.roster)||!value.roster.length||value.roster.length>50||!Array.isArray(value.quotes)||value.quotes.length>50)return {ok:false,code:'STALE_OR_INVALID_BOUNDED_SNAPSHOT'};
   // Validate the captured roster in its original time context for display only;
@@ -51,13 +52,13 @@ export function decodeBoundedPolymarketSnapshot(value,{now=new Date(),retainLast
    if(!retainLastObserved&&q.sourceObservedAt!=null&&received-provider>MAX_QUOTE_AGE_MS)continue;
    const bid=price(q.bestBid),ask=price(q.bestAsk);
    if(ask==null||bid!=null&&bid>ask){unavailable('invalid');continue;}
-   const stale=clock-received>MAX_QUOTE_AGE_MS||(Number.isFinite(provider)&&clock-provider>MAX_QUOTE_AGE_MS);
+   const stale=clock-received>displayAgeMs||(Number.isFinite(provider)&&clock-provider>displayAgeMs);
    quotes.push({marketSlug:q.marketSlug,bestBid:bid,bestAsk:ask,marketUrl:suppliedMarketUrl(q,q.marketSlug)||suppliedMarketUrl(sourceRows.get(q.marketSlug),q.marketSlug),receivedAt:new Date(received).toISOString(),sourceObservedAt:Number.isFinite(provider)?new Date(provider).toISOString():null,
     stale,fresh:!stale,ageSeconds:Math.floor((clock-received)/1000),sourceAgeSeconds:Number.isFinite(provider)?Math.floor((clock-provider)/1000):null,
     marketStatus:q.marketState==='MARKET_STATE_OPEN'?'open':'unknown',referenceOnly:true,executionEligible:false,canQualify:false,canAuthorizeWager:false});
   }
   return {ok:true,roster,quotes,unavailableMarkets,capturedAt:value.capturedAt,code:'BOUNDED_REFERENCE_SNAPSHOT',continuous:false,
-   stale:clock-at>MAX_QUOTE_AGE_MS,referenceOnly:true,executionEligible:false,canQualify:false,canAuthorizeWager:false};
+   stale:clock-at>displayAgeMs,referenceOnly:true,executionEligible:false,canQualify:false,canAuthorizeWager:false};
  }catch{return {ok:false,code:'BOUNDED_SNAPSHOT_UNAVAILABLE'};}
 }
 export function selectBoundedPolymarketOffers(snapshot,games=[],sport){

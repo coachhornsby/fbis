@@ -31,6 +31,13 @@ export function mergeRetainedExchangeQuotes(previous={},incoming={},now=Date.now
    // resurrect that contract without a genuinely newer observation.
    if(!old||at>prior||(at===prior&&exchangeMarketState(q)!=='observed'&&exchangeMarketState(old)==='observed'))
     merged.set(key,{...q,canAuthorizeWager:false,executionEligible:false,canQualify:false,referenceOnly:true});
+   else if(at===prior&&exchangeMarketState(q)==='observed'&&exchangeMarketState(old)==='observed'&&typeof q.ask==='number'&&q.ask>0&&q.ask<1&&
+    ['ask','receivedAt','sourceObservedAt','providerObservedAt','observedAt','sourceOutcomeId','line','transport','quoteKind','priceDerivation'].every(field=>q[field]===old[field])){
+    // Same observation may carry corrected display freshness, never a new price,
+    // identity, source clock, or market state. Tombstones still apply below.
+    const flags={};for(const field of ['stale','fresh'])if(typeof q[field]==='boolean')flags[field]=q[field];
+    merged.set(key,{...old,...flags,canAuthorizeWager:false,executionEligible:false,canQualify:false,referenceOnly:true});
+   }
   }
   result[eventId]=[...merged.values()];
  }
