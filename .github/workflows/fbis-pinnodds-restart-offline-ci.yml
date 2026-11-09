@@ -12,6 +12,9 @@ on:
       - 'src/lib/pinnoddsStaticReference.js'
       - 'src/PublicationApp.jsx'
       - 'scripts/build-pinnodds-static-reference.mjs'
+      - 'scripts/build-pinnodds-direct-reference.mjs'
+      - 'test/pinnodds-direct-publication.test.mjs'
+      - 'src/components/board/PinnoddsCardMarkets.jsx'
       - 'scripts/build-pinnodds-publication-offline.mjs'
       - 'test/pinnodds-restart.test.mjs'
       - '.github/workflows/fbis-pinnodds-restart-offline-ci.yml'
@@ -26,6 +29,6 @@ jobs:
       - uses: actions/setup-node@v4.1.0
         with:
           node-version: '22'
-      - run: node --import ./test/offline-network.js --test test/pinnodds-restart.test.mjs test/pinnodds-account-certification.test.mjs test/pinnodds-capture-certification.test.mjs test/pinnodds-account-launcher.test.mjs test/pinnodds-capture-launcher.test.mjs test/account-budget-admission.test.mjs test/job-execution-budget.test.mjs test/pinnodds-markets.test.js test/pinnodds-account-usage.test.mjs test/pinnodds-governed-capture.test.mjs
+      - run: node --import ./test/offline-network.js --test test/pinnodds-direct-publication.test.mjs test/pinnodds-restart.test.mjs test/pinnodds-account-certification.test.mjs test/pinnodds-capture-certification.test.mjs test/pinnodds-account-launcher.test.mjs test/pinnodds-capture-launcher.test.mjs test/account-budget-admission.test.mjs test/job-execution-budget.test.mjs test/pinnodds-markets.test.js test/pinnodds-account-usage.test.mjs test/pinnodds-governed-capture.test.mjs
       - run: npm ci --ignore-scripts --no-audit --no-fund
       - run: node scripts/build-pinnodds-publication-offline.mjs

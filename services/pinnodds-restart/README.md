@@ -149,3 +149,21 @@ Deployment order (do not invoke before all gates are met):
    and reconcile the exact result before any further action. No cron is added.
    A receipt proves acquisition only. Existing trusted archive publication and
    expiry validation must run before claiming that fresh odds appear on cards.
+
+## Direct acquisition to static board
+
+Use `scripts/build-pinnodds-direct-reference.mjs` with a trusted local raw JSON
+envelope, sanitized direct receipt, fresh ESPN board and new output path. This
+path does not call a provider or Cloudflare. It publishes nothing by itself.
+A direct receipt uses acquisition `direct`, completeFeed true/false, sportId5,
+feed `prematch`, the exact approved source URL, actual capture start/end clocks,
+providerEventCount for the supplied envelope, SHA256 rawHash and snapshotId
+`pinnodds-direct-` followed by that hash. It must not contain an archive rawKey.
+
+When only complete events from a truncated response can be recovered, build a
+valid envelope from those complete events only, hash that derived envelope, and
+set completeFeed false. Preserve the acquisition clock, not the transfer/build
+time. Never claim the hash or event count belongs to the unobserved full feed.
+The cards label partial captures; unmatched/started/expired events are omitted.
+Source receipt authenticity depends on the trusted acquisition handoff, not on
+a hash alone. Synthetic fixtures cannot establish live provenance.
