@@ -1,4 +1,5 @@
 // Frozen CFB A/A consumer: real per-game PPA only. No new coefficients or score fallbacks.
+import {cfbdPregameValidity} from './cfbdPregameValidity.mjs';
 import {createHash} from 'node:crypto';
 import {resolveTeamExact} from '../../functions/lib/teams.js';
 import {projectCfbFbisV2Production} from '../../functions/lib/cfbFbisV2.js';
@@ -27,10 +28,10 @@ export async function captureCfbdPpaGames({key,fetchFn=fetch,now=Date.now,year=2
  const packet={version:1,visibility:'PRIVATE_SOURCE_EVIDENCE',provider:'CFBD',endpoint:'/ppa/games',query:{year,seasonType:'regular'},capturedAt,responseSha256:createHash('sha256').update(bytes).digest('hex'),rows,sourceRows:raw.length,rejectedRows:rejected,canAuthorizeWager:false};
  return {packet,receipt:{provider:'CFBD',endpoint:packet.endpoint,year,capturedAt,responseSha256:packet.responseSha256,sourceRows:raw.length,acceptedRows:rows.length,rejectedRows:rejected,requests:1,modelInfluence:'PENDING_FROZEN_CONSUMER_GATES'}};
 }
-export function projectCfbdFittedRecovery(game,{ppaPacket,priorPacket,now=Date.now()}={}){
+export function projectCfbdFittedRecovery(game,{ppaPacket,priorPacket,schedulePacket,now=Date.now()}={}){
  const deny=reason=>({ok:false,reason,modelId:'CFB-FBIS-v2',canQualify:false,canAuthorizeWager:false});
  const start=Date.parse(game?.start),capture=Date.parse(ppaPacket?.capturedAt),year=Number(ppaPacket?.query?.year);
- if(game?.sport!=='cfb'||!Number.isFinite(start)||start<=now||typeof game.neutralSite!=='boolean'||!Number.isFinite(capture)||capture>now||capture>=start||now-capture>6*3600000||ppaPacket?.endpoint!=='/ppa/games')return deny('PPA_OR_FIXTURE_PROVENANCE_UNVERIFIED');
+ if(game?.sport!=='cfb'||!Number.isFinite(start)||start<=now||typeof game.neutralSite!=='boolean'||!Number.isFinite(capture)||capture>now||capture>=start||!cfbdPregameValidity(game,{ppaPacket,schedulePacket,now}).verified||ppaPacket?.endpoint!=='/ppa/games')return deny('PPA_OR_FIXTURE_PROVENANCE_UNVERIFIED');
  if(priorPacket?.sourceSeason!==year-1||priorPacket?.frozen!==true||priorPacket?.featureContract!=='ppa-derived-base-v2'||!priorPacket?.rows)return deny('FROZEN_PRIOR_SEASON_INPUT_UNAVAILABLE');
  const sides={};
  for(const side of ['home','away']){

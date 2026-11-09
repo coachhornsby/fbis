@@ -1,4 +1,5 @@
 // Owner-requested week11 publication. Exact frozen coefficients; no invented inputs or wager authority.
+import {cfbdPregameValidity} from './lib/cfbdPregameValidity.mjs';
 import{mkdir,readFile,writeFile}from'node:fs/promises';import{createHash}from'node:crypto';
 import{captureCfbdPpaGames}from'./lib/cfbdFittedRecovery.mjs';
 import{captureCfbdFrozenPrior,captureCfbdCompletionSchedule,buildCfbdFittedWeek}from'./lib/cfbdFrozenPrior.mjs';
@@ -7,6 +8,8 @@ import{publicProjectionSummary}from'../functions/lib/publicFourSportProjection.j
 const key=process.env.CFBD_CBBD_KEY,account=process.env.CLOUDFLARE_ACCOUNT_ID,token=process.env.CLOUDFLARE_API_TOKEN;
 const reuse=process.env.FBIS_CFB_REUSE_CAPTURED==='1';
 const refresh=process.env.FBIS_CFB_REFRESH_CURRENT==='1';
+const targetDate=process.env.FBIS_CFB_TARGET_DATE||null;
+if((reuse&&!targetDate)||(targetDate&&(!/^\d{4}-\d{2}-\d{2}$/.test(targetDate)||!Number.isFinite(Date.parse(targetDate+'T00:00:00Z'))||new Date(targetDate+'T00:00:00Z').toISOString().slice(0,10)!==targetDate)))throw Error('TARGET_DATE_INVALID');
 const maxProviderCalls=reuse?0:refresh?2:5;
 const receipt={startedAt:new Date().toISOString(),maxProviderCalls,providerCalls:0,sources:[],published:[],errors:[],canAuthorizeWager:false};
 const reserve=p=>{if(p!=='CFBD'||receipt.providerCalls>=maxProviderCalls)throw Error('CFBD_CALL_BUDGET_EXCEEDED');receipt.providerCalls++;};
@@ -21,7 +24,6 @@ try{
   ppaPacket=JSON.parse(await read('private/college-sources/cfbd/ppa-games/2026/latest.json'));
   prior={packet:JSON.parse(await read('private/college-sources/cfbd/frozen-prior/2025/latest.json'))};
   schedule={packet:JSON.parse(await read('private/college-sources/cfbd/completion/2026/latest.json'))};
-  if(Date.now()-Date.parse(ppaPacket.capturedAt)>6*3600000)throw Error('CURRENT_PPA_CAPTURE_EXPIRED');
   receipt.sources.push({source:'REUSE_VERIFIED_PRIVATE_CAPTURES',requests:0,capturedAt:ppaPacket.capturedAt});
  }else if(refresh){
   const priorPacket=JSON.parse(await read('private/college-sources/cfbd/frozen-prior/2025/latest.json'));
@@ -33,17 +35,20 @@ try{
   await put('private/college-sources/cfbd/ppa-games/2026/latest.json',ppaPacket);
  }else{
   ppaPacket=JSON.parse(await read('private/college-sources/cfbd/ppa-games/2026/latest.json'));
-  if(Date.now()-Date.parse(ppaPacket.capturedAt)>6*3600000)throw Error('CURRENT_PPA_CAPTURE_EXPIRED');
   prior=await captureCfbdFrozenPrior({key,reserve});schedule=await captureCfbdCompletionSchedule({key,reserve});
   receipt.sources.push(prior.receipt,schedule.receipt);
   await put('private/college-sources/cfbd/frozen-prior/2025/latest.json',prior.packet);
  }
- await put('private/college-sources/cfbd/completion/2026/latest.json',schedule.packet);
- const generatedAt=new Date().toISOString(),expiresAt=new Date(Date.parse(ppaPacket.capturedAt)+6*3600000).toISOString();
- const result=buildCfbdFittedWeek({fixtures:fixturePacket.games,ppaPacket,priorPacket:prior.packet,schedulePacket:schedule.packet});
- receipt.coverage=result.sourceCoverage;receipt.missing=result.missing;receipt.uploadUsage=fixturePacket.uploadUsage;
+ if(!reuse)await put('private/college-sources/cfbd/completion/2026/latest.json',schedule.packet);
+ const generatedAt=new Date().toISOString();
+ const requestedFixtures=fixturePacket.games.filter(game=>!targetDate||game.date===targetDate);
+ receipt.coverageRejected=requestedFixtures.map(game=>({eventId:String(game.id??game.eventId),...cfbdPregameValidity(game,{ppaPacket,schedulePacket:schedule.packet})})).filter(v=>!v.verified);
+ const eligibleFixtures=requestedFixtures.filter(game=>cfbdPregameValidity(game,{ppaPacket,schedulePacket:schedule.packet}).verified);
+ const result=buildCfbdFittedWeek({fixtures:eligibleFixtures,ppaPacket,priorPacket:prior.packet,schedulePacket:schedule.packet});
+ receipt.coverage={...result.sourceCoverage,requested:requestedFixtures.length,coverageRejected:receipt.coverageRejected.length};receipt.missing=result.missing;receipt.uploadUsage=fixturePacket.uploadUsage;
  for(const date of [...new Set(result.projections.map(p=>p.game.date))]){
-  const events=result.projections.filter(p=>p.game.date===date).map(({eventId,game,result:r})=>({eventId,date,start:game.start,homeId:'cfb-'+game.home.espnId,awayId:'cfb-'+game.away.espnId,sourceCapturedAt:ppaPacket.capturedAt,canAuthorizeWager:false,sourceLabel:'CFBD verified per-game PPA and frozen prior; CFB-FBIS-v2',provenance:r.provenance,projection:{homeScore:r.model.home,awayScore:r.model.away,margin:r.model.margin,total:r.model.total,modelId:r.model.modelId,modelVersion:r.model.version}}));
+  const events=result.projections.filter(p=>p.game.date===date).map(({eventId,game,result:r})=>({eventId,date,start:game.start,homeId:'cfb-'+game.home.espnId,awayId:'cfb-'+game.away.espnId,sourceCapturedAt:ppaPacket.capturedAt,canAuthorizeWager:false,sourceLabel:'CFBD verified per-game PPA and frozen prior; CFB-FBIS-v2',provenance:{...r.provenance,coverageValidity:cfbdPregameValidity(game,{ppaPacket,schedulePacket:schedule.packet})},projection:{homeScore:r.model.home,awayScore:r.model.away,margin:r.model.margin,total:r.model.total,modelId:r.model.modelId,modelVersion:r.model.version}}));
+  const expiresAt=new Date(Math.min(Date.parse(generatedAt)+24*3600000,...events.map(e=>Date.parse(e.start)),Date.parse(ppaPacket.capturedAt)+72*3600000,Date.parse(schedule.packet.capturedAt)+72*3600000)).toISOString();
   const packet={version:1,visibility:'PRIVATE_PERSONAL_ANALYSIS',sport:'cfb',date,generatedAt,expiresAt,modelAuthority:'FROZEN_RESEARCH',canAuthorizeWager:false,canQualify:false,events};
   validateFourSportPacket(packet,{sport:'cfb',date});const summary=publicProjectionSummary(packet,{sport:'cfb',date});if(summary.events.length!==events.length)throw Error('PUBLIC_PROVENANCE_REJECTED');
   receipt.published.push({date,events:events.length,...await put('private/cfb/projections/'+date+'.json',packet),sample:summary.events.slice(0,2)});

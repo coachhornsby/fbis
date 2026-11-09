@@ -61,7 +61,7 @@ export function buildCfbdFittedWeek({fixtures,ppaPacket,priorPacket,schedulePack
  for(const game of fixtures||[]){
   const id=String(game.id??game.eventId??'');
   if(!id||seen.has(id))throw Error('CFBD_FIXTURE_ID_INVALID');seen.add(id);
-  const result=projectCfbdFittedRecovery(game,{ppaPacket:joined,priorPacket,now});
+  const result=projectCfbdFittedRecovery(game,{ppaPacket:joined,priorPacket,schedulePacket,now});
   if(result.ok)projections.push({eventId:id,game,result});
   else missing.push({eventId:id,reason:result.reason});
  }
