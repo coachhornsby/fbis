@@ -14,17 +14,17 @@ export async function refreshExchangeFixtures(original,{sport,slot,now=Date.now(
  // Apply the existing 72-hour horizon locally instead of skipping weekdays.
  const football=sport==='nfl'||sport==='cfb';
  const pregame=original.FBIS_POLYMARKET_PREGAME_REST==='true';
- // Pregame discovery needs tomorrow's fixtures too. ESPN basketball/hockey
- // support a date range in the same single bounded request; football does not.
- const dates=(football?[0,1,2,3]:pregame?[0,1]:[0]).map(n=>shiftBoardDate(date,n));
- const dateQuery=football?'':'&dates='+dates[0].replaceAll('-','')+
-  (pregame?'-'+dates.at(-1).replaceAll('-',''):'');
+ // ESPN rejects date ranges. Rotate one date per ten-minute sport cycle.
+ // The archive replaces that date and preserves only fresh scoped other-day data.
+ const dates=(football?[0,1,2,3]:pregame?[Math.floor(slot/10)%2]:[0]).map(n=>shiftBoardDate(date,n));
+ const dateQuery=football?'':'&dates='+dates[0].replaceAll('-','');
  const response=await env.FBIS_JOB_FETCH('https://site.api.espn.com'+path+'?limit=499'+dateQuery+(sport==='cfb'?'&groups=80':sport==='cbb'?'&groups=50':''));
  if(!response.ok)throw Error('FIXTURE_SOURCE_HTTP_'+response.status);
  const payload=await response.json();
+ if(!Array.isArray(payload?.events))throw Error('FIXTURE_SOURCE_SCHEMA');
  const games=dates.flatMap(day=>scoreboardGames(payload,{sport,date:day,capturedAt:new Date(now).toISOString()}));
  // Bounded research coverage; never claim this subset covers a larger slate.
  const relevant=games.filter(g=>['scheduled','live'].includes(g.status)&&Date.parse(g.start)<=now+72*3600000).sort((a,b)=>a.start.localeCompare(b.start));
  if(relevant.length>100)throw Error('EXCHANGE_FIXTURE_CAPACITY_EXCEEDED');
- return archiveCollectedFixtures(original,{sport,games:relevant,now});
+ return archiveCollectedFixtures(original,{sport,games:relevant,now,...(pregame&&!football?{coverageDate:dates[0]}:{})});
 }

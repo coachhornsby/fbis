@@ -17,7 +17,7 @@ const details=(q,clock)=>{
  const statusLabel=state==='closed'?'Market closed':state==='unavailable'?'Quote unavailable':stale?'Stale':null;
  const link=state==='observed'?exchangeMarketLink({source:q.venue==='Kalshi'?'Kalshi':'Polymarket US WebSocket',sourceMarketId:q.marketId,eventTicker:q.eventTicker,marketUrl:q.marketUrl,eventNavigation:q.eventNavigation}):null;
  return {stale,state,statusLabel,link,observedAtMs:at,observedLabel:(state==='observed'?'Fetched ':'Status checked ')+ageText(clock-at),
-  title:(q.transport||'Capture')+' · '+(statusLabel||'Captured price')+' · fetched '+q.receivedAt+' · '+sourceTime,
+  title:(q.transport||'Capture')+' · '+(statusLabel||'Captured price')+' · fetched '+q.receivedAt+' · '+sourceTime+(q.quoteKind==='SYNTHETIC_NO_FROM_YES_BID_REFERENCE'?' · Synthetic NO reference: 1 − observed YES bid; excludes fees, not executable':''),
   canAuthorizeWager:false,executionEligible:false};
 };
 const cell=(q,line,clock)=>{const d=details(q,clock);return {line,price:d.state==='observed'?cents(q.ask):'Unavailable',...d};};
