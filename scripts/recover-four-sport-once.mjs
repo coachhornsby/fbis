@@ -190,6 +190,16 @@ async function writeObject(key,payload){
  const url='https://api.cloudflare.com/client/v4/accounts/'+encodeURIComponent(account)+
   '/r2/buckets/fbis-archive/objects/'+key.split('/').map(encodeURIComponent).join('/');
  const headers={Authorization:'Bearer '+token,'content-type':'application/octet-stream'};
+ // A generic ESPN-form recovery must never downgrade a still-current fitted CFB packet.
+ if(payload.sport==='cfb'){
+  const old=await fetch(url,{headers:{Authorization:'Bearer '+token},signal:AbortSignal.timeout(20000)});
+  if(old.ok){
+   const raw=await old.text();if(Buffer.byteLength(raw)>512000)throw Error('EXISTING_CFB_PACKET_TOO_LARGE');
+   const current=JSON.parse(raw);validateFourSportPacket(current,{sport:'cfb',date:payload.date});
+   if(Date.parse(current.expiresAt)>Date.now()&&current.events.length&&current.events.every(e=>e.projection.modelId==='CFB-FBIS-v2'))
+    return {stored:true,preserved:true,reason:'CURRENT_FITTED_CFB_PRESERVED',key,sha256:sha(raw),bytes:Buffer.byteLength(raw)};
+  }else if(old.status!==404)throw Error('EXISTING_CFB_PACKET_READ_'+old.status);
+ }
  const res=await fetch(url,{method:'PUT',headers,body,signal:AbortSignal.timeout(35000)});
  if(!res.ok)throw Error('R2_PUBLISH_HTTP_'+res.status);
  const again=await fetch(url,{headers:{Authorization:'Bearer '+token},signal:AbortSignal.timeout(35000)});
