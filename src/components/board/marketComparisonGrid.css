@@ -1,36 +1,47 @@
-.fbis-comparison{border-top:1px solid #ffffff24;padding:8px 10px 10px;color:#eef4fc;min-width:0;font-size:13px;line-height:1.25}
+.fbis-comparison{border-top:1px solid #ffffff24;padding:8px 10px 10px;color:#ededed;min-width:0;font-size:13px;line-height:1.25}
 .fbis-compare-toolbar{display:flex;justify-content:flex-end;align-items:center;gap:8px;margin-bottom:7px}
-.fbis-compare-toolbar label{display:flex;align-items:center;gap:5px;font-size:11px;color:#c2cfdf}
-.fbis-compare-toolbar select,.fbis-compare-selector button{font:inherit;color:#edf5ff;background:#142a40;border:1px solid #4b6379;border-radius:5px;padding:6px}
+.fbis-compare-toolbar label{display:flex;align-items:center;gap:5px;font-size:11px;color:#ededed}
+.fbis-compare-toolbar select,.fbis-compare-selector button{font:inherit;color:#ededed;background:#142a40;border:1px solid #4b6379;border-radius:5px;padding:6px}
 .fbis-compare-selector{display:none;gap:3px}
 .fbis-compare-selector button[aria-pressed=true]{background:#255277;border-color:#8bd1ff}
 .fbis-compare-table{width:100%;border-collapse:collapse;table-layout:fixed}
 .fbis-compare-table th,.fbis-compare-table td{vertical-align:top;padding:4px;border-top:1px solid #ffffff15;text-align:left}
-.fbis-compare-table thead th{border-top:0;font-size:13px;color:#dbeafa;text-align:center}
+.fbis-compare-table thead th{border-top:0;font-size:13px;color:#ededed;text-align:center}
 .fbis-compare-table th:first-child{width:23%;text-align:left}
 .fbis-compare-table tbody th{padding-top:10px;font-size:13px;overflow-wrap:anywhere}
-.fbis-compare-table th small{display:block;font-size:11px;font-weight:400;color:#b6c5d6;margin-top:3px}
-.fbis-compare-sources{display:grid;grid-template-rows:repeat(3,minmax(62px,auto));gap:2px}
+.fbis-compare-table th small{display:block;font-size:11px;font-weight:400;color:#ededed;margin-top:3px}
+.fbis-compare-sources{display:grid;grid-template-rows:repeat(var(--source-count,3),minmax(56px,auto));gap:2px}
 .fbis-compare-source{position:relative;isolation:isolate;padding:4px 5px;min-width:0;border-radius:4px;background:#10263b;overflow:hidden}
 .fbis-compare-source:before{content:'';position:absolute;inset:8px 4px;z-index:-1;opacity:.08;background:center/90% auto no-repeat url('/brands/pinnacle-wordmark-transparent.svg');pointer-events:none}
 .fbis-compare-source.is-kalshi{background:#0b2b29}.fbis-compare-source.is-kalshi:before{background-image:url('/brands/kalshi-watermark.png')}
 .fbis-compare-source.is-polymarket{background:#152743}.fbis-compare-source.is-polymarket:before{background-image:url('/brands/polymarket-watermark.png')}
-.fbis-compare-source-name{display:block;color:#b8cadf;font-size:11px;letter-spacing:.02em;margin-bottom:3px}
+.fbis-compare-source-name{display:block;color:#ededed;font-size:11px;letter-spacing:.02em;margin-bottom:3px}
 .fbis-compare-quote{position:relative;min-width:0;font-variant-numeric:tabular-nums;padding-right:6px}
-.fbis-compare-price{display:flex;gap:5px;align-items:baseline;flex-wrap:wrap;font-size:13px;color:#edf5ff}
-.fbis-compare-price strong{color:#fbd279;font-size:16px;font-weight:750}
-.fbis-compare-quote small{display:block;font-size:11px;color:#c1cedd;margin-top:2px;overflow-wrap:anywhere}
+.fbis-compare-price{display:flex;gap:5px;align-items:baseline;flex-wrap:wrap;font-size:16px;color:#ededed}
+.fbis-compare-price strong{color:#fbd279;font-size:20px;font-weight:750}
+.fbis-compare-quote small{display:block;font-size:11px;color:#ededed;margin-top:2px;overflow-wrap:anywhere}
 .fbis-compare-quote.is-stale small{color:#e4c68c}
-.fbis-compare-link{position:absolute;right:-3px;top:0;color:#a8c6e7;text-decoration:none;font-size:11px}
-.fbis-compare-source-ages{display:flex;flex-wrap:wrap;gap:4px 10px;padding:7px 2px 4px;font-size:11px;color:#bdcbdc}
-.fbis-compare-disclosure{display:block;font-size:11px;line-height:1.4;color:#aabbd0;padding:3px 2px}
+.fbis-compare-link{position:absolute;right:-3px;top:0;color:#ededed;text-decoration:none;font-size:11px}
+.fbis-compare-source-ages{display:flex;flex-wrap:wrap;gap:4px 10px;padding:7px 2px 4px;font-size:11px;color:#ededed}
+.fbis-compare-disclosure{display:block;font-size:11px;line-height:1.4;color:#ededed;padding:3px 2px}
 .fbis-compare-more{margin-top:5px;border-top:1px solid #ffffff1a;padding-top:6px;font-size:12px}
-.fbis-compare-more summary{cursor:pointer;color:#d8e9fc;padding:3px 0}
-.fbis-compare-more section{padding:8px 3px;border-top:1px solid #ffffff15}.fbis-compare-more section>strong{font-size:11px;color:#b8cce4}
+.fbis-compare-more summary{cursor:pointer;color:#ededed;padding:3px 0}
+.fbis-compare-more section{padding:8px 3px;border-top:1px solid #ffffff15}.fbis-compare-more section>strong{font-size:11px;color:#ededed}
 .fbis-compare-extra-row{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:5px}.fbis-compare-extra-row>div>span{display:block;font-size:11px;margin-bottom:4px}
 .fbis-comparison button:focus-visible,.fbis-comparison select:focus-visible,.fbis-comparison summary:focus-visible,.fbis-comparison a:focus-visible{outline:2px solid #9edcff;outline-offset:2px}
-@media(max-width:720px){.fbis-compare-selector{display:flex}.fbis-compare-toolbar{justify-content:space-between;flex-wrap:wrap}.fbis-compare-table [data-market]{display:none}.fbis-comparison[data-selected-market=moneyline] [data-market=moneyline],.fbis-comparison[data-selected-market=spread] [data-market=spread],.fbis-comparison[data-selected-market=total] [data-market=total]{display:table-cell}.fbis-compare-table th:first-child{width:34%}.fbis-compare-sources{grid-template-rows:repeat(3,minmax(58px,auto))}.fbis-compare-source-name{font-size:11px}.fbis-compare-price strong{font-size:16px}.fbis-compare-source:before{background-size:auto 70%;background-position:right center}.fbis-compare-source-ages{display:grid;gap:3px}.fbis-compare-quote small{font-size:11px}}
+@media(max-width:720px){.fbis-compare-selector{display:flex}.fbis-compare-toolbar{justify-content:space-between;flex-wrap:wrap}.fbis-compare-table [data-market]{display:none}.fbis-comparison[data-selected-market=moneyline] [data-market=moneyline],.fbis-comparison[data-selected-market=spread] [data-market=spread],.fbis-comparison[data-selected-market=total] [data-market=total]{display:table-cell}.fbis-compare-table th:first-child{width:34%}.fbis-compare-sources{grid-template-rows:repeat(var(--source-count,3),minmax(52px,auto))}.fbis-compare-source-name{font-size:11px}.fbis-compare-price strong{font-size:20px}.fbis-compare-source:before{background-size:auto 70%;background-position:right center}.fbis-compare-source-ages{display:grid;gap:3px}.fbis-compare-quote small{font-size:11px}}
 @media(forced-colors:active){.fbis-compare-source:before{display:none}.fbis-compare-source{border:1px solid CanvasText}.fbis-compare-price strong{color:CanvasText}}
 
 .fbis-compare-more-list{max-height:320px;overflow:auto;overscroll-behavior:contain;scrollbar-gutter:stable;padding-right:4px}
 .fbis-compare-more-list:focus-visible{outline:2px solid #9edcff;outline-offset:2px}
+
+.fbis-compare-table .fbis-compare-team{vertical-align:middle;text-align:center;padding:8px 3px}
+.fbis-compare-team .team-logo-wrap,.fbis-compare-team .team-logo-fallback{display:inline-flex;vertical-align:middle;max-width:100%}
+.fbis-compare-table .fbis-compare-team small{font-size:12px;line-height:1.35;margin-top:5px;color:#ededed;white-space:nowrap}
+@media(max-width:380px){.fbis-compare-table th:first-child{width:28%}.fbis-compare-table .fbis-compare-team small{font-size:11px}}
+
+.fbis-compare-source-name{display:none}
+.fbis-compare-source{display:flex;align-items:center;padding:5px 7px}
+.fbis-compare-quote{width:100%}
+
+.fbis-compare-age-source{display:inline-flex;align-items:center;gap:5px}.fbis-compare-age-source img,.fbis-compare-extra-logo{width:44px;height:15px;object-fit:contain;vertical-align:middle}.fbis-compare-extra-logo{margin-right:7px}

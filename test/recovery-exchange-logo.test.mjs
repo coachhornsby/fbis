@@ -23,8 +23,8 @@ test('all sources share the comparison while original quote adapters remain in u
  assert.ok(component.includes('rows={[...pinnacleRows,...exchangeRows]}'));
 });
 test('team rows retain actual names and accessible TeamLogo fallbacks',()=>{
- assert.ok(comparison.includes('team={game[side]} size={24}'));
- assert.ok(comparison.includes('{name(game[side])}'));
+ assert.ok(comparison.includes('team={game[side]} size={68}'));
+ assert.ok(comparison.includes("aria-label={name(game[side])+' · '+side}"));assert.ok(!comparison.includes('<span>{name(game[side])}</span>'));
  const logo=readFileSync('src/components/TeamLogo.jsx','utf8');
  assert.ok(logo.includes('team-logo-fallback'));assert.ok(logo.includes('onError={() => setFailed(true)}'));
 });

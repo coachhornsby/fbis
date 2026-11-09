@@ -34,3 +34,44 @@ export function comparisonExtras(game,clock,mainRows){
  }
  return extras;
 }
+
+const observed=c=>c?.state==='observed'&&c.price&&c.price!=='—'&&c.price!=='Unavailable';
+const numericLine=c=>typeof c?.line==='string'?Number(c.line.replace(/^[OU]\s+/,'')):NaN;
+function referenceLine(row,family){
+ if(!row||!Array.isArray(row.cells)||row.cells.length!==2||!row.cells.every(observed))return null;
+ const a=numericLine(row.cells[0]),b=numericLine(row.cells[1]);
+ return Number.isFinite(a)&&Number.isFinite(b)&&(family==='spread'?a===-b:a===b)?a:null;
+}
+// A new alternate quote is not evidence that the book's main line moved.
+// Align only identical thresholds and spread orientation across the main grid.
+export function alignedComparisonRows(game,clock,rows){
+ const result=rows.filter(r=>!['spread','total'].includes(r.family));
+ for(const family of ['spread','total']){
+  const pin=rows.find(r=>r.venue==='Pinnacle'&&r.family===family);
+  let target=referenceLine(pin,family);
+  if(pin)result.push(pin);
+  if(target==null&&!pin?.cells.some(observed)){
+   const candidates=new Map();
+   for(const venue of ['Kalshi','Polymarket']){
+    const quotes=(game.exchangeReferenceQuotes||[]).filter(q=>q.venue===venue&&q.marketFamily===family&&Number.isFinite(q.line));
+    const targets=[...new Set(quotes.map(q=>family==='spread'?(q.side==='away'?q.line:-q.line):q.line))];
+    for(const value of targets){
+     const scoped=quotes.filter(q=>q.line===(family==='spread'&&q.side==='home'?-value:value));
+     const row=exchangeCardRows({...game,exchangeReferenceQuotes:scoped},clock).find(r=>r.venue===venue&&r.family===family);
+     if(referenceLine(row,family)==null)continue;
+     const balance=row.cells.reduce((n,c)=>n+Math.abs(c.contractPrice-.5),0);
+     if(!Number.isFinite(balance))continue;
+     const old=candidates.get(value)||{value,venues:0,balance:0};old.venues++;old.balance+=balance;candidates.set(value,old);
+    }
+   }
+   const selected=[...candidates.values()].sort((a,b)=>a.balance/a.venues-b.balance/b.venues||b.venues-a.venues||Math.abs(a.value)-Math.abs(b.value))[0];
+   target=selected?.value??null;
+  }
+  for(const venue of ['Kalshi','Polymarket']){
+   const quotes=target==null?[]:(game.exchangeReferenceQuotes||[]).filter(q=>q.venue===venue&&q.marketFamily===family&&q.line===(family==='spread'&&q.side==='home'?-target:target));
+   const row=exchangeCardRows({...game,exchangeReferenceQuotes:quotes},clock).find(r=>r.venue===venue&&r.family===family);
+   if(row)result.push({...row,comparisonThreshold:target,providerMainVerified:false});
+  }
+ }
+ return result;
+}
