@@ -1,3 +1,4 @@
+import {retainedCfbExchangeFixtures} from './cfbFutureExchangeFixtures.js';
 import {footballRuleIdentity} from './kalshiFootballRuleIdentity.js';
 import {collegeRuleIdentity} from './kalshiCollegeRuleIdentity.js';
 import {nbaRuleIdentity} from './kalshiNbaRuleIdentity.js';
@@ -11,7 +12,7 @@ export const EXCHANGE_CARD_JOB='functions/lib/exchangeCardDelivery.js';
 const norm=x=>String(x||'').normalize('NFKD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/[^a-z0-9]+/g,' ').trim();
 const fresh=(t,now,age)=>Number.isFinite(Date.parse(t))&&Date.parse(t)<=now&&now-Date.parse(t)<=age;
 const price=x=>typeof x==='number'&&Number.isFinite(x)&&x>0&&x<1;
-export function matchedKalshiCardQuotes(fixtures,snapshot,stream,{sport,now=Date.now(),retainLastObserved=false}={}){
+export function matchedKalshiCardQuotes(fixtures,snapshot,stream,{sport,now=Date.now(),retainLastObserved=false,retainedOfficialSchedule=false}={}){
  const byEvent={};
  if(snapshot?.ok!==true||snapshot.sport!==sport||snapshot.seriesTicker!==KALSHI_SHADOW_SERIES[sport]||!fresh(snapshot.capturedAt,now,retainLastObserved?Infinity:1800000)||!Array.isArray(snapshot.records)||snapshot.records.length>4000)return byEvent;
  const ticks=new Map();
@@ -23,7 +24,7 @@ export function matchedKalshiCardQuotes(fixtures,snapshot,stream,{sport,now=Date
   if(m.sport!==sport||m.seriesTicker!==KALSHI_SHADOW_SERIES[sport]||!m.ticker?.startsWith(KALSHI_SHADOW_SERIES[sport]+'-')||m.status!=='active'||!fresh(m.fetchedAt,Date.parse(snapshot.capturedAt),Infinity))continue;
   // Require provider kickoff and both full team names. Never treat expiration as kickoff.
   const at=Date.parse(m.occurrenceAt),title=' '+norm(m.title)+' ',label=norm(m.yesLabel);
-  const ruleMatch=sport==='nba'?nbaRuleIdentity(m,fixtures,snapshot.records):sport==='cbb'?collegeRuleIdentity(m,fixtures,snapshot.records):['nfl','cfb'].includes(sport)?footballRuleIdentity(m,fixtures,snapshot.records,{sport,now,retainLastObserved}):null;
+  const ruleMatch=sport==='nba'?nbaRuleIdentity(m,fixtures,snapshot.records):sport==='cbb'?collegeRuleIdentity(m,fixtures,snapshot.records):['nfl','cfb'].includes(sport)?footballRuleIdentity(m,fixtures,snapshot.records,{sport,now,retainLastObserved,retainedOfficialSchedule}):null;
   if(!Number.isFinite(at)&&!ruleMatch)continue;
   const candidates=fixtures.filter(g=>Math.abs(Date.parse(g.start)-at)<=900000&&[g.home_name,g.away_name].every(n=>norm(n).split(' ').length>=2&&title.includes(' '+norm(n)+' ')));
   if(['nfl','cfb'].includes(sport)&&!ruleMatch)continue;
@@ -35,12 +36,17 @@ export function matchedKalshiCardQuotes(fixtures,snapshot,stream,{sport,now=Date
  }
  return byEvent;
 }
-export async function readExchangeCardQuotes(original,{sport,date,now=Date.now()}={}){
+export async function readExchangeCardQuotes(original,{sport,date,now=Date.now(),futureCfbPacket}={}){
  const env=await beginJobExecution(original,EXCHANGE_CARD_JOB);
  const read=async key=>{const o=await env.ARCHIVE.get(key);return o?o.json():null;};
- const manifest=validateFixtureManifest(await read(fixtureKey(sport)),now);
- if(manifest.sport!==sport)throw Error('FIXTURE_SPORT_MISMATCH');
- const fixtures=manifest.fixtures.filter(g=>new Intl.DateTimeFormat('en-CA',{timeZone:'America/Chicago',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date(g.start))===date);
+ const rawManifest=await read(fixtureKey(sport));
+ let manifest,manifestError;try{manifest=validateFixtureManifest(rawManifest,now);}catch(error){manifestError=error;if(rawManifest){if(!(Date.parse(rawManifest.capturedAt)<=now&&Date.parse(rawManifest.expiresAt)<=now))throw error;validateFixtureManifest(rawManifest,Date.parse(rawManifest.capturedAt));if(rawManifest.sport!==sport)throw Error('FIXTURE_SPORT_MISMATCH');}}
+ if(manifest&&manifest.sport!==sport)throw Error('FIXTURE_SPORT_MISMATCH');
+ const fallback=sport==='cfb'?retainedCfbExchangeFixtures(futureCfbPacket,{date,now}):{fixtures:[]};
+ if(!manifest&&!fallback.fixtures.length)throw manifestError;
+ let fixtures=(manifest?.fixtures||[]).filter(g=>new Intl.DateTimeFormat('en-CA',{timeZone:'America/Chicago',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date(g.start))===date);
+ const fixtureEvidence=!fixtures.length&&fallback.fixtures.length&&!Object.hasOwn(rawManifest?.dateCoverage||{},date)?fallback:null;
+ if(fixtureEvidence)fixtures=fallback.fixtures;
  const derivativeSports=['nba','cbb'].includes(sport)?[sport+'_spread',sport+'_total',sport+'_team_total']:[];
  const [snapshot,stream,poly,...derivativeSnapshots]=await Promise.all([
   read('kalshi/public-shadow/v1/sports/'+sport+'.json'),
@@ -49,7 +55,7 @@ export async function readExchangeCardQuotes(original,{sport,date,now=Date.now()
   ...derivativeSports.map(key=>read('kalshi/public-shadow/v1/sports/'+key+'.json')),
   ...(sport==='cbb'?[read('kalshi/public-shadow/v1/sports/cbb_1h_total.json')]:[])
  ]);
- const byEvent=matchedKalshiCardQuotes(fixtures,snapshot,stream,{sport,now,retainLastObserved:true});
+ const byEvent=matchedKalshiCardQuotes(fixtures,snapshot,stream,{sport,now,retainLastObserved:true,retainedOfficialSchedule:!!fixtureEvidence});
  const firstHalfSnapshot=sport==='cbb'?derivativeSnapshots[derivativeSports.length]:null;
  if(sport==='cbb')for(const [id,quotes] of Object.entries(matchedKalshiCbbFirstHalfTotals(fixtures,firstHalfSnapshot,{now,retainLastObserved:true})))(byEvent[id]??=[]).push(...quotes);
  derivativeSports.forEach((sourceSport,i)=>{
@@ -58,6 +64,7 @@ export async function readExchangeCardQuotes(original,{sport,date,now=Date.now()
  });
  const selected=selectBoundedPolymarketOffers(poly,fixtures.map(g=>({id:g.id,sport,start:g.start})),sport);
  for(const [id,offers] of selected.byId)for(const o of offers){if(!['moneyline','spread','total'].includes(o.marketFamily))continue;if(o.marketFamily!=='moneyline'&&(typeof o.line!=='number'||!Number.isFinite(o.line)))continue;(byEvent[id]??=[]).push({venue:'Polymarket',marketFamily:o.marketFamily,period:o.period,line:o.marketFamily==='moneyline'?null:o.line,side:o.side,ask:o.contractPrice,receivedAt:o.collectedAt,eventStart:fixtures.find(g=>g.id===id).start,transport:poly.transport==='REST'?'REST':'WebSocket',marketId:o.sourceMarketId,sourceOutcomeId:o.sourceOutcomeId,quoteKind:o.quoteKind,priceDerivation:o.raw?.priceDerivation??null,eventNavigation:o.eventNavigation??null,marketUrl:o.marketUrl||null,marketStatus:o.marketStatus||'unknown',sourceObservedAt:o.sourceObservedAt||null,providerTimestampVerified:false,stale:o.stale===true||!fresh(o.collectedAt,now,poly.transport==='REST'?900000:120000),quoteAgeSeconds:Math.floor((now-Date.parse(o.collectedAt))/1000),referenceOnly:true,canQualify:false,canRecommend:false,canChangeProjection:false,executionEligible:false,canAuthorizeWager:false});}
+ if(fixtureEvidence)for(const quotes of Object.values(byEvent))for(const quote of quotes)quote.fixtureEvidence={state:fixtureEvidence.state,capturedAt:fixtureEvidence.capturedAt,expiresAt:fixtureEvidence.expiresAt,referenceOnly:true};
  const inspect=source=>{
   if(!source?.ok)return {state:'NOT_CAPTURED',capturedAt:null};
   const at=Date.parse(source.capturedAt);
@@ -76,7 +83,7 @@ export async function readExchangeCardQuotes(original,{sport,date,now=Date.now()
   return acc;
  },{});
  return {ok:true,sport,date,byEvent,capturedAt:new Date(now).toISOString(),
-  marketSources,unavailableMarkets:[...kalshiUnavailableMarkets([snapshot,...derivativeSnapshots],stream,{now}),...(poly.unavailableMarkets||[])],matchedQuoteCounts:matched,referenceOnly:true,canAuthorizeWager:false};
+  marketSources,...(fixtureEvidence?{fixtureEvidence:{state:fixtureEvidence.state,capturedAt:fixtureEvidence.capturedAt,expiresAt:fixtureEvidence.expiresAt,referenceOnly:true}}:{}),unavailableMarkets:[...kalshiUnavailableMarkets([snapshot,...derivativeSnapshots],stream,{now}),...(poly.unavailableMarkets||[])],matchedQuoteCounts:matched,referenceOnly:true,canAuthorizeWager:false};
 }
 
 /** Explicit state observations invalidate retained browser quotes; absence does not. */
