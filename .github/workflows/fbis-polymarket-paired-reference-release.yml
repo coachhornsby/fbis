@@ -1,4 +1,4 @@
-name: FBIS Polymarket optional detail capacity release
+name: FBIS Polymarket fixture window detail release
 on:
   pull_request:
     paths: ['.github/workflows/fbis-polymarket-paired-reference-release.yml']

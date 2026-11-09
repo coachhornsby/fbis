@@ -6,20 +6,6 @@ import {POLY_US_API,parsePolymarketUsPrice} from '../../functions/lib/polymarket
 export function pregameDiscoveryPlan(manifest,{now,slot}){
  const hours=manifest.sport==='cfb'&&manifest.fixtureHorizonHours===168?168:72;
  const fixtures=manifest.fixtures.filter(g=>Date.parse(g.start)>now&&Date.parse(g.start)<=now+hours*3600000).sort((a,b)=>Date.parse(a.start)-Date.parse(b.start));
- if(['cbb','cfb'].includes(manifest.sport)){
-  if(!fixtures.length)return [];
-  // Discovery uses actual source fullness, not the count of matched fixtures.
-  // Keep the first two pages stable and rotate one later-page probe. The
-  // fixture-derived extent bounds probes; it never establishes catalog size.
-  const cycle=Math.floor(slot/10),tags=manifest.providerTags;
-  const tag=tags[cycle%tags.length],tagCycle=Math.floor(cycle/tags.length);
-  const laterPages=Math.max(1,Math.ceil(fixtures.length/20)-2);
-  const rotationPeriod=tags.length*laterPages;
-  const common={tag,startTimeMin:new Date(Date.parse(fixtures[0].start)-60000).toISOString(),
-   startTimeMax:new Date(Date.parse(fixtures.at(-1).start)+60000).toISOString(),
-   adaptiveRange:true,detailRotation:Math.floor(cycle/rotationPeriod)};
-  return [0,1,2+tagCycle%laterPages].map(page=>({...common,page}));
- }
  const starts=new Map();for(const g of fixtures){const t=Date.parse(g.start);starts.set(t,(starts.get(t)||0)+1);}
  const groups=[];let group;
  for(const [start,count] of starts){
@@ -29,8 +15,14 @@ export function pregameDiscoveryPlan(manifest,{now,slot}){
  const all=groups.flatMap(g=>manifest.providerTags.flatMap(tag=>Array.from({length:Math.ceil(g.count/20)},(_,page)=>({tag,page,
   startTimeMin:new Date(g.first-60000).toISOString(),startTimeMax:new Date(g.last+60000).toISOString()}))));
  if(!all.length)return [];
- const cycle=Math.floor(slot/10),offset=all.length>4?(cycle*4)%all.length:0;
- return Array.from({length:Math.min(4,all.length)},(_,i)=>({...all[(offset+i)%all.length],detailRotation:cycle}));
+ const cycle=Math.floor(slot/10),count=['cbb','cfb'].includes(manifest.sport)?3:4;
+ const offset=all.length>count?(cycle*count)%all.length:0;
+ const gcd=(a,b)=>b?gcd(b,a%b):a;
+ const period=all.length>count?all.length/gcd(all.length,count):1;
+ // Reserve a detail opportunity for CBB/CFB and advance its counter only
+ // after the exact window/tag subset recurs. Short pages never exhaust a
+ // different fixture window or imply that later provider events are absent.
+ return Array.from({length:Math.min(count,all.length)},(_,i)=>({...all[(offset+i)%all.length],detailRotation:Math.floor(cycle/period)}));
 }
 export function pregameDiscoveryUrl(query){
  const u=new URL('/v1/events',POLY_US_API);

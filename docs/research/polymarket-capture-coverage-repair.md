@@ -97,7 +97,11 @@ actual local Worker, R2 and AccountBudget boundaries with a mocked provider. A d
 Vite publication build compiles without source acquisition. No provider requests,
 production R2 operations, publication or deployment were performed by this patch.
 
-## Follow-up: reserve useful details after broader discovery
+## Follow-up: reserve useful details after broader discovery (superseded discovery plan)
+
+The broad-range discovery described in this section was subsequently replaced
+by the fixture-window restoration documented below. Its detail and roster
+allocation safeguards remain in effect.
 
 The scheduled 13:54 UTC CBB capture contained 27 matched games, all moneylines;
 the 13:52 CFB capture contained five matched moneylines. These counts are not raw
@@ -169,3 +173,32 @@ The 200-market response boundary, 24-market inspection boundary, four-call limit
 byte/CPU allowances and all storage budgets remain unchanged. This patch does not
 prove the rejected source contained usable derivatives or paired outcomes, and an
 oversized optional detail remains unavailable rather than partially trusted.
+
+
+## Correction: restore fixture-window discovery with reserved details
+
+After the optional-capacity release, the 14:22:51 UTC CFB matched snapshot contained
+only Ohio versus Miami OH and no Saturday matchup. An earlier fixture-window
+capture contained five matched games, four on Saturday. These are matched output
+counts, not raw response sizes. They do not establish why provider responses differ
+or imply that uncaptured markets are unavailable.
+
+CBB and CFB REST discovery now returns to the previously exercised fixture-backed
+kickoff windows. Up to three planned list queries rotate with stride three, leaving
+at least one detail opportunity when an eligible matched event exists. A short or
+empty response never suppresses a different window or a later planned page. No
+broad-range response is treated as evidence that other fixture windows are exhausted.
+
+For N planned window/tag queries, the subset recurrence is N/gcd(N,3) when N>3,
+otherwise one. Detail rotation advances after that exact recurrence, retaining the
+page-interleaved ordering and avoiding periodic subset starvation. The existing
+200-market optional-detail omission, strict identity validation, seven-day CFB REST
+marker, verified-family priority and fifty-contract output fairness are unchanged.
+Other sports retain their existing four-window plan; legacy/WS behavior is unchanged.
+
+The tradeoff remains explicit: each capture can cover at most three fixture-window
+list pages plus a detail, and omitted windows rotate into later captures. A new
+client can still see a partial replacement snapshot. The added deterministic tests
+cover window/tag counts of one through ten, empty-window continuation, and a
+synthetic CFB sweep containing both early-week and Saturday opportunities. These
+tests do not promise that live provider details contain derivatives or paired IDs.

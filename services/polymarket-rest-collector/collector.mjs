@@ -86,7 +86,7 @@ export async function collectBoundedPolymarketRest(env,{sport,slot=Math.floor(Da
  // with CBB/CFB detail reads. Legacy mode retains its original request plan.
  const plan=pregame?pregameDiscoveryPlan(manifest,{now,slot}):sport==='cbb'?[{tag:manifest.providerTags[0],page:0}]:
   manifest.providerTags.flatMap(tag=>[0,1].map(page=>({tag,page})));
- const acceptedEvents=[],acceptedEventPages=[],exhaustedRanges=new Set(),detailedFixtureIds=new Set(),exhaustedTags=new Set(),failedTags=new Set(),detailCandidates=new WeakSet(),matchedFixtures=new WeakMap();
+ const acceptedEvents=[],acceptedEventPages=[],detailedFixtureIds=new Set(),exhaustedTags=new Set(),failedTags=new Set(),detailCandidates=new WeakSet(),matchedFixtures=new WeakMap();
  const fixturesById=new Map(manifest.fixtures.map(g=>[g.id,g]));let requests=0;
  const processEvents=(events,{detail=false}={})=>{
   for(const event of events){
@@ -136,8 +136,6 @@ export async function collectBoundedPolymarketRest(env,{sport,slot=Math.floor(Da
  };
  for(const query of plan){
   const {tag,page}=query;
-  const rangeKey=JSON.stringify([tag,query.startTimeMin,query.startTimeMax]);
-  if(query.adaptiveRange&&exhaustedRanges.has(rangeKey))continue;
   if(failedTags.has(tag)||!pregame&&exhaustedTags.has(tag))continue;
   const url=new URL('/v1/events',POLY_US_API);
   for(const [key,value] of Object.entries({tagSlug:tag,active:true,closed:false,limit:20,offset:page*20,
@@ -158,7 +156,7 @@ export async function collectBoundedPolymarketRest(env,{sport,slot=Math.floor(Da
      (e.live===true||e.eventState?.live===true)&&e.closed!==true&&e.ended!==true))continue;
    if(typeof e.slug==='string'&&new RegExp('^'+sport+'-[a-z0-9-]{1,140}$').test(e.slug)&&fixture){acceptedEvents.push(e);acceptedPage.push(e);}
   }
-  if(value.events.length<20){exhaustedTags.add(tag);if(query.adaptiveRange)exhaustedRanges.add(rangeKey);}
+  if(value.events.length<20)exhaustedTags.add(tag);
  }
  if((sport==='cbb'||pregame&&sport==='cfb')&&acceptedEvents.length){
   const uniqueEvents=pregame?balancedDetailEvents(acceptedEventPages):[...new Map(acceptedEvents.map(e=>[e.slug,e])).values()];
