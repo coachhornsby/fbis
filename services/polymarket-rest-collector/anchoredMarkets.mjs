@@ -42,7 +42,8 @@ export function anchoredMarketPlan(event,{rotation=0}={}){
  const offset=(Math.max(0,Math.floor(rotation))*24)%keys.length;
  const requested=[...keys.slice(offset),...keys.slice(0,offset)].slice(0,24);
  const url=new URL('/v1/markets',POLY_US_API);
- url.searchParams.set('gameId',String(event.gameId));
+ // Exact source IDs/slugs already constrain membership. Keep gameId as a
+ // source/response identity check, not a redundant server-side intersection.
  url.searchParams.set('limit','24');url.searchParams.set('offset','0');
  for(const type of types)url.searchParams.append('sportsMarketTypes',type);
  for(const key of requested)url.searchParams.append(mode,key);

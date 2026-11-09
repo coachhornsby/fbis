@@ -17,15 +17,15 @@ function setup(event=source(),{sport='cfb',rest=true,limits={}}={}){
 }
 const run=(s,result)=>collectBoundedPolymarketRest(s.env,{sport:s.sport,now,slot,fetchImpl:async(url,init)=>{const u=new URL(url);s.calls.push(u);assert.equal(init.redirect,'manual');if(u.pathname==='/v1/markets')return typeof result==='function'?result(u):Response.json(result??{markets:[pair(s.event.markets[0])]});return Response.json({events:[s.event]});}});
 
-test('official US query uses source gameId, repeated int32 IDs/family enums and one24-market page',()=>{
+test('official US query keeps exact IDs/family enums without redundant gameId intersection',()=>{
  const event=source();event.marketGroups=[{marketIds:['102','103']}];const p=anchoredMarketPlan(event);
  assert.equal(p.url.origin,'https://gateway.polymarket.us');assert.equal(p.url.pathname,'/v1/markets');
- assert.equal(p.url.searchParams.get('gameId'),'12345');assert.notEqual(p.url.searchParams.get('gameId'),event.id);
+ assert.equal(p.url.searchParams.has('gameId'),false);assert.equal(p.event.gameId,12345);
  assert.deepEqual(p.url.searchParams.getAll('id'),['101','102','103']);assert.equal(p.url.searchParams.has('slug'),false);
  assert.deepEqual(p.url.searchParams.getAll('sportsMarketTypes'),['SPORTS_MARKET_TYPE_MONEYLINE','SPORTS_MARKET_TYPE_SPREAD','SPORTS_MARKET_TYPE_TOTAL']);
  assert.equal(p.url.searchParams.get('limit'),'24');assert.equal(p.url.searchParams.get('offset'),'0');
 });
-test('documented slug filter remains exact when source market ID is not int32',()=>{const e=source();e.markets[0].id='non-numeric';const p=anchoredMarketPlan(e);assert.equal(p.mode,'slug');assert.deepEqual(p.url.searchParams.getAll('slug'),['contract-101']);assert.equal(p.url.searchParams.has('id'),false);});
+test('documented slug filter remains exact when source market ID is not int32',()=>{const e=source();e.markets[0].id='non-numeric';const p=anchoredMarketPlan(e);assert.equal(p.mode,'slug');assert.deepEqual(p.url.searchParams.getAll('slug'),['contract-101']);assert.equal(p.url.searchParams.has('id'),false);assert.equal(p.url.searchParams.has('gameId'),false);assert.equal(p.url.searchParams.getAll('sportsMarketTypes').length,3);});
 test('numeric and string group references normalize to one exact source anchor',async()=>{const e=source();e.markets=[];e.marketGroups=[{marketIds:[102,'102']}];const p=anchoredMarketPlan(e);assert.deepEqual(p.requested,['102']);const s=setup(e),m=market('102','total');m.id=102;const r=await run(s,{markets:[m]});assert.equal(r.selected.length,1);assert.equal(r.selected[0].market_family,'total');assert.equal(r.selected[0].provider_event_id,e.id);});
 test('group anchor cannot relabel the slug of another embedded source market',()=>{const e=source();e.marketGroups=[{marketIds:['102']}];const p=anchoredMarketPlan(e);assert.throws(()=>anchoredMarketEvent({markets:[{...market('102'),slug:e.markets[0].slug}]},p),/ANCHOR_CONFLICT/);});
 test('all up-to200 source anchors receive bounded rotating batches without scanning unbounded inventory',()=>{const e=source();e.marketGroups=[{marketIds:Array.from({length:199},(_,i)=>String(i+102))}];const seen=new Set();for(let rotation=0;rotation<25;rotation++){const p=anchoredMarketPlan(e,{rotation});assert.equal(p.requested.length,24);for(const id of p.requested)seen.add(id);}assert.equal(seen.size,200);e.marketGroups[0].marketIds.push('301');assert.equal(anchoredMarketPlan(e),null);});
