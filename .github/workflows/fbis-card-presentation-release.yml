@@ -1,4 +1,4 @@
-# Board-only release: compact three-source market comparison, no acquisition changes.
+# Board-only release: improve comparison readability and bound expanded markets.
 name: FBIS card presentation checks and bounded Pages release
 on:
   pull_request:

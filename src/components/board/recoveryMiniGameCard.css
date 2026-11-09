@@ -219,3 +219,5 @@
 .fbis-shell-main.route-board .fbis-mini-model-facts span{font-size:11px}
 .fbis-shell-main.route-board .fbis-mini-model-facts strong{font-size:17px;margin-top:2px}
 @media(max-width:1000px){.fbis-shell-main.route-board .db-grid.fbis-mini-grid{grid-template-columns:minmax(0,1fr)!important}}
+
+.fbis-shell-main.route-board .fbis-mini-card{font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
