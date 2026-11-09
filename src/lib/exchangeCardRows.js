@@ -20,7 +20,7 @@ const details=(q,clock)=>{
   title:(q.transport||'Capture')+' · '+(statusLabel||'Captured price')+' · fetched '+q.receivedAt+' · '+sourceTime+(q.quoteKind==='SYNTHETIC_NO_FROM_YES_BID_REFERENCE'?' · Synthetic NO reference: 1 − observed YES bid; excludes fees, not executable':'')+(q.fixtureEvidence?.state==='RETAINED_OFFICIAL_SCHEDULE'?' · Matched using retained official schedule captured '+q.fixtureEvidence.capturedAt+'; kickoff/status not freshly verified':''),
   canAuthorizeWager:false,executionEligible:false};
 };
-const cell=(q,line,clock)=>{const d=details(q,clock);return {line,price:d.state==='observed'?cents(q.ask):'Unavailable',...d};};
+const cell=(q,line,clock)=>{const d=details(q,clock);return {line,price:d.state==='observed'?cents(q.ask):'Unavailable',contractPrice:d.state==='observed'?q.ask:null,quoteKind:q.quoteKind||null,...d};};
 const missing=family=>({line:null,price:'—',title:'No matched '+family+' observation'});
 const thresholdKey=(q,family)=>family==='spread'?String(Math.abs(q.line)):String(q.line);
 function chooseThreshold(offers,family,sides){
@@ -84,3 +84,4 @@ export function exchangeCardRows(game,clock=Date.now()){
   return {venue,family,label:labels[family],cells};
  }));
 }
+

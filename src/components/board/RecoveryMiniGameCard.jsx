@@ -1,4 +1,4 @@
-import {sharedVenueFetchAge} from '../../lib/sharedVenueFetchAge.js';
+import MarketComparisonGrid from './MarketComparisonGrid.jsx';
 import {pinnoddsCardRows} from '../../lib/pinnoddsCardRows.js';
 import {liveGameLabel} from '../../lib/gameCardClock.js';
 import TeamLogo from '../TeamLogo.jsx';
@@ -21,15 +21,6 @@ const localTime=value=>{
 };
 const displayName=t=>t?.name||t?.fullName||t?.abbr||'Team';
 
-
-function CapturedQuote({cell,hideAge=false}){
- const value=<>{cell.line!=null&&<span className="fbis-mini-exchange-line">{cell.line}</span>}<strong>{cell.price}</strong></>;
- return <div className={'fbis-mini-captured-quote'+(cell.stale?' is-stale':'')} data-market-state={cell.state||'missing'}>
-  {cell.link?<a href={cell.link.url} target="_blank" rel="noopener noreferrer" aria-label={cell.link.label+' · '+[cell.line,cell.price].filter(Boolean).join(' ')}>{value}</a>:value}
-  {cell.statusLabel&&<span className="fbis-mini-quote-status">{cell.statusLabel}</span>}
-  {!hideAge&&cell.observedLabel&&<span className="fbis-mini-quote-time">{cell.observedLabel}</span>}
- </div>;
-}
 
 export default function RecoveryMiniGameCard({game,onOpen,clock=Date.now()}){
  const model=game?.recoveryVerifiedProjection||null;
@@ -95,24 +86,8 @@ export default function RecoveryMiniGameCard({game,onOpen,clock=Date.now()}){
     </div>
    </div>}
   </button>
-  <div className="fbis-mini-exchanges" aria-label="Captured market prices">
-   <div className="fbis-mini-market-heading" aria-hidden="true"><span>Market</span><span className="fbis-mini-market-team" title={displayName(away)} aria-label={displayName(away)}><TeamLogo team={away} size={30} tone="light" className="fbis-mini-market-team-logo"/></span><span className="fbis-mini-market-team" title={displayName(home)} aria-label={displayName(home)}><TeamLogo team={home} size={30} tone="light" className="fbis-mini-market-team-logo"/></span></div>
-   {[...(pinnacleRows.length?['Pinnacle']:[]),'Kalshi','Polymarket'].map(venue=>{
-    const rows=venue==='Pinnacle'?pinnacleRows:exchangeRows.filter(row=>row.venue===venue);
-    const sharedAge=sharedVenueFetchAge(rows);
-    const hasPrices=rows.some(row=>row.cells.some(cell=>cell.lines?.length||cell.price!=='—'));
-    return <section key={venue} className={'fbis-mini-venue-panel '+(venue==='Pinnacle'?'is-pinnacle':venue==='Kalshi'?'is-kalshi':'is-polymarket')} aria-label={venue+' reference prices'}>
-     <span className="fbis-mini-venue-name fbis-mini-sr-only">{venue}</span>
-     <div className="fbis-mini-venue-watermark" aria-hidden="true"/>
-     {hasPrices?<table aria-label={venue+' last fetched reference prices'}><thead className="fbis-mini-sr-only"><tr><th scope="col">Market</th><th scope="col">{displayName(away)}</th><th scope="col">{displayName(home)}</th></tr></thead><tbody>{rows.map(row=><tr key={row.family}>
-      <th scope="row" title={row.label}>{row.family==='moneyline'?'ML':row.label}</th>{row.cells.map((cell,i)=><td key={i} title={cell.title}>{cell.lines?.length
-       ?<div className="fbis-mini-team-total-prices">{cell.lines.map(x=><CapturedQuote key={x.line} cell={x} hideAge={!!sharedAge}/>)}</div>
-       :<CapturedQuote cell={cell} hideAge={!!sharedAge}/>}</td>)}
-     </tr>)}</tbody></table>:<p className="fbis-mini-exchange-empty">No captured prices</p>}
-     {sharedAge&&<p className="fbis-mini-venue-age">{sharedAge}</p>}
-    </section>;
-   })}
-  </div>
+  <MarketComparisonGrid game={game} rows={[...pinnacleRows,...exchangeRows]} clock={clock}/>
 
  </article>;
 }
+
