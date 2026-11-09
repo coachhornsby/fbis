@@ -45,9 +45,9 @@ export function projectCfbdFittedRecovery(game,{ppaPacket,priorPacket,now=Date.n
   sides[side]={priorOff:prior.priorOff,priorDef:prior.priorDef,gamesPlayed:eligible.length,
    offensePpa:eligible.reduce((n,r)=>n+r.offensePpa,0)/eligible.length,
    defensePpa:eligible.reduce((n,r)=>n+r.defensePpa,0)/eligible.length,
-   sourceGameIds:eligible.map(r=>r.gameId)};
+   priorArtifactHash:prior.artifactHash||null,sourceGameIds:eligible.map(r=>r.gameId)};
  }
  const model=projectCfbFbisV2Production({...game,featureCutoffOk:true,cfbFbisV2Input:sides});
  if(!model.ok||!model.fittedApplied)return deny(model.reason||'FROZEN_MODEL_FAILED');
- return {ok:true,model,provenance:{modelId:'CFB-FBIS-v2',featureContract:FITTED.featureContract,coefficientsSha256:FITTED.sourceArtifacts.fittedCoefficientsFinalSha256,ppaCapturedAt:ppaPacket.capturedAt,ppaResponseSha256:ppaPacket.responseSha256,priorSourceSeason:priorPacket.sourceSeason,homeGameIds:sides.home.sourceGameIds,awayGameIds:sides.away.sourceGameIds},canQualify:false,canAuthorizeWager:false};
+ return {ok:true,model,provenance:{modelId:'CFB-FBIS-v2',featureContract:FITTED.featureContract,coefficientsSha256:FITTED.sourceArtifacts.fittedCoefficientsFinalSha256,ppaCapturedAt:ppaPacket.capturedAt,ppaResponseSha256:ppaPacket.responseSha256,priorSourceSeason:priorPacket.sourceSeason,priorArtifactHashes:{home:sides.home.priorArtifactHash,away:sides.away.priorArtifactHash},priorSourceProvenance:priorPacket.provenance||null,completionEvidence:ppaPacket.scheduleProvenance||null,homeGameIds:sides.home.sourceGameIds,awayGameIds:sides.away.sourceGameIds},canQualify:false,canAuthorizeWager:false};
 }

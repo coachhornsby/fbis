@@ -11,7 +11,7 @@
  *   overall = offense + defense
  *
  * Cutoff: a report labeled schedule week W carries pregame features through
- * statistical week W-1 → archive throughWeek = W - 1.
+ * statistical week W-1 only as an UNVERIFIED candidate label, never cutoff proof.
  *
  * Research-only. Never promotes champion A/A or authorizes wagers.
  */
@@ -47,8 +47,8 @@ export function describeFbisCoreFromWeeklyReports() {
       note: "FBIS approximation from weekly training docs; distinct from CFBD precomputed CORE",
     },
     cutoff: {
-      rule: "report_schedule_week_W_implies_throughWeek_W_minus_1",
-      verify: "throughWeek < gameWeek",
+      rule: "report_week_minus_1_is_unverified_candidate_only",
+      verify: "explicit_cutoff_evidence_and_real_pregame_receipt_required",
     },
     researchOnly: true,
     canAuthorizeWager: false,
@@ -192,6 +192,8 @@ export function buildFbisCoreArchiveFromWeeklyReport({
   season,
   gameRows = [],
   collectionTime = null,
+  verifiedThroughWeek = null,
+  cutoffEvidenceId = null,
   scale = FBIS_CORE_EPA_SCALE,
 } = {}) {
   const week = n(scheduleWeek);
@@ -204,7 +206,8 @@ export function buildFbisCoreArchiveFromWeeklyReport({
       teams: [],
     };
   }
-  const throughWeek = week - 1;
+  const verified = Number.isInteger(verifiedThroughWeek) && verifiedThroughWeek >= 1 && verifiedThroughWeek < week && typeof cutoffEvidenceId === "string" && cutoffEvidenceId.trim().length > 0;
+  const throughWeek = verified ? verifiedThroughWeek : week - 1;
   const accum = new Map();
 
   const ingest = (teamName, epa, epaAllowed) => {
@@ -236,13 +239,7 @@ export function buildFbisCoreArchiveFromWeeklyReport({
     ingest(g.awayTeam, g.awayAdjustedEpa, g.awayAdjustedEpaAllowed);
   }
 
-  const asOf =
-    collectionTime ||
-    inferCollectionTimeFromKickoffs(
-      (gameRows || []).map((g) => g.kickoff).filter(Boolean),
-      throughWeek,
-      yr
-    );
+  const asOf = collectionTime || null;
 
   const teams = [...accum.values()]
     .map((t) => ({
@@ -267,26 +264,12 @@ export function buildFbisCoreArchiveFromWeeklyReport({
     dataSource: CORE_DATA_SOURCE.WEEKLY_TRAINING_DOCUMENTS,
     sourceEndpoint: FBIS_CORE_WEEKLY_SOURCE_ENDPOINT,
     collectionTime: asOf,
+    featureAsOfVerified: verified,
+    cutoffEvidenceId: verified ? cutoffEvidenceId : null,
     teams,
     teamCount: teams.length,
     researchOnly: true,
   };
-}
-
-function inferCollectionTimeFromKickoffs(kickoffs = [], throughWeek, season) {
-  let minMs = Infinity;
-  for (const k of kickoffs) {
-    const ms = Date.parse(String(k).includes("T") ? String(k) : String(k).replace(" ", "T") + "Z");
-    if (Number.isFinite(ms) && ms < minMs) minMs = ms;
-  }
-  if (Number.isFinite(minMs) && minMs < Infinity) {
-    // Features are pregame — stamp collection one hour before earliest slate kickoff.
-    return new Date(minMs - 60 * 60 * 1000).toISOString();
-  }
-  // Deterministic fallback when kickoffs missing.
-  const month = Math.min(12, Math.max(8, 8 + Math.floor((throughWeek || 1) / 4)));
-  const day = Math.min(28, Math.max(1, ((throughWeek || 1) % 4) * 7 + 1));
-  return `${season}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}T12:00:00.000Z`;
 }
 
 /**
@@ -304,6 +287,8 @@ export function fbisCoreArchiveToHoldoutRows(archive) {
     core_defense: t.coreDefense,
     through_season_type: t.throughSeasonType || "regular",
     collection_time: archive.collectionTime,
+    featureAsOfVerified: archive.featureAsOfVerified === true,
+    cutoffEvidenceId: archive.cutoffEvidenceId || null,
     authenticityClass: archive.authenticityClass,
     coreSourceEndpoint: FBIS_CORE_WEEKLY_SOURCE_ENDPOINT,
     dataSource: CORE_DATA_SOURCE.WEEKLY_TRAINING_DOCUMENTS,
@@ -343,6 +328,8 @@ export function reconstructFbisCoreFromWeeklyReports(reports = [], { scale = FBI
       season: season ?? rows[0]?.season,
       gameRows: rows,
       collectionTime: report.collectionTime || null,
+      verifiedThroughWeek: report.verifiedThroughWeek ?? null,
+      cutoffEvidenceId: report.cutoffEvidenceId || null,
       scale,
     });
     if (!archive.ok) {

@@ -1,0 +1,25 @@
+name: CFB weekly upload evidence checks
+on:
+  pull_request:
+    paths:
+      - 'functions/lib/cfbTier3EpaShadow.js'
+      - 'functions/lib/cfbCoreFromWeeklyReports.js'
+      - 'functions/lib/cfbCoreHoldout.js'
+      - 'scripts/lib/cfbdFittedRecovery.mjs'
+      - 'scripts/lib/cfbdLatestGameCoverage.mjs'
+      - 'scripts/lib/cfbdWeeklyProspective.mjs'
+      - 'test/cfbd-weekly-prospective.test.mjs'
+      - 'test/cfbd-latest-game-coverage.test.mjs'
+      - 'test/cfb-core-*.test.js'
+      - 'test/cfbd-fitted-recovery.test.mjs'
+      - '.github/workflows/cfb-weekly-upload-audit-ci.yml'
+permissions: {contents: read}
+jobs:
+  offline:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - uses: actions/checkout@v4.2.2
+      - uses: actions/setup-node@v4.1.0
+        with: {node-version: '22'}
+      - run: node --test test/cfb-tier3-epa-shadow.test.js test/cfb-core-from-weekly-reports.test.js test/cfb-core-holdout.test.js test/cfbd-fitted-recovery.test.mjs test/cfb-tier3-weekly.test.js test/cfb-tier3-weekly-evaluation.test.js test/cfbd-latest-game-coverage.test.mjs test/cfbd-weekly-prospective.test.mjs

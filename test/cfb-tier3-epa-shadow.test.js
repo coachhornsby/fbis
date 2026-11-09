@@ -18,3 +18,14 @@ test("paired report never fabricates unobserved finals",()=>{
  assert.equal(actual.pairedGames,1);assert.equal(actual.metrics.baseline.marginMAE,0);
  assert.equal(actual.promotionEligible,false);
 });
+test('EPA allowed monotonicity rewards weaker opposing defense and penalizes weaker own defense',()=>{
+ const base=tier3ShadowProjection(row);
+ for(const [family,opp,own]of [['pass','awayPassDef','homePassDef'],['rush','awayRushDef','homeRushDef']]){
+  const worseAway=tier3ShadowProjection({...row,[opp]:row[opp]+.1});
+  const worseHome=tier3ShadowProjection({...row,[own]:row[own]+.1});
+  assert.ok(worseAway.predictions[family].margin>base.predictions[family].margin);
+  assert.ok(worseHome.predictions[family].margin<base.predictions[family].margin);
+  assert.equal(worseAway.predictions[family].total,base.baseline.total);
+  assert.equal(worseAway.trained,false);assert.equal(worseAway.changesProductionChampion,false);
+ }
+});

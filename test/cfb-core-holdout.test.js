@@ -18,6 +18,7 @@ function archiveFor(season, throughWeeks, teams) {
     for (const t of teams) {
       rows.push({
         season,
+        featureAsOfVerified: true, cutoffEvidenceId: "offline-fixture-cutoff-proof",
         through_week: tw,
         school_key: t.key,
         core: t.core + tw,
@@ -240,4 +241,15 @@ test("end-to-end report completes on sufficient synthetic corpus", () => {
   assert.ok(report.coefficients?.frozen);
   assert.ok(report.headToHeadVsChampionAA?.n >= 50);
   assert.equal(report.productionSafeguards.canAuthorizeWager, false);
+});
+test('week inequality alone is not cutoff proof and missing or late source clocks are never fabricated',()=>{
+ const corpus=buildCorpus();
+ for(const transform of [r=>({...r,featureAsOfVerified:false}),r=>({...r,cutoffEvidenceId:null})]){
+  const result=buildEligibleCoreHoldoutRows({games:corpus.games,archiveRows:corpus.archives.map(transform)});
+  assert.equal(result.eligible.length,0);assert.equal(result.verifiedHistoricalCutoffs,false);
+ }
+ for(const clock of [null,'2030-01-01T00:00:00Z']){
+  const result=buildEligibleCoreHoldoutRows({games:corpus.games,archiveRows:corpus.archives.map(r=>({...r,collection_time:clock}))});
+  assert.equal(result.eligible.length,0);assert.ok(result.validationErrors.missing_or_postkickoff_source_clock>0);
+ }
 });

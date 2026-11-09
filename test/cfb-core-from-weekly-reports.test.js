@@ -111,7 +111,7 @@ test("reconstructed weekly archives drive 2025→2026 holdout without CFBD", () 
           awayAdjustedEpaAllowed: 0.14,
         });
       }
-      reports.push({ season, week, rows });
+      reports.push({ season, week, rows, verifiedThroughWeek: week-1, cutoffEvidenceId: "offline-fixture-proof", collectionTime: `${season}-09-01T00:00:00Z` });
     }
   }
   const reconstructed = reconstructFbisCoreFromWeeklyReports(reports);
@@ -212,4 +212,9 @@ test("fbisCoreArchiveToHoldoutRows stamps weekly endpoint", () => {
     ],
   });
   assert.equal(rows[0].coreSourceEndpoint, FBIS_CORE_WEEKLY_SOURCE_ENDPOINT);
+});
+test('weekly label and kickoff never invent a cutoff proof or collection timestamp',()=>{
+ const archive=buildFbisCoreArchiveFromWeeklyReport({season:2026,scheduleWeek:11,gameRows:[{homeTeam:'Texas',awayTeam:'Oklahoma',homeAdjustedEpa:.2,homeAdjustedEpaAllowed:.1,awayAdjustedEpa:.1,awayAdjustedEpaAllowed:.2,kickoff:'2026-11-14 20:00:00'}]});
+ assert.equal(archive.collectionTime,null);assert.equal(archive.featureAsOfVerified,false);assert.equal(archive.cutoffEvidenceId,null);
+ const rows=fbisCoreArchiveToHoldoutRows(archive);assert.equal(rows[0].featureAsOfVerified,false);assert.equal(rows[0].collection_time,null);
 });

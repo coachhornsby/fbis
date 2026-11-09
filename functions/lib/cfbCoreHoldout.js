@@ -136,6 +136,8 @@ export function indexCoreArchivesBySeasonWeek(archiveRows = []) {
         raw.through_season_type || raw.throughSeasonType || "regular",
       coreSourceEndpoint: endpoint,
       coreWeekBounded: true,
+      featureAsOfVerified: raw.featureAsOfVerified === true,
+      cutoffEvidenceId: raw.cutoffEvidenceId || null,
       coreSourceAsOf:
         raw.collection_time || raw.collectionTime || raw.coreSourceAsOf || raw.asOf || null,
       authenticityClass:
@@ -340,39 +342,19 @@ export function buildEligibleCoreHoldoutRows({
 
     const seasonWeeks = Object.keys(bySeason[season] || {}).map(Number);
     const throughWeek = selectCoreThroughWeekForGame(seasonWeeks, week);
-    const cutoff = verifyWeeklyReportCutoff({
-      weekField: week,
+    const home = lookupCoreTeam(bySeason, season, throughWeek, homeName);
+    const away = lookupCoreTeam(bySeason, season, throughWeek, awayName);
+    if (!home || !away) { bump("core_team_coverage_gap"); continue; }
+    const proof = side => side.featureAsOfVerified === true &&
+      typeof side.cutoffEvidenceId === "string" && side.cutoffEvidenceId.trim().length > 0;
+    const cutoff = verifyWeeklyReportCutoff({weekField: week,
       claimedStatisticalThroughWeek: throughWeek,
-      featureAsOfVerified: true,
-      pointInTimeStatus: "holdout_throughWeek_lt_gameWeek",
-    });
-    if (!cutoff.ok) {
-      bump("cutoff_throughWeek_not_lt_gameWeek");
-      continue;
-    }
-
-    const homeCore = lookupCoreTeam(bySeason, season, throughWeek, homeName);
-    const awayCore = lookupCoreTeam(bySeason, season, throughWeek, awayName);
-    if (!homeCore || !awayCore) {
-      bump("core_team_coverage_gap");
-      continue;
-    }
-
-    // Ensure asOf is strictly before kickoff for vector gate.
+      featureAsOfVerified: proof(home) && proof(away),
+      pointInTimeStatus: "explicit_archive_cutoff_evidence"});
+    if (!cutoff.ok || cutoff.featureAsOfVerified !== true) { bump("unverified_historical_cutoff"); continue; }
     const kickMs = Date.parse(String(kickoff));
-    const ensureAsOf = (side) => {
-      let asOf = side.coreSourceAsOf;
-      const ms = Date.parse(String(asOf || ""));
-      if (!Number.isFinite(ms) || ms >= kickMs) {
-        // Synthetic pre-kick collection stamp for retrospective_cfbd_stored archives
-        // only when archive lacked collection_time — labeled in row authenticity.
-        asOf = new Date(kickMs - 60 * 60 * 1000).toISOString();
-        return { ...side, coreSourceAsOf: asOf, asOfSynthesized: true };
-      }
-      return { ...side, asOfSynthesized: false };
-    };
-    const home = ensureAsOf(homeCore);
-    const away = ensureAsOf(awayCore);
+    const pregame = side => Number.isFinite(Date.parse(side.coreSourceAsOf)) && Date.parse(side.coreSourceAsOf) < kickMs;
+    if (!pregame(home) || !pregame(away)) { bump("missing_or_postkickoff_source_clock"); continue; }
 
     const vectorInput = {
       home,
@@ -417,7 +399,8 @@ export function buildEligibleCoreHoldoutRows({
       throughWeek,
       authenticityClass,
       coreSourceEndpoint: home.coreSourceEndpoint,
-      asOfSynthesized: home.asOfSynthesized || away.asOfSynthesized,
+      asOfSynthesized: false,
+      featureAsOfVerified: true,
       vector,
       xChampion: CHAMPION_KEYS.map((k) => vector.features[k]),
       xCombined: COMBINED_KEYS.map((k) => vector.features[k]),
@@ -428,7 +411,7 @@ export function buildEligibleCoreHoldoutRows({
 
   const train = eligible.filter((r) => r.season === CORE_HOLDOUT_TRAIN_SEASON);
   const holdout = eligible.filter((r) => r.season === CORE_HOLDOUT_EVAL_SEASON);
-  const verifiedCutoffs = eligible.length > 0 && eligible.every((r) => r.throughWeek < r.week);
+  const verifiedCutoffs = eligible.length > 0 && eligible.every((r) => r.featureAsOfVerified === true && r.throughWeek < r.week);
 
   return {
     version: CORE_HOLDOUT_VERSION,
