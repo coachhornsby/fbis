@@ -1,3 +1,6 @@
+import {PINNODDS_CAPTURE_JOB,PINNODDS_CAPTURE_UNITS,capturePolicyError} from '../pinnodds-restart/captureContract.mjs';
+import {PINNODDS_ACCOUNT_JOB,PINNODDS_ACCOUNT_UNITS,accountPolicyError} from '../pinnodds-restart/accountContract.mjs';
+export {PINNODDS_ACCOUNT_JOB};
 // Code approval is required as well as billing policy. Config cannot activate a
 // legacy job that has no execution boundary. These jobs make no D1 mutations.
 export const TENNIS_COLLECT_JOB='services/polymarket-tennis-collector/index.js';
@@ -16,6 +19,8 @@ export const POLY_FIXTURE_JOB='functions/lib/polymarketFixtureArchive.js:write';
 export const PINNED_INSPECTION_JOB='services/archive/inspectPinnedManifest.mjs';
 const noD1={d1Queries:0,reads:0,writes:0,r2Lists:0};
 export const CERTIFIED_EXECUTION_JOBS=Object.freeze({
+ [PINNODDS_CAPTURE_JOB]:Object.freeze({cpuMs:100,units:PINNODDS_CAPTURE_UNITS}),
+ [PINNODDS_ACCOUNT_JOB]:Object.freeze({cpuMs:100,units:PINNODDS_ACCOUNT_UNITS}),
  [PINNED_INSPECTION_JOB]:Object.freeze({cpuMs:10,units:Object.freeze({...noD1,requests:0,responseBytes:0,r2Reads:2,r2Writes:0,r2Bytes:4096,inspectionAttempts:1,coordinatorCalls:1,coordinatorStorageGets:2,coordinatorStoragePuts:2})}),
  ['services/espn-mcp/oauth.mjs']:Object.freeze({cpuMs:100,units:Object.freeze({...noD1,requests:0,responseBytes:0,r2Reads:0,r2Writes:0,r2Bytes:0,doDurationMs:1000})}),
  ['services/espn-mcp/worker.mjs']:Object.freeze({cpuMs:100,units:Object.freeze({...noD1,requests:1,responseBytes:4194304,r2Reads:0,r2Writes:0,r2Bytes:0})}),
@@ -45,6 +50,8 @@ export const CERTIFIED_EXECUTION_JOBS=Object.freeze({
 });
 export function executionPolicyError(policy,job){
  if(!Object.hasOwn(CERTIFIED_EXECUTION_JOBS,job||''))return 'JOB_EXECUTION_NOT_CERTIFIED';
+ if(job===PINNODDS_ACCOUNT_JOB){const error=accountPolicyError(policy);if(error)return error;}
+ if(job===PINNODDS_CAPTURE_JOB){const error=capturePolicyError(policy);if(error)return error;}
  const units=policy?.jobs?.[job]?.maxUnits;
  if(!units||!Object.keys(units).length)return 'MISSING_UNIT_BOUNDS';
  const caps=CERTIFIED_EXECUTION_JOBS[job].units;

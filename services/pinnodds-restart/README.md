@@ -108,3 +108,44 @@ unrelated provider prices and model values remain unchanged; public team totals
 retain validated home/away scope. Public board regression suite is 13/15, with
 the same two failures reproduced on untouched baseline (legacy call-count and
 release-root assumptions). No new failures in that regression set.
+
+## One-shot authenticated capture deployment
+
+`POST /api/pinnodds-capture-once` accepts an empty body, no query parameters,
+and only the existing `ORCH_CONTROL_TOKEN` bearer authentication. It is inert
+unless `PINNODDS_RESTART_ONCE_ENABLED` is exactly `true`. No credentials are
+returned. The operation is fixed to football prematch, with three account MCP
+HTTP exchanges followed by at most one market HTTP request. Account inspection
+protects against accidentally using a paid plan; the user's reported remaining
+provider quota does not need to be asked for again.
+
+The capture code contract reserves four external requests, 2,293,760 response
+bytes, three R2 writes, 2,162,688 written bytes, and the explicit coordinator
+units. It does not admit itself or alter any production cap. The account-only
+endpoint remains separate and must not be described as an odds pull.
+
+Deployment order (do not invoke before all gates are met):
+
+1. Preserve the deployed coordinator's `ledgerStatus` RPC and helper while
+   integrating the new admission checks. The repository's older coordinator
+   alone must not overwrite that production diagnostic capability.
+2. Verify real current application ledger capacity and reviewed cost evidence
+   for this fixed job, including coordinator duration and billing rounding.
+   Populate only that job's entry within existing account ceilings; do not
+   increase the account spending cap. Synthetic test certificates are not proof.
+3. Deploy the route with actual runtime CPU limit 100 ms and coordinator CPU
+   limit 10 ms, verifying settings after deployment. Policy metadata alone does
+   not impose these runtime limits. The orchestrator is shared: assess impact
+   before changing its runtime limit or use an approved isolated deployment.
+4. Use existing approved authenticated transport that performs exactly one
+   HTTP request and never retries. No key extraction or new credential is
+   needed by the route. A concrete transport must be available before claiming
+   this operation is runnable.
+5. All approved launches use `launchPinnoddsCaptureOnce` and the same persistent
+   private attempt directory. Its marker survives errors and uncertain results.
+   This launcher bounds approved invocations, not arbitrary direct token holders
+   or alternate directories. Do not delete the marker or change the fixed ID.
+6. Enable only the one-shot capture flag, invoke once through that transport,
+   and reconcile the exact result before any further action. No cron is added.
+   A receipt proves acquisition only. Existing trusted archive publication and
+   expiry validation must run before claiming that fresh odds appear on cards.
