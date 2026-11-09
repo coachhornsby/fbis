@@ -1,0 +1,19 @@
+name: College durable admission offline checks
+on:
+  pull_request:
+    paths:
+      - 'scripts/lib/cbbDurableAdmission.mjs'
+      - 'scripts/lib/collegeDurableAdmission.mjs'
+      - 'test/cbb-durable-admission.test.mjs'
+      - 'test/college-durable-admission.test.mjs'
+      - '.github/workflows/college-durable-admission-ci.yml'
+permissions: {contents: read}
+jobs:
+  offline:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - uses: actions/checkout@v4.2.2
+      - uses: actions/setup-node@v4.1.0
+        with: {node-version: '22'}
+      - run: node --test test/cbb-durable-admission.test.mjs test/college-durable-admission.test.mjs
