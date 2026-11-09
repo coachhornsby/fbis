@@ -10,8 +10,10 @@ credentials, trading authority, or new storage operations are added.
 - A complementary reference costs `1 - YES bid`, never `1 - YES ask`. Missing or
   invalid bids cannot supply it. Both references keep original capture/source clocks
   and non-executable flags. Public rows and tooltips preserve the derivation.
-- New-mode basketball/hockey fixture reads use current and next Chicago day within
-  the existing single ESPN request. Legacy behavior and football remain unchanged.
+- New-mode basketball/hockey fixture reads rotate current and next Chicago day,
+  one single-date ESPN request per sport cycle. Date-scoped archive replacement
+  preserves only the other fresh day with its original timestamp and honors
+  cancellations. Unsupported date ranges are not used. Football is unchanged.
 - New-mode CBB uses one rotating kickoff-window list and up to three matched unique
   event-slug detail reads, still at most four provider calls. Window rotation has
   stride one; detail rotation advances after a complete window/tag sweep.

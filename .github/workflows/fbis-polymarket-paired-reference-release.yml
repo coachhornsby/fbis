@@ -1,4 +1,4 @@
-name: FBIS Polymarket paired reference repair release
+name: FBIS Polymarket fixture recovery release
 on:
   pull_request:
     paths: ['.github/workflows/fbis-polymarket-paired-reference-release.yml']
@@ -43,7 +43,7 @@ jobs:
           PYTHON
       - name: Verify offline collector and reader boundaries
         run: |
-          node --import ./test/offline-network.js --test test/polymarket-paired-release.test.mjs test/polymarket-full-game-pairs.test.mjs test/polymarket-pregame-details.test.mjs test/exchange-fixture-lookahead.test.mjs test/polymarket-pregame-rest.test.mjs test/polymarket-us-cbb-first-half-route.test.mjs test/polymarket-rest-boundary.test.mjs test/polymarket-retained-display.test.mjs test/polymarket-bounded-session.test.mjs test/exchange-family-binding.test.mjs test/exchange-card-delivery.test.mjs test/exchange-card-rows.test.mjs test/job-execution-budget.test.mjs test/account-budget-admission.test.mjs test/account-budget-entrypoints.test.mjs
+          node --import ./test/offline-network.js --test test/polymarket-paired-release.test.mjs test/polymarket-full-game-pairs.test.mjs test/polymarket-pregame-details.test.mjs test/exchange-fixture-lookahead.test.mjs test/exchange-fixture-scoped-merge.test.mjs test/exchange-fixture-writer-hazard.test.mjs test/polymarket-pregame-rest.test.mjs test/polymarket-us-cbb-first-half-route.test.mjs test/polymarket-rest-boundary.test.mjs test/polymarket-retained-display.test.mjs test/polymarket-bounded-session.test.mjs test/exchange-family-binding.test.mjs test/exchange-card-delivery.test.mjs test/exchange-card-rows.test.mjs test/job-execution-budget.test.mjs test/account-budget-admission.test.mjs test/account-budget-entrypoints.test.mjs
           node --test test/polymarket-rest-runtime.test.mjs
       - name: Compile without source acquisition
         run: |

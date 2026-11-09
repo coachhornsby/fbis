@@ -1,0 +1,7 @@
+import test from 'node:test';import assert from 'node:assert/strict';
+import {archiveCollectedFixtures,fixtureKey} from '../functions/lib/polymarketFixtureArchive.js';
+import {CERTIFIED_EXECUTION_JOBS} from '../services/account-budget/executionJobs.mjs';
+const now=Date.parse('2026-11-09T04:06:00Z');
+const today={id:'today',sport:'cbb',start:'2026-11-09T04:30:00Z',home_name:'USC Trojans',away_name:'Wichita State Shockers'};
+const tomorrow={id:'tomorrow',sport:'cbb',start:'2026-11-10T03:00:00Z',home_name:'Stanford Cardinal',away_name:'Rice Owls'};
+test('reproduces shared-key overwrite hazard, without asserting a live competing writer exists',async()=>{let value=null,gets=0,writes=0;const env={FBIS_POLYMARKET_TAGS_JSON:'{"cbb":["cbb"]}',CLOUDFLARE_ACCOUNT_ID:'test',FBIS_ACCOUNT_BUDGET:{getByName:()=>({reserve:async({job})=>({allowed:true,maxUnits:CERTIFIED_EXECUTION_JOBS[job].units,expiresAtMs:Date.now()+120000})})},ARCHIVE:{head:async()=>value?{etag:'prior',size:Buffer.byteLength(JSON.stringify(value))}:null,get:async key=>{gets++;assert.equal(key,fixtureKey('cbb'));const text=JSON.stringify(value);return {size:Buffer.byteLength(text),body:new Response(text).body};},put:async(key,text)=>{writes++;value=JSON.parse(text);return {etag:'saved'};}}};await archiveCollectedFixtures(env,{sport:'cbb',games:[today,tomorrow],now});assert.equal(value.fixtures.length,2);await archiveCollectedFixtures(env,{sport:'cbb',games:[today],now:now+1});assert.deepEqual(value.fixtures.map(g=>g.id),['today']);assert.equal(gets,1);assert.equal(writes,2);});

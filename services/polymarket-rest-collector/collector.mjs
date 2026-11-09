@@ -41,7 +41,7 @@ export function verifiedFullGameDisplayBinding(offer,fixture){
 export function verifiedFullGamePairBinding(long,offers,fixture){
  const binding=verifiedFullGameDisplayBinding(long,fixture);
  if(!binding)return null;
- const genuineId=o=>typeof o?.raw?.providerSide?.id==='string'&&o.raw.providerSide.id.length>0&&o.raw.providerSide.id===o.sourceOutcomeId;
+ const genuineId=o=>{const id=o?.raw?.providerSide?.id;return (typeof id==='string'&&id.length>0||Number.isSafeInteger(id)&&id>0)&&String(id)===o.sourceOutcomeId;};
  // Reject fallback labels as outcome IDs, duplicate/ambiguous polarity, and
  // negated labels: an opposite team/side must actually be source-authored.
  if(offers.length!==2||offers.filter(o=>o.raw?.contractLong===true).length!==1||!genuineId(long)||
