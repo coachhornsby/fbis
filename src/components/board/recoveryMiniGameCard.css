@@ -204,3 +204,10 @@
 .fbis-shell-main.route-board .fbis-mini-saved-projection span{font-size:15px;line-height:1.3;color:#e5e7eb}
 .fbis-shell-main.route-board .fbis-mini-saved-projection b{color:#fbd279;font-weight:750;font-variant-numeric:tabular-nums;white-space:nowrap}
 .fbis-shell-main.route-board .fbis-mini-saved-projection small{font-size:11px;line-height:1.2;color:#c5ced8}
+
+/* Pinnacle uses the same market rows and team columns as exchange venues. */
+.fbis-shell-main.route-board .fbis-mini-venue-panel.is-pinnacle{background:#12243f;border-bottom:2px solid #958548}
+.fbis-shell-main.route-board .is-pinnacle .fbis-mini-venue-watermark{background-image:url('/brands/pinnacle-user-icon.png');background-size:84px auto;opacity:.12}
+.fbis-shell-main.route-board .fbis-mini-pinnacle-source{position:relative;margin:6px 8px 9px;font-size:10px;line-height:1.4;color:#c7d3e4}
+.fbis-shell-main.route-board .fbis-mini-pinnacle-source img{vertical-align:middle;border-radius:3px;margin-right:4px}
+.fbis-shell-main.route-board .fbis-mini-pinnacle-source span{display:block;margin-top:3px}

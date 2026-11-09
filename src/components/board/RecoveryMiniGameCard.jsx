@@ -1,4 +1,4 @@
-import PinnoddsCardMarkets from './PinnoddsCardMarkets.jsx';
+import {pinnoddsCardRows} from '../../lib/pinnoddsCardRows.js';
 import {liveGameLabel} from '../../lib/gameCardClock.js';
 import TeamLogo from '../TeamLogo.jsx';
 import {recoveryLeanShopping} from '../../lib/recoveryLeanShopping.js';
@@ -38,6 +38,7 @@ export default function RecoveryMiniGameCard({game,onOpen,clock=Date.now()}){
  const lean=shopping.lean,book=shopping.book;
  const away=game.away||{},home=game.home||{};
  const exchangeRows=exchangeCardRows(game,clock);
+ const pinnacleRows=pinnoddsCardRows(game,clock);
  const observed=book?new Date(book.observedAt).toLocaleTimeString('en-US',{
   timeZone:'America/Chicago',hour:'numeric',minute:'2-digit'
  }):null;
@@ -93,13 +94,12 @@ export default function RecoveryMiniGameCard({game,onOpen,clock=Date.now()}){
     </div>
    </div>}
   </button>
-  {game.sport==='cbb'&&game.pinnoddsResearch?.offers?.length ? <PinnoddsCardMarkets game={game} compact /> : null}
-  <div className="fbis-mini-exchanges" aria-label="Exchange prices">
+  <div className="fbis-mini-exchanges" aria-label="Captured market prices">
    <div className="fbis-mini-market-heading" aria-hidden="true"><span>Market</span><span className="fbis-mini-market-team" title={displayName(away)} aria-label={displayName(away)}><TeamLogo team={away} size={30} tone="light" className="fbis-mini-market-team-logo"/></span><span className="fbis-mini-market-team" title={displayName(home)} aria-label={displayName(home)}><TeamLogo team={home} size={30} tone="light" className="fbis-mini-market-team-logo"/></span></div>
-   {['Kalshi','Polymarket'].map(venue=>{
-    const rows=exchangeRows.filter(row=>row.venue===venue);
+   {[...(pinnacleRows.length?['Pinnacle']:[]),'Kalshi','Polymarket'].map(venue=>{
+    const rows=venue==='Pinnacle'?pinnacleRows:exchangeRows.filter(row=>row.venue===venue);
     const hasPrices=rows.some(row=>row.cells.some(cell=>cell.lines?.length||cell.price!=='—'));
-    return <section key={venue} className={'fbis-mini-venue-panel '+(venue==='Kalshi'?'is-kalshi':'is-polymarket')} aria-label={venue+' reference prices'}>
+    return <section key={venue} className={'fbis-mini-venue-panel '+(venue==='Pinnacle'?'is-pinnacle':venue==='Kalshi'?'is-kalshi':'is-polymarket')} aria-label={venue+' reference prices'}>
      <span className="fbis-mini-venue-name fbis-mini-sr-only">{venue}</span>
      <div className="fbis-mini-venue-watermark" aria-hidden="true"/>
      {hasPrices?<table aria-label={venue+' last fetched reference prices'}><thead className="fbis-mini-sr-only"><tr><th scope="col">Market</th><th scope="col">{displayName(away)}</th><th scope="col">{displayName(home)}</th></tr></thead><tbody>{rows.map(row=><tr key={row.family}>
@@ -107,6 +107,7 @@ export default function RecoveryMiniGameCard({game,onOpen,clock=Date.now()}){
        ?<div className="fbis-mini-team-total-prices">{cell.lines.map(x=><CapturedQuote key={x.line} cell={x}/>)}</div>
        :<CapturedQuote cell={cell}/>}</td>)}
      </tr>)}</tbody></table>:<p className="fbis-mini-exchange-empty">No captured prices</p>}
+     {venue==='Pinnacle'&&<p className="fbis-mini-pinnacle-source"><img src="/brands/pinnacle-user-icon.png" width="16" height="16" alt=""/>Pinnacle via PinnOdds · Partial capture<span>Last fetched {new Date(game.pinnoddsResearch.latestCapturedAt).toLocaleString('en-US',{timeZone:'America/Chicago',month:'short',day:'numeric',hour:'numeric',minute:'2-digit',timeZoneName:'short'})} · Provider quote time unknown</span></p>}
     </section>;
    })}
   </div>
