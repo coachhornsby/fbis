@@ -1,4 +1,4 @@
-name: FBIS Polymarket anchored market detail release
+name: FBIS Polymarket exact market filter release
 on:
   pull_request:
     paths: ['.github/workflows/fbis-polymarket-paired-reference-release.yml']

@@ -250,3 +250,36 @@ which ID was used or whether current filtered requests return the required
 sides. After review, verification must use an ordinary already-admitted scheduled
 slot. Opposite outcomes still require genuine returned IDs and complementary
 binding evidence. No provider availability or derivative coverage is promised.
+
+### Remove only the redundant game filter
+
+A fresh official OpenAPI check at 15:30 UTC confirms `/v1/events` supports
+`tagSlug`, `startTimeMin`, `startTimeMax`, `slug`, `orderBy`, and `orderDirection`.
+The source audit's earlier short parameter extract was not a complete list.
+`orderBy` is a string array; accepted sort-field names are not enumerated, so
+`id` specifically is not separately guaranteed. Three full source pages do not
+prove ignored filters or unrelated events. Event discovery is unchanged.
+
+The existing 15:22 CFB capture reports three 20-event list pages and one anchored
+market response requesting one identity and returning zero. This proves that
+specific filtered request returned no markets, not why it was empty or whether
+the venue lacked markets. Historical `gameId` queries were also empty, but the
+cause and identifier used in that historical check were not established.
+
+The next narrow change removes only the `gameId` parameter from the reserved
+`/v1/markets` request. Official ID-filter semantics independently restrict `id`
+or `slug` to those exact market identities:
+https://docs.polymarket.us/api-reference/market/overview#id-filters
+https://docs.polymarket.us/api-reference/oapi-schemas/markets-schema.json
+
+The source event's validated numeric `gameId` remains required for eligibility;
+any contradictory `gameId` supplied in the response still fails. Exact source
+membership, ID/slug consistency, existing family/period/line/outcome checks,
+`limit=24`, `offset=0`, and the three `sportsMarketTypes` filters remain unchanged.
+Keeping the family filter avoids deliberately requesting unsupported props from
+otherwise valid group-only references. No new endpoint, fallback request, call,
+byte/storage allowance or cadence is introduced; CBB and legacy are unchanged.
+
+This is a documented bounded hypothesis for the next ordinary scheduled slot,
+not a proven root-cause fix. If that result remains empty, do not continue changing
+query parameters speculatively without new evidence.
