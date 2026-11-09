@@ -1,12 +1,14 @@
+import {PINNODDS_CAPTURE_JOB,PINNODDS_CAPTURE_ATTEMPT,PINNODDS_CAPTURE_UNITS,PINNODDS_CAPTURE_OVERHEAD} from './captureContract.mjs';
+import {PINNODDS_ACCOUNT_JOB,PINNODDS_ACCOUNT_ATTEMPT,PINNODDS_ACCOUNT_UNITS,PINNODDS_ACCOUNT_OVERHEAD} from './accountContract.mjs';
 // Offline-prepared recovery primitive. Not routed, scheduled or certified.
 // Admission policy and authenticated entrypoint must be approved independently.
 import {requireJobAdmission} from '../account-budget/admission.mjs';
 import {createExecutionLease,executionR2,executionFetch} from '../account-budget/execution.mjs';
 import {readPinnoddsAccountUsage} from '../../workers/pinnodds-account-usage.mjs';
 import {verifyPinnoddsFreeTrial} from '../../workers/pinnodds-governed-capture.mjs';
-export const JOB='services/pinnodds-restart/once.mjs';
-export const ATTEMPT='pinnodds-football-prematch-restart-v1';
-export const CAPS=Object.freeze({requests:4,responseBytes:2293760,r2Reads:0,r2Writes:3,r2Bytes:2162688,r2Lists:0,d1Queries:0,reads:0,writes:0});
+export const JOB=PINNODDS_CAPTURE_JOB;
+export const ATTEMPT=PINNODDS_CAPTURE_ATTEMPT;
+export const CAPS=PINNODDS_CAPTURE_UNITS;
 export const SOURCE='https://pinnodds.com/kit/v1/markets?sport_id=5&event_type=prematch&include_specials=0';
 export const ROOT='market-sources/pinnodds/restart-v1';
 export const sha256=async raw=>Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256',new TextEncoder().encode(raw))),n=>n.toString(16).padStart(2,'0')).join('');
@@ -26,6 +28,7 @@ export async function captureOnce(env,{fetchImpl=fetch,admit=requireJobAdmission
  const grant=await admit(env,JOB,ATTEMPT);
  if(grant.id!==ATTEMPT||grant.job!==JOB||Object.keys(grant.maxUnits||{}).length!==Object.keys(CAPS).length||Object.entries(CAPS).some(([k,v])=>grant.maxUnits[k]!==v))throw Error('PINNODDS_RESTART_ADMISSION_MISMATCH');
  const lease=createExecutionLease(grant),archive=executionR2(env.R2_ARCHIVE,lease);
+ lease.spend(PINNODDS_CAPTURE_OVERHEAD);
  const attemptedAt=new Date().toISOString();
  // Survives account failures and uncertain provider responses. Never retry by
  // changing the attempt key; an operator must reconcile and approve a new job.
@@ -50,15 +53,17 @@ export async function captureOnce(env,{fetchImpl=fetch,admit=requireJobAdmission
  return {receipt,budget:lease.snapshot()};
 }
 
-export const ACCOUNT_JOB=JOB+':account';
-export const ACCOUNT_ATTEMPT='pinnodds-account-check-v1';
-export const ACCOUNT_CAPS=Object.freeze({...CAPS,requests:3,responseBytes:196608,r2Writes:2,r2Bytes:4096});
+export const ACCOUNT_JOB=PINNODDS_ACCOUNT_JOB;
+export const ACCOUNT_ATTEMPT=PINNODDS_ACCOUNT_ATTEMPT;
+export const ACCOUNT_CAPS=PINNODDS_ACCOUNT_UNITS;
 export async function checkAccountOnce(env,{fetchImpl=fetch,admit=requireJobAdmission}={}){
  if(env?.PINNODDS_ACCOUNT_CHECK_ENABLED!=='true')throw Error('PINNODDS_ACCOUNT_CHECK_DISABLED');
  if(!env.R2_ARCHIVE?.put||!env.PINNODDS_API_KEY)throw Error('PINNODDS_RESTART_BINDING_REQUIRED');
  const grant=await admit(env,ACCOUNT_JOB,ACCOUNT_ATTEMPT);
  if(grant.id!==ACCOUNT_ATTEMPT||grant.job!==ACCOUNT_JOB||Object.keys(grant.maxUnits||{}).length!==Object.keys(ACCOUNT_CAPS).length||Object.entries(ACCOUNT_CAPS).some(([k,v])=>grant.maxUnits[k]!==v))throw Error('PINNODDS_RESTART_ADMISSION_MISMATCH');
  const lease=createExecutionLease(grant),archive=executionR2(env.R2_ARCHIVE,lease);
+ // Coordinator work is separately reserved before a provider call.
+ lease.spend(PINNODDS_ACCOUNT_OVERHEAD);
  if(!await archive.put(ROOT+'/account-attempt.json',JSON.stringify({attempt:ACCOUNT_ATTEMPT,at:new Date().toISOString()}),{onlyIf:{etagDoesNotMatch:'*'}}))throw Error('PINNODDS_ACCOUNT_ALREADY_ATTEMPTED');
  const account=await readPinnoddsAccountUsage({apiKey:env.PINNODDS_API_KEY,fetchImpl:(...args)=>boundedAccountFetch(lease,fetchImpl,...args)});
  const {planId}=verifyPinnoddsFreeTrial(account.usage);

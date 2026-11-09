@@ -1,3 +1,5 @@
+import {PINNODDS_CAPTURE_JOB,PINNODDS_CAPTURE_ATTEMPT,capturePolicyError} from '../pinnodds-restart/captureContract.mjs';
+import {PINNODDS_ACCOUNT_JOB,PINNODDS_ACCOUNT_ATTEMPT,accountPolicyError} from '../pinnodds-restart/accountContract.mjs';
 // One coordinator per Cloudflare account, used only for bounded job admission.
 // Reservations are never refunded: delayed billing and failed jobs cannot free
 // capacity for another run. This is an application stop, not a provider hard cap.
@@ -20,18 +22,23 @@ export async function reserveJob(storage, policy, request, now = Date.now()) {
   if (!job || !integer(job.worstCaseMicroUsd) || job.worstCaseMicroUsd<1)
     return {allowed:false,reason:'UNAPPROVED_JOB'};
   const inspection=request.job===PINNED_INSPECTION_JOB;
-  const overhead=inspection?job.coordinatorOverheadMicroUsd:0;
+  const capture=request.job===PINNODDS_CAPTURE_JOB;
+  if(capture){const error=capturePolicyError(policy);if(error)return {allowed:false,reason:error};if(request.id!==PINNODDS_CAPTURE_ATTEMPT)return {allowed:false,reason:'PINNODDS_CAPTURE_FIXED_ID_REQUIRED'};}
+  const account=request.job===PINNODDS_ACCOUNT_JOB;
+  if(account){const error=accountPolicyError(policy);if(error)return {allowed:false,reason:error};if(request.id!==PINNODDS_ACCOUNT_ATTEMPT)return {allowed:false,reason:'PINNODDS_ACCOUNT_FIXED_ID_REQUIRED'};}
+  const overhead=inspection||account||capture?job.coordinatorOverheadMicroUsd:0;
   if(!integer(overhead)||(inspection&&overhead<1))return {allowed:false,reason:'INSPECTION_COORDINATOR_OVERHEAD_NOT_APPROVED'};
   const reservedCost=job.worstCaseMicroUsd+overhead;
   if(!integer(reservedCost))return {allowed:false,reason:'INVALID_JOB_COST'};
   let transactionAttempts=0;
   return storage.transaction(async txn => {
-    if(inspection&&++transactionAttempts>1)throw Error('INSPECTION_ADMISSION_RETRY_BLOCKED');
+    if((inspection||account||capture)&&++transactionAttempts>1)throw Error(capture?'PINNODDS_CAPTURE_ADMISSION_RETRY_BLOCKED':account?'PINNODDS_ACCOUNT_ADMISSION_RETRY_BLOCKED':'INSPECTION_ADMISSION_RETRY_BLOCKED');
     const key = `period:${startMs}:${endMs}`;
     const state = await txn.get(key) || {reserved:0,count:0,units:{}};
     if (!integer(state.reserved) || !integer(state.count) || !state.units ||
         typeof state.units!=='object' || state.count>=(allocated?150_000:10_000))
       return {allowed:false,reason:'LEDGER_UNAVAILABLE_OR_FULL'};
+    if((account||capture)&&new TextEncoder().encode(JSON.stringify(state)).length>8192)return {allowed:false,reason:capture?'PINNODDS_CAPTURE_LEDGER_STATE_TOO_LARGE':'PINNODDS_ACCOUNT_LEDGER_STATE_TOO_LARGE'};
     const reservationKey=`${key}:job:${request.id}`;
     if (await txn.get(reservationKey)) return {allowed:false,reason:'DUPLICATE_JOB'};
     const projected = committedMicroUsd+state.reserved+reservedCost;
@@ -49,9 +56,10 @@ export async function reserveJob(storage, policy, request, now = Date.now()) {
     if (!Object.keys(job.maxUnits || {}).length) return {allowed:false,reason:'MISSING_UNIT_BOUNDS'};
     state.reserved += reservedCost;
     state.count += 1;
-    await txn.put(reservationKey,{job:request.job,at:now});
     state.units={...used};
     for(const [unit,amount] of Object.entries(job.maxUnits))state.units[unit]=(state.units[unit] || 0)+amount;
+    if((account||capture)&&new TextEncoder().encode(JSON.stringify(state)).length>8192)return {allowed:false,reason:capture?'PINNODDS_CAPTURE_LEDGER_STATE_TOO_LARGE':'PINNODDS_ACCOUNT_LEDGER_STATE_TOO_LARGE'};
+    await txn.put(reservationKey,{job:request.job,at:now});
     await txn.put(key,state);
     return {allowed:true,id:request.id,job:request.job,maxUnits:job.maxUnits,expiresAtMs:Math.min(expiresAtMs,now+110_000),
       reservedMicroUsd:reservedCost,projectedMicroUsd:projected};

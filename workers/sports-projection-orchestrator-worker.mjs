@@ -1,3 +1,5 @@
+import {handlePinnoddsCapture} from './pinnodds-capture-route.mjs';
+import {handlePinnoddsAccountCheck} from './pinnodds-account-check-route.mjs';
 import {handlePinnedManifestInspection} from './pinned-manifest-inspection-route.mjs';
 import {requireJobAdmission} from '../services/account-budget/admission.mjs';
 import {reservePinnoddsRun,capturePinnoddsSnapshot} from "./pinnodds-governed-capture.mjs";
@@ -270,6 +272,10 @@ async function runRecoveryWithTennisResearch(env,controller){
 async function handleFetch(request, env) {
   const inspection=await handlePinnedManifestInspection(request,env);
   if(inspection)return inspection;
+  const capture=await handlePinnoddsCapture(request,env);
+  if(capture)return capture;
+  const accountCheck=await handlePinnoddsAccountCheck(request,env);
+  if(accountCheck)return accountCheck;
   configureRuntime(env);
   const url = new URL(request.url);
   // Public aggregate status only; source rows and credentials remain private.
