@@ -9,7 +9,8 @@ test('freshness release uses merged source, shared lock and only Pages deploy',(
 });
 test('exact flag preparation preserves every other TOML field and rejects false',()=>{
  const code=source.split("python3 - <<'PYTHON'\n")[1].split('\n          PYTHON')[0].split('\n').map(line=>line.slice(10)).join('\n');
- const config=readFileSync(new URL('../deploy/board/wrangler.toml',import.meta.url),'utf8');
+ // CI prepares the real flag before tests; build each isolated fixture explicitly.
+ const config=readFileSync(new URL('../deploy/board/wrangler.toml',import.meta.url),'utf8').replace(/^FBIS_POLYMARKET_PREGAME_REST\s*=.*$/gm,'');
  const cwd=mkdtempSync(join(tmpdir(),'pages-flags-'));mkdirSync(join(cwd,'deploy/board'),{recursive:true});
  try{for(const flag of [null,'true','false']){
   writeFileSync(join(cwd,'deploy/board/wrangler.toml'),config+(flag===null?'':`\nFBIS_POLYMARKET_PREGAME_REST = "${flag}"\n`));
