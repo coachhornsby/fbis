@@ -1,4 +1,4 @@
-name: PinnOdds NCAA reference Pages-only release
+name: D1 college basketball cards Pages-only release
 on:
   pull_request:
     paths: ['.github/workflows/fbis-pinnodds-ncaab-pages-release.yml']
@@ -25,7 +25,7 @@ jobs:
       - name: Verify Torvik and private access offline
         run: node --import ./test/offline-network.js --test test/private-torvik-consumer.test.mjs test/torvik-recovery.test.mjs test/cbb-private-access-route.test.mjs test/cbb-card-summary.test.mjs test/torvik-transport-safety.test.js test/polymarket-pregame-rest.test.mjs test/polymarket-board.test.js
       - name: Verify compact market presentation and captured references offline
-        run: node --test test/pinnodds-detailed-basketball.test.mjs test/pinnodds-direct-publication.test.mjs test/pinnodds-restart.test.mjs test/pinnodds-recovery-card-render.test.mjs test/pinnodds-card-rows.test.mjs test/shared-venue-fetch-age.test.mjs
+        run: node --test test/pinnodds-detailed-basketball.test.mjs test/pinnodds-direct-publication.test.mjs test/pinnodds-restart.test.mjs test/pinnodds-recovery-card-render.test.mjs test/pinnodds-card-rows.test.mjs test/shared-venue-fetch-age.test.mjs test/cbb-division-filter.test.mjs
       - name: Preserve approved Pages display flag
         run: |
           if grep -q '^FBIS_POLYMARKET_PREGAME_REST' deploy/board/wrangler.toml; then exit 1; fi
