@@ -1,3 +1,4 @@
+import {renderPinnoddsReference,nextPinnoddsDeadline} from './lib/pinnoddsStaticReference.js';
 import PrivateTorvikComparison from './components/board/PrivateTorvikComparison.jsx';
 import {loadPrivateTorvik} from './lib/privateTorvikRead.js';
 import {mergeRetainedExchangeQuotes,loadRetainedExchangeQuotes,saveRetainedExchangeQuotes} from './lib/retainedExchangeQuotes.js';
@@ -36,6 +37,7 @@ function PublicationApp(){
   const [cbbRefreshBusy,setCbbRefreshBusy]=useState(false);
   const [cbbRefreshResult,setCbbRefreshResult]=useState('');
   const [modelPacket,setModelPacket]=useState(null);
+  const [pinnoddsStatic,setPinnoddsStatic]=useState(null);
   const [sportOffers,setSportOffers]=useState([]);
   const [exchangeQuotes,setExchangeQuotes]=useState({});
   const exchangeCache=useRef({});
@@ -54,10 +56,11 @@ function PublicationApp(){
     if(!force&&Date.now()-lastAttempt.current<60000)return;
     lastAttempt.current=Date.now();const id=++generation.current;active.current?.abort();const abort=new AbortController();active.current=abort;
     busyRef.current=true;setBusy(true);setError('');setBoard(old=>old?.date===selected?old:null);
+    setPinnoddsStatic(old=>old?.date===selected?old:null);
     try{
     if(boardRef.current?.date!==selected)try{
       const r=await fetch(`/board-data/${selected}.json`,{signal:abort.signal});
-      if(r.ok){const saved=await r.json();if(saved.date===selected&&id===generation.current){boardRef.current=saved;setBoard(saved);}}
+      if(r.ok){const saved=await r.json();if(saved.date===selected&&id===generation.current){boardRef.current=saved;setBoard(saved);setPinnoddsStatic({date:selected,packet:saved.pinnoddsStaticReference||null});}}
     }catch{} // A live browser refresh can still recover when no saved date exists.
     const live=await captureScoreboards({date:selected,signal:abort.signal,sports:ACTIVE_SPORTS});
     if(id!==generation.current)return;
@@ -135,8 +138,9 @@ function PublicationApp(){
    return()=>{active=false;clearInterval(timer);};
   },[sport,date]);
   useEffect(()=>{const timer=setInterval(()=>setClock(Date.now()),15000);return()=>clearInterval(timer);},[]);
+  useEffect(()=>{const tick=()=>setClock(Date.now()),deadline=nextPinnoddsDeadline(pinnoddsStatic?.packet,Date.now());const timer=deadline===null?null:setTimeout(tick,Math.max(1,deadline-Date.now()));document.addEventListener('visibilitychange',tick);window.addEventListener('focus',tick);return()=>{if(timer!==null)clearTimeout(timer);document.removeEventListener('visibilitychange',tick);window.removeEventListener('focus',tick);};},[pinnoddsStatic,clock]);
   useEffect(()=>startScoreboardPolling({refresh:()=>refreshRef.current?.(),isVisible:()=>!document.hidden,isBusy:()=>busyRef.current,lastAttempt:()=>lastAttempt.current,listen:fn=>{document.addEventListener('visibilitychange',fn);window.addEventListener('focus',fn);return()=>{document.removeEventListener('visibilitychange',fn);window.removeEventListener('focus',fn);};}}),[]);
-  const games=(board?.games||[]).filter(g=>g.sport===sport).map(g=>{const g0=clock-Date.parse(g.capturedAt)>SNAPSHOT_MAX_AGE_MS?{...g,status:'unverified',statusDetail:'Saved source capture · current status unverified',statusClock:null}:g;const projected=overlayVerifiedResearchScores(g0,{cbbPacket:privatePacket,sportPacket:modelPacket,clock});const offers=(projected.sport==='cbb'?privateOffers:sportOffers).filter(q=>String(q.eventId||q.canonicalEventId||q.canonical_event_id||q.gameId||'')===String(projected.id));return {...projected,exchangeReferenceQuotes:exchangeQuotes[String(projected.id)]||[],recoveryVerifiedOffers:offers,...(projected.sport==='cbb'?{cbbVerifiedOffers:offers}:{})};});
+  const games=(board?.games||[]).filter(g=>g.sport===sport).map(g=>{const g0=clock-Date.parse(g.capturedAt)>SNAPSHOT_MAX_AGE_MS?{...g,status:'unverified',statusDetail:'Saved source capture · current status unverified',statusClock:null}:g;const reference=renderPinnoddsReference(g0,pinnoddsStatic?.date===date?pinnoddsStatic.packet:null,{now:Math.max(clock,Date.now())});const projected=overlayVerifiedResearchScores(reference,{cbbPacket:privatePacket,sportPacket:modelPacket,clock});const offers=(projected.sport==='cbb'?privateOffers:sportOffers).filter(q=>String(q.eventId||q.canonicalEventId||q.canonical_event_id||q.gameId||'')===String(projected.id));return {...projected,exchangeReferenceQuotes:exchangeQuotes[String(projected.id)]||[],recoveryVerifiedOffers:offers,...(projected.sport==='cbb'?{cbbVerifiedOffers:offers}:{})};});
   const privateMatched=privatePacket?games.filter(g=>Boolean(privateProjectionFor(g,privatePacket,clock))).length:0;
   const privatePrimary=privatePacket?.events.filter(e=>Boolean(e.primary)).length||0;
   const modelMatches=modelPacket?games.filter(g=>Boolean(privateFourSportProjectionFor(g,modelPacket,clock))).length:0;
