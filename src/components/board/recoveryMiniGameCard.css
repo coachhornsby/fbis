@@ -1,6 +1,6 @@
 /* Four-sport compact recovery cards. Scoped to the publication board only. */
 .fbis-shell-main.route-board .db-grid.fbis-mini-grid{
- display:grid!important;grid-template-columns:repeat(3,minmax(0,1fr))!important;
+ display:grid!important;grid-template-columns:repeat(2,minmax(0,1fr))!important;
  gap:12px!important;align-items:stretch!important
 }
 .fbis-shell-main.route-board .db-grid.fbis-mini-grid .db-grid-item{
@@ -210,3 +210,12 @@
 .fbis-shell-main.route-board .is-pinnacle .fbis-mini-venue-watermark{background-image:url('/brands/pinnacle-wordmark-transparent.svg');background-size:86% auto;opacity:.12}
 
 .fbis-shell-main.route-board .fbis-mini-venue-age{position:relative;margin:0;padding:3px 6px 5px;text-align:right;font-size:12px;line-height:1.3;color:#d1dbea;background:#08162599}
+
+
+/* Comparison cards reserve width for three market columns, not stacked venues. */
+.fbis-shell-main.route-board .fbis-mini-body{padding:8px 10px;gap:5px}
+.fbis-shell-main.route-board .fbis-mini-team strong{font-size:15px;line-height:1.2}
+.fbis-shell-main.route-board .fbis-mini-model-facts>div{padding:6px 10px}
+.fbis-shell-main.route-board .fbis-mini-model-facts span{font-size:11px}
+.fbis-shell-main.route-board .fbis-mini-model-facts strong{font-size:17px;margin-top:2px}
+@media(max-width:1000px){.fbis-shell-main.route-board .db-grid.fbis-mini-grid{grid-template-columns:minmax(0,1fr)!important}}

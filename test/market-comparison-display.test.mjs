@@ -1,0 +1,14 @@
+import test from 'node:test';import assert from 'node:assert/strict';
+import{comparisonPrice,syntheticReference,comparisonExtras}from'../src/lib/marketComparisonDisplay.js';
+test('American conversion uses exact captured contract price, not rounded cents; fees and execution are not inferred',()=>{
+ const c={state:'observed',price:'61.8¢',contractPrice:.6175};assert.equal(comparisonPrice(c,'Polymarket','american'),'-161');assert.equal(comparisonPrice(c,'Polymarket','cents'),'61.8¢');assert.equal(comparisonPrice({...c,price:'-110'},'Pinnacle','american'),'-110');assert.equal(comparisonPrice({...c,state:'closed',price:'Unavailable'},'Kalshi','american'),'Unavailable');assert.equal(comparisonPrice({state:'observed',price:'0.0¢',contractPrice:0},'Kalshi','american'),'0.0¢');assert.equal(comparisonPrice({state:'observed',price:'50.0¢',contractPrice:.5},'Kalshi','american'),'-100');
+ assert.equal(comparisonPrice({state:'observed',price:'61.8¢'},'Kalshi','american'),'61.8¢');
+ assert.equal(syntheticReference({quoteKind:'SYNTHETIC_NO_FROM_YES_BID_REFERENCE'}),true);
+});
+test('additional thresholds reuse event and period validation and preserve distinct lines',()=>{
+ const start='2026-11-10T00:00Z',clock=Date.parse('2026-11-09T12:00Z');const q=(line,side)=>({venue:'Kalshi',marketFamily:'total',period:'full_game',side,line,ask:.52,receivedAt:'2026-11-09T11:59Z',eventStart:start});const g={sport:'cbb',start,exchangeReferenceQuotes:[q(150,'over'),q(150,'under'),q(152,'over'),q(152,'under'),{...q(160,'over'),eventStart:'2026-11-12T00:00Z'}]};const main=[{venue:'Kalshi',family:'total',cells:[{line:'O 150'},{line:'U 150'}]}];const extras=comparisonExtras(g,clock,main);assert.equal(extras.length,1);assert.equal(extras[0].cells[0].line,'O 152');assert.equal(extras[0].cells[1].line,'U 152');
+});
+test('Pinnacle extras cannot inherit main venue offers and keep team-total scope',()=>{
+ const clock=Date.parse('2026-11-09T12:00Z'),at='2026-11-09T11:00Z',start='2026-11-10T00:00Z';const q=(family,side,line,team)=>({source:'PinnOdds',marketFamily:family,period:'full_game',side,line,team,decimalOdds:1.91,capturedAt:at});const mainPair=[q('total','over',150),q('total','under',150)],g={sport:'cbb',status:'scheduled',start,market:{venueOffers:mainPair},pinnoddsResearch:{latestCapturedAt:at,offers:[...mainPair,q('total','over',152),q('total','under',152),q('team_total','over',72,'away'),q('team_total','under',72,'away')]}};
+ const rows=[{venue:'Pinnacle',family:'total',cells:[{line:'O 150'},{line:'U 150'}]}],extra=comparisonExtras(g,clock,rows);assert.equal(extra.length,2);assert.equal(extra[0].cells[0].line,'O 152');assert.equal(extra[1].family,'team_total');assert.equal(extra[1].cells[0].lines[0].line,'O 72');assert.equal(extra[1].cells[1].price,'—');assert.equal(comparisonExtras({...g,status:'live'},clock,rows).length,0);
+});
