@@ -49,4 +49,4 @@ test('retained lines link only to supported exact venue destinations',()=>{
  assert.ok(mismatched.includes('Open Polymarket US homepage (game link unavailable)'));
  assert.ok(!mismatched.includes('/markets/another-contract'));
 });
-test('watermark does not intercept input and prices remain above it',async()=>{const s=await readFile('src/components/board/recoveryMiniGameCard.css','utf8');assert.match(s,/pointer-events:none/);assert.match(s,/isolation:isolate/);assert.match(s,/opacity:\.18/);assert.match(s,/z-index:-1/);assert.match(s,/border-top:2px solid #958548/);});
+test('watermark does not intercept input and prices remain above it',async()=>{const s=await readFile('src/components/board/recoveryMiniGameCard.css','utf8');assert.match(s,/pointer-events:none/);assert.match(s,/isolation:isolate/);assert.match(s,/opacity:\.18/);assert.match(s,/z-index:-1/);assert.match(s,/border-top:1px solid #ffffff25/);});
