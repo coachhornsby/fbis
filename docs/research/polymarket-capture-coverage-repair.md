@@ -144,3 +144,28 @@ rotation, later-page detail fairness, output-cap fairness, and derivative retent
 at both 49-event and sixty-event pressure boundaries. All completeness flags stay
 false. Finite requests and the replacement-only fifty-contract snapshot cannot
 guarantee every game and every family simultaneously.
+
+## Follow-up: optional detail market-count overflow
+
+The post-deployment CFB run at 14:12:53 UTC reported
+`PROVIDER_MARKET_CAPACITY` and retained its previous capture. Without a new source
+request, that diagnostic alone does not identify which response exceeded the cap.
+The existing count guard aborts the run for both mandatory list data and optional
+event detail, so one oversized enrichment could discard otherwise valid list data.
+
+REST-only optional details now check for a genuine `markets` array with more than
+200 entries after verifying the one-event response envelope and exact requested
+slug. Such a detail is rejected in full before candidate, price, binding, matched-
+fixture count or detail-priority processing. No prefix is parsed or retained.
+Already validated list results and other valid detail responses can still publish
+using the existing single capture write. The bounded `detailOmissions` metadata in
+the capture and receipt records the requested event slug, capacity code, observed
+count and unchanged limit. The returned error list also reports the omission.
+
+Malformed market arrays, side-count overflow, envelope/slug errors, conflicting
+identities in processed data, aggregate response-byte failures, and list-response
+market overflow still abort before publication. Legacy/WS behavior is unchanged.
+The 200-market response boundary, 24-market inspection boundary, four-call limit,
+byte/CPU allowances and all storage budgets remain unchanged. This patch does not
+prove the rejected source contained usable derivatives or paired outcomes, and an
+oversized optional detail remains unavailable rather than partially trusted.

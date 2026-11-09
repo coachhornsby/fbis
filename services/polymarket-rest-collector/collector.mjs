@@ -81,7 +81,7 @@ export async function collectBoundedPolymarketRest(env,{sport,slot=Math.floor(Da
  const manifest=validateFixtureManifest(await stored.json(),now,{allowCfbRestLookahead:env.FBIS_POLYMARKET_PREGAME_REST==='true'});if(manifest.sport!==sport)throw Error('FIXTURE_SPORT_MISMATCH');
  if(!manifest.fixtures.length)return {ok:true,sport,status:'NO_FIXTURES',canAuthorizeWager:false};
  const pregame=env.FBIS_POLYMARKET_PREGAME_REST==='true';
- const pages=[],candidates=[],errors=[],referenceMarkets=new Map();let matched=0;
+ const pages=[],candidates=[],errors=[],detailOmissions=[],referenceMarkets=new Map();let matched=0;
  // Broader fixture-backed list windows share the existing four-call ceiling
  // with CBB/CFB detail reads. Legacy mode retains its original request plan.
  const plan=pregame?pregameDiscoveryPlan(manifest,{now,slot}):sport==='cbb'?[{tag:manifest.providerTags[0],page:0}]:
@@ -175,6 +175,14 @@ export async function collectBoundedPolymarketRest(env,{sport,slot=Math.floor(Da
    const detail=await response.json();
    if(!Array.isArray(detail.events)||detail.events.length>1)throw Error('PROVIDER_EVENT_DETAIL_INVALID');
    if(detail.events.length!==1||detail.events[0].slug!==selected.slug)throw Error('PROVIDER_EVENT_SLUG_MISMATCH');
+   // Optional REST enrichment must not discard an independently valid list
+   // capture when the whole detail exceeds its market-count boundary. Reject
+   // it before processing any candidate, quote, binding or priority metadata.
+   // Schema/identity errors, side limits and byte-budget failures stay fatal.
+   if(pregame&&Array.isArray(detail.events[0].markets)&&detail.events[0].markets.length>200){
+    const omission={slugScope:'DETAIL_UNAVAILABLE',code:'PROVIDER_MARKET_CAPACITY',eventSlug:selected.slug,marketCount:detail.events[0].markets.length,marketLimit:200};
+    errors.push(omission);detailOmissions.push(omission);continue;
+   }
    processEvents(detail.events,{detail:true});
   }
  }
@@ -197,10 +205,10 @@ export async function collectBoundedPolymarketRest(env,{sport,slot=Math.floor(Da
   }
   unique.set(row.source_market_id,row);
  }
- const selected=pregame&&['cbb','cfb'].includes(sport)?balancedCbbCandidates([...unique.values()],{eventRotation:plan[0]?.detailRotation||0,priorityEventIds:[...detailedFixtureIds]}):[...unique.values()].slice(0,50),receipt={version:1,sport,capturedAt:new Date(now).toISOString(),pages:pages.length,providerRequests:requests,matchedEvents:matched,candidates:unique.size,selected:selected.length,complete:false,canQualify:false,canAuthorizeWager:false};
+ const selected=pregame&&['cbb','cfb'].includes(sport)?balancedCbbCandidates([...unique.values()],{eventRotation:plan[0]?.detailRotation||0,priorityEventIds:[...detailedFixtureIds]}):[...unique.values()].slice(0,50),receipt={version:1,sport,capturedAt:new Date(now).toISOString(),pages:pages.length,providerRequests:requests,matchedEvents:matched,candidates:unique.size,selected:selected.length,...(detailOmissions.length?{detailOmissions}:{}),complete:false,canQualify:false,canAuthorizeWager:false};
  const referenceSnapshot=pregame?restReferenceSnapshot(selected,referenceMarkets,now):null;
  // An empty or failed capture must not erase the last observed references.
- if(!pregame||referenceSnapshot.quotes.length)await env.ARCHIVE.put(restKey(sport)+'/latest.json',JSON.stringify({version:1,sport,capturedAt:receipt.capturedAt,pages:pregame?pages.map(p=>({tag:p.tag,offset:p.offset,eventCount:p.events.length})):pages,...(pregame?{referenceSnapshot}:{}),complete:false,canAuthorizeWager:false}));
+ if(!pregame||referenceSnapshot.quotes.length)await env.ARCHIVE.put(restKey(sport)+'/latest.json',JSON.stringify({version:1,sport,capturedAt:receipt.capturedAt,pages:pregame?pages.map(p=>({tag:p.tag,offset:p.offset,eventCount:p.events.length})):pages,...(pregame?{referenceSnapshot}:{}),...(detailOmissions.length?{detailOmissions}:{}),complete:false,canAuthorizeWager:false}));
  // Staging gets its own reservation. Never pass an already scoped R2 binding
  // into a second lease: each hop uses the original environment supplied below.
  return {receipt,selected,errors};
