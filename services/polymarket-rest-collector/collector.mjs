@@ -1,7 +1,9 @@
 import {balancedCbbMarkets,balancedCbbCandidates,balancedDetailEvents} from './fairSelection.mjs';
 import {verifiedOppositeBinding} from '../../functions/lib/polymarketOppositeBinding.js';
 import {pregameDiscoveryPlan,pregameDiscoveryUrl,restReferenceSnapshot} from './pregame.mjs';
-import {beginJobExecution} from '../account-budget/jobScope.mjs';
+import {reserveJobExecution} from '../account-budget/jobScope.mjs';
+import {executionFetch} from '../account-budget/execution.mjs';
+import {anchoredMarketPlan,anchoredMarketEvent,validateAnchoredMarketUrl} from './anchoredMarkets.mjs';
 import {POLY_REST_JOB} from '../account-budget/executionJobs.mjs';
 import {ROSTER_SPORTS,stageBoundedStreamCandidates} from '../../functions/lib/boundedPolymarketRoster.js';
 import {fixtureKey,validateFixtureManifest} from '../../functions/lib/polymarketFixtureArchive.js';
@@ -76,12 +78,15 @@ export function verifiedCbbFirstHalfTotalBinding(offer,fixture){
 // Official public endpoint: https://docs.polymarket.us/api-reference/events/get-events
 export async function collectBoundedPolymarketRest(env,{sport,slot=Math.floor(Date.now()/60000),now=Date.now(),fetchImpl=fetch}={}){
  if(!ROSTER_SPORTS.includes(sport)||!Number.isSafeInteger(slot)||Math.abs(slot-Math.floor(now/60000))>1)throw Error('INVALID_REST_SCOPE');
- env=await beginJobExecution(env,POLY_REST_JOB,{reservationId:'poly-rest-'+sport+'-'+slot,fetchImpl,network:{origin:POLY_US_API,path:'/v1/events'}});
+ const execution=await reserveJobExecution(env,POLY_REST_JOB,{reservationId:'poly-rest-'+sport+'-'+slot,fetchImpl,network:{origin:POLY_US_API,path:'/v1/events'}});
+ env=execution.env;
+ // Both exact public paths spend the SAME four-request / two-MiB lease.
+ const marketFetch=executionFetch(execution.lease,fetchImpl,{origin:POLY_US_API,path:'/v1/markets'});
  const stored=await env.ARCHIVE.get(fixtureKey(sport));if(!stored)return {ok:false,sport,code:'FIXTURE_MANIFEST_MISSING'};
  const manifest=validateFixtureManifest(await stored.json(),now,{allowCfbRestLookahead:env.FBIS_POLYMARKET_PREGAME_REST==='true'});if(manifest.sport!==sport)throw Error('FIXTURE_SPORT_MISMATCH');
  if(!manifest.fixtures.length)return {ok:true,sport,status:'NO_FIXTURES',canAuthorizeWager:false};
  const pregame=env.FBIS_POLYMARKET_PREGAME_REST==='true';
- const pages=[],candidates=[],errors=[],detailOmissions=[],referenceMarkets=new Map();let matched=0;
+ const pages=[],candidates=[],errors=[],detailOmissions=[],marketDetailPages=[],referenceMarkets=new Map();let matched=0;
  // Broader fixture-backed list windows share the existing four-call ceiling
  // with CBB/CFB detail reads. Legacy mode retains its original request plan.
  const plan=pregame?pregameDiscoveryPlan(manifest,{now,slot}):sport==='cbb'?[{tag:manifest.providerTags[0],page:0}]:
@@ -164,6 +169,16 @@ export async function collectBoundedPolymarketRest(env,{sport,slot=Math.floor(Da
   const detailSlots=Math.min(3,4-requests,uniqueEvents.length);
   for(let i=0;i<detailSlots;i++){
    const selected=uniqueEvents[(offset+i)%uniqueEvents.length];
+   const marketPlan=pregame&&sport==='cfb'?anchoredMarketPlan(selected,{rotation:Math.floor(plan[0].detailRotation/uniqueEvents.length)}):null;
+   if(marketPlan){
+    requests++;
+    const response=await marketFetch(validateAnchoredMarketUrl(marketPlan.url,marketPlan),{headers:{accept:'application/json'}});
+    if(!response.ok){await response.body?.cancel();errors.push({slugScope:'DETAIL_UNAVAILABLE',status:response.status});continue;}
+    const event=anchoredMarketEvent(await response.json(),marketPlan);
+    marketDetailPages.push({eventSlug:selected.slug,requestedMarketCount:marketPlan.requested.length,returnedMarketCount:event.markets.length,complete:false});
+    processEvents([event],{detail:true});
+    continue;
+   }
    const url=new URL('/v1/events',POLY_US_API);
    url.searchParams.set('slug',selected.slug);
    url.searchParams.set('limit','1');
@@ -204,9 +219,10 @@ export async function collectBoundedPolymarketRest(env,{sport,slot=Math.floor(Da
   unique.set(row.source_market_id,row);
  }
  const selected=pregame&&['cbb','cfb'].includes(sport)?balancedCbbCandidates([...unique.values()],{eventRotation:plan[0]?.detailRotation||0,priorityEventIds:[...detailedFixtureIds]}):[...unique.values()].slice(0,50),receipt={version:1,sport,capturedAt:new Date(now).toISOString(),pages:pages.length,providerRequests:requests,matchedEvents:matched,candidates:unique.size,selected:selected.length,...(detailOmissions.length?{detailOmissions}:{}),complete:false,canQualify:false,canAuthorizeWager:false};
+ if(marketDetailPages.length)receipt.marketDetailPages=marketDetailPages;
  const referenceSnapshot=pregame?restReferenceSnapshot(selected,referenceMarkets,now):null;
  // An empty or failed capture must not erase the last observed references.
- if(!pregame||referenceSnapshot.quotes.length)await env.ARCHIVE.put(restKey(sport)+'/latest.json',JSON.stringify({version:1,sport,capturedAt:receipt.capturedAt,pages:pregame?pages.map(p=>({tag:p.tag,offset:p.offset,eventCount:p.events.length})):pages,...(pregame?{referenceSnapshot}:{}),...(detailOmissions.length?{detailOmissions}:{}),complete:false,canAuthorizeWager:false}));
+ if(!pregame||referenceSnapshot.quotes.length)await env.ARCHIVE.put(restKey(sport)+'/latest.json',JSON.stringify({version:1,sport,capturedAt:receipt.capturedAt,pages:pregame?pages.map(p=>({tag:p.tag,offset:p.offset,eventCount:p.events.length})):pages,...(pregame?{referenceSnapshot}:{}),...(detailOmissions.length?{detailOmissions}:{}),...(marketDetailPages.length?{marketDetailPages}:{}),complete:false,canAuthorizeWager:false}));
  // Staging gets its own reservation. Never pass an already scoped R2 binding
  // into a second lease: each hop uses the original environment supplied below.
  return {receipt,selected,errors};

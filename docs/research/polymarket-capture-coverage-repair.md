@@ -202,3 +202,51 @@ client can still see a partial replacement snapshot. The added deterministic tes
 cover window/tag counts of one through ten, empty-window continuation, and a
 synthetic CFB sweep containing both early-week and Saturday opportunities. These
 tests do not promise that live provider details contain derivatives or paired IDs.
+
+## Source-anchored CFB market detail
+
+Official US documentation and its linked OpenAPI were checked on November 9,
+2026. These are public documentation reads, not provider market-data probes:
+
+- https://docs.polymarket.us/api-reference/markets/get-markets
+- https://docs.polymarket.us/api-reference/market/overview
+- https://docs.polymarket.us/api-reference/oapi-schemas/markets-schema.json
+- https://docs.polymarket.us/api-reference/oapi-schemas/events-schema.json
+
+`GET https://gateway.polymarket.us/v1/markets` documents market-level `limit` and
+`offset`, string `gameId`, and `sportsMarketTypes` enum arrays. Arrays have
+`explode: true`, so each value uses a repeated query key. The supported family
+values used here are `SPORTS_MARKET_TYPE_MONEYLINE`, `SPORTS_MARKET_TYPE_SPREAD`,
+and `SPORTS_MARKET_TYPE_TOTAL`. The documented `id` filter is an int32 array;
+`slug` is a string array. The adapter does not mix ID and slug filters.
+
+The event's numeric `gameId` is its sports-provider game ID, not `event.id`, an
+ESPN ID, or an invented `event.game.id`. The market response contains only
+`markets[]`; its schema does not promise an event/game parent link. Therefore
+query scope alone cannot establish membership. Returned IDs/slugs must match
+explicit source-authored references in the independently matched list event's
+`markets` or `marketGroups[].marketIds`. Existing ID/slug/side/line/period conflicts
+and any supplied contradictory parent fields fail before accepting any detail.
+New derivatives without these source-authored references are not attached.
+
+Only CFB pregame REST uses this path, replacing an existing reserved event-detail
+slot. At most 24 known anchors are requested per call with `limit=24`, `offset=0`;
+known anchor batches rotate across recurring detail opportunities. Anchor
+inspection is itself bounded to 200 markets/references. Missing/unsupported
+anchors retain the original event-detail path. A failed or empty replacement
+never triggers an extra call, erases valid list quotes, or proves cancellation.
+The bounded result is audited in `marketDetailPages`, always `complete:false`.
+
+Both exact endpoint wrappers share one execution lease: four provider requests,
+two MiB cumulative response bytes, one R2 read and one R2 write. The 24-market
+inspection, 50-contract output, 200-market event limit, schedule, CPU setting,
+source capture clock, and CBB/default/WS behavior are unchanged. No credentials,
+private endpoints, International Gamma/CLOB calls, or retired bootstrap are used.
+The exact `/v1/markets` public path is the only added endpoint allowance.
+
+Documentation establishes a supported bounded query shape, not live success or
+complete coverage. Historical `/v1/markets?gameId=...` empty results do not prove
+which ID was used or whether current filtered requests return the required
+sides. After review, verification must use an ordinary already-admitted scheduled
+slot. Opposite outcomes still require genuine returned IDs and complementary
+binding evidence. No provider availability or derivative coverage is promised.
