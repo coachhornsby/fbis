@@ -1,0 +1,40 @@
+name: Polymarket REST display Pages-only release
+on:
+  pull_request:
+    paths: ['.github/workflows/fbis-polymarket-display-pages-release.yml']
+  push:
+    branches: [main]
+    paths: ['.github/workflows/fbis-polymarket-display-pages-release.yml']
+permissions:
+  contents: read
+concurrency:
+  group: fbis-card-presentation-release
+  cancel-in-progress: false
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4.2.2
+        with:
+          ref: be587e7f5b88948e1282342557e9e587bef550c1
+      - uses: actions/setup-node@v4.1.0
+        with:
+          node-version: '22'
+      - run: npm ci --ignore-scripts --no-audit --no-fund
+      - name: Verify Torvik and private access offline
+        run: node --import ./test/offline-network.js --test test/private-torvik-consumer.test.mjs test/torvik-recovery.test.mjs test/cbb-private-access-route.test.mjs test/cbb-card-summary.test.mjs test/torvik-transport-safety.test.js test/polymarket-pregame-rest.test.mjs test/polymarket-board.test.js
+      - name: Compile without source collection for review
+        run: |
+          mkdir -p deploy/board/snapshots data/public/cbb-readiness
+          ./node_modules/.bin/vite build --config vite.publication.config.js
+      - name: Refresh existing bounded public scoreboard assets only
+        if: github.event_name == 'push'
+        run: npm run build:publication
+      - name: Deploy Pages only, no collector or configuration mutation
+        if: github.event_name == 'push'
+        working-directory: deploy/board
+        env:
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        run: ../../node_modules/.bin/wrangler pages deploy dist --project-name fbis --branch main --commit-hash be587e7f5b88948e1282342557e9e587bef550c1
