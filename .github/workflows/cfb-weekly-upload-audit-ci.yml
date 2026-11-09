@@ -7,6 +7,8 @@ on:
       - 'functions/lib/cfbCoreHoldout.js'
       - 'scripts/lib/cfbdFittedRecovery.mjs'
       - 'scripts/lib/cfbdLatestGameCoverage.mjs'
+      - 'scripts/lib/cfbdWeeklyProspective.mjs'
+      - 'test/cfbd-weekly-prospective.test.mjs'
       - 'test/cfbd-latest-game-coverage.test.mjs'
       - 'test/cfb-core-*.test.js'
       - 'test/cfbd-fitted-recovery.test.mjs'
@@ -20,4 +22,4 @@ jobs:
       - uses: actions/checkout@v4.2.2
       - uses: actions/setup-node@v4.1.0
         with: {node-version: '22'}
-      - run: node --test test/cfb-tier3-epa-shadow.test.js test/cfb-core-from-weekly-reports.test.js test/cfb-core-holdout.test.js test/cfbd-fitted-recovery.test.mjs test/cfb-tier3-weekly.test.js test/cfb-tier3-weekly-evaluation.test.js test/cfbd-latest-game-coverage.test.mjs
+      - run: node --test test/cfb-tier3-epa-shadow.test.js test/cfb-core-from-weekly-reports.test.js test/cfb-core-holdout.test.js test/cfbd-fitted-recovery.test.mjs test/cfb-tier3-weekly.test.js test/cfb-tier3-weekly-evaluation.test.js test/cfbd-latest-game-coverage.test.mjs test/cfbd-weekly-prospective.test.mjs

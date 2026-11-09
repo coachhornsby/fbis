@@ -1,0 +1,18 @@
+import test from'node:test';import assert from'node:assert/strict';import{buildCfbdWeeklyProspective as build}from'../scripts/lib/cfbdWeeklyProspective.mjs';import{CFB_TIER3_FEATURE_COLUMNS}from'../functions/lib/cfbTier3FeatureRegistry.js';
+const g={gameId:'12345',homeCanonicalId:'cfb-251',awayCanonicalId:'cfb-201',identityStatus:'matched',neutralSite:0,rowSha256:'b'.repeat(64),openingSpread:-7,features:Object.fromEntries(CFB_TIER3_FEATURE_COLUMNS.map(k=>[k,.1]))};
+const snapshot={sourceSha256:'a'.repeat(64),receivedAt:'2026-11-09T05:00Z',season:2026,week:11,games:[g]};
+const fixture={id:'12345',date:'2026-11-14',start:'2026-11-14T20:00Z',home:{espnId:'251'},away:{espnId:'201'},neutralSite:false};
+const args={snapshot,fixtures:[fixture],baselinePackets:[],createdAt:'2026-11-09T13:00Z'};
+test('retains all features privately, separates market and never invents missing baseline/outcome',()=>{const p=build(args);assert.equal(Object.keys(p.rows[0].features).length,72);assert.equal(p.rows[0].features.spread,undefined);assert.equal(p.rows[0].baseline,null);assert.equal(p.rows[0].outcome,null);assert.equal(p.canInfluenceLiveProjection,false);assert.equal(p.rows[0].marketReference.usableAsPredictor,false);});
+test('unresolved or wrong-side identity held instead of silently joined',()=>{for(const override of [{identityStatus:'partial_match'},{homeCanonicalId:'cfb-333'},{neutralSite:1}])assert.equal(build({...args,snapshot:{...snapshot,games:[{...g,...override}]}}).rows.length,0);});
+test('postkickoff creation or receipt cannot become prospective evidence',()=>{assert.equal(build({...args,createdAt:'2026-11-15T00:00Z'}).rows.length,0);assert.throws(()=>build({...args,snapshot:{...snapshot,receivedAt:'2026-11-15T00:00Z'}}),/SOURCE_INVALID/);});
+test('market fields and targets cannot be inserted in predictor vector',()=>{for(const k of ['spread','final_margin','home_points'])assert.throws(()=>build({...args,snapshot:{...snapshot,games:[{...g,features:{...g.features,[k]:99}}]}}),/MARKET_PREDICTOR/);});
+test('duplicate identities and missing values fail closed',()=>{assert.throws(()=>build({...args,fixtures:[fixture,fixture]}),/DUPLICATE/);assert.throws(()=>build({...args,snapshot:{...snapshot,games:[{...g,features:{}}]}}),/FEATURE_MISSING/);});
+
+test('exact fitted baseline is frozen with its original capture and expiry',async()=>{
+ const {default:F}=await import('../data/models/cfb-fbis-v2-fitted-aa.js');
+ const event={eventId:'12345',date:fixture.date,start:fixture.start,homeId:'cfb-251',awayId:'cfb-201',sourceCapturedAt:'2026-11-09T12:00Z',canAuthorizeWager:false,sourceLabel:'CFBD verified per-game PPA and frozen prior; CFB-FBIS-v2',provenance:{featureContract:F.featureContract,coefficientsSha256:F.sourceArtifacts.fittedCoefficientsFinalSha256,priorSourceSeason:2025,ppaResponseSha256:'c'.repeat(64),homeGameIds:['1','2','3'],awayGameIds:['4','5','6']},projection:{homeScore:30,awayScore:20,margin:10,total:50,modelId:'CFB-FBIS-v2',modelVersion:F.version}};
+ const packet={version:1,visibility:'PRIVATE_PERSONAL_ANALYSIS',sport:'cfb',date:fixture.date,generatedAt:'2026-11-09T12:01Z',expiresAt:'2026-11-09T18:00Z',modelAuthority:'FROZEN_RESEARCH',canAuthorizeWager:false,events:[event]};
+ const p=build({...args,baselinePackets:[packet]});assert.equal(p.coverage.pairedBaseline,1);assert.equal(p.rows[0].baseline.sourceCapturedAt,event.sourceCapturedAt);assert.equal(p.rows[0].baseline.expiresAt,packet.expiresAt);
+ const bad={...packet,events:[{...event,sourceLabel:'unverified'}]};assert.equal(build({...args,baselinePackets:[bad]}).coverage.pairedBaseline,0);
+});
