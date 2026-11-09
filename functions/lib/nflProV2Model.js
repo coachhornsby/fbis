@@ -12,11 +12,12 @@ export const NFL_PRO_V2_ID="NFL-PRO-v2";
 const n=(o,...ks)=>{for(const k of ks){const v=finite(o?.[k]);if(v!=null)return v;}return null;};
 const side=(g,s)=>g?.nflFeatures?.[s]||g?.nflDeepInput?.[s]||g?.gameFeatures?.[s]||{};
 
-function pressureInteraction(off={},def={}){
+function pressureInteraction(off={},def={},league={}){
   const allowed=n(off,"pressureRateAllowed"), generated=n(def,"pressureRate","defPressureRate");
   const qbPress=n(off,"qbPressureEpa","pressureEpa");
-  if(allowed==null||generated==null)return null;
-  const exposure=clamp((allowed-generated)*8,-1.6,1.6);
+  const center=n(league,"pressureRate");
+  if(allowed==null||generated==null||center==null)return null;
+  const exposure=clamp((2*center-allowed-generated)*8,-1.6,1.6);
   const response=qbPress==null?0:clamp(qbPress*2.5,-0.8,0.8);
   return clamp(exposure+response,-2,2);
 }
@@ -45,7 +46,7 @@ function volatility(f={}){
 function familyMap(game,h,a){
   return {
     availability:game?.availabilityImpact?.configured===true,
-    pressure:pressureInteraction(h,a)!=null&&pressureInteraction(a,h)!=null,
+    pressure:pressureInteraction(h,a,game.nflLeagueBaselines)!=null&&pressureInteraction(a,h,game.nflLeagueBaselines)!=null,
     runConcept:runInteraction(h,a)!=null&&runInteraction(a,h)!=null,
     coverageRoute:coverageRouteInteraction(h,a)!=null&&coverageRouteInteraction(a,h)!=null,
     tracking:[h,a].every(x=>n(x,"rushYoePerAtt","receivingSeparation","qbNgsCpoe")!=null),
@@ -57,7 +58,7 @@ export function projectNflProV2(game={},options={}){
   const base=projectNflProV1(game);
   if(!base.ok)return {...base,modelId:NFL_PRO_V2_ID,version:"v2.0.1",role:"shadow",canQualify:false};
   const h=side(game,"home"),a=side(game,"away");
-  const hp=pressureInteraction(h,a),ap=pressureInteraction(a,h);
+  const hp=pressureInteraction(h,a,game.nflLeagueBaselines),ap=pressureInteraction(a,h,game.nflLeagueBaselines);
   const hr=runInteraction(h,a),ar=runInteraction(a,h);
   const hc=coverageRouteInteraction(h,a),ac=coverageRouteInteraction(a,h);
   const ha=availabilityValue(game,"home"),aa=availabilityValue(game,"away");

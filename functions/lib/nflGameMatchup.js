@@ -34,14 +34,15 @@ export function analyzeNflGameMatchup(game={},baseline=game.nflProShadow){
   const hEarly=n(h,"earlyDownEpa","earlyDownOffEpa"),aEarly=n(a,"earlyDownEpa","earlyDownOffEpa");
   const hEarlyDef=n(h,"earlyDownEpaAllowed","earlyDownDefEpa"),aEarlyDef=n(a,"earlyDownEpaAllowed","earlyDownDefEpa");
 
-  const pressureHome=hPressure!=null&&aDefPressure!=null&&hQbp!=null?-(hPressure-aDefPressure)*(1-Math.tanh(hQbp))*5:null;
-  const pressureAway=aPressure!=null&&hDefPressure!=null&&aQbp!=null?-(aPressure-hDefPressure)*(1-Math.tanh(aQbp))*5:null;
-  const runHome=hRush!=null&&aRushDef!=null&&hYoe!=null?(hRush-aRushDef)*3+hYoe*.18:null;
-  const runAway=aRush!=null&&hRushDef!=null&&aYoe!=null?(aRush-hRushDef)*3+aYoe*.18:null;
-  const passHome=hSep!=null&&hYac!=null&&aPassDef!=null?(hSep-2.9)*.35+hYac*.12-aPassDef*1.5:null;
-  const passAway=aSep!=null&&aYac!=null&&hPassDef!=null?(aSep-2.9)*.35+aYac*.12-hPassDef*1.5:null;
-  const expHome=hExp!=null&&aExpDef!=null?(hExp-aExpDef):null,expAway=aExp!=null&&hExpDef!=null?(aExp-hExpDef):null;
-  const earlyHome=hEarly!=null&&aEarlyDef!=null?hEarly-aEarlyDef:null,earlyAway=aEarly!=null&&hEarlyDef!=null?aEarly-hEarlyDef:null;
+  const leaguePressure=n(game.nflLeagueBaselines,"pressureRate");
+  const pressureHome=hPressure!=null&&aDefPressure!=null&&hQbp!=null&&leaguePressure!=null?(2*leaguePressure-hPressure-aDefPressure)*(1-Math.tanh(hQbp))*5:null;
+  const pressureAway=aPressure!=null&&hDefPressure!=null&&aQbp!=null&&leaguePressure!=null?(2*leaguePressure-aPressure-hDefPressure)*(1-Math.tanh(aQbp))*5:null;
+  const runHome=hRush!=null&&aRushDef!=null&&hYoe!=null?(hRush+aRushDef)*3+hYoe*.18:null;
+  const runAway=aRush!=null&&hRushDef!=null&&aYoe!=null?(aRush+hRushDef)*3+aYoe*.18:null;
+  const passHome=hSep!=null&&hYac!=null&&aPassDef!=null?(hSep-2.9)*.35+hYac*.12+aPassDef*1.5:null;
+  const passAway=aSep!=null&&aYac!=null&&hPassDef!=null?(aSep-2.9)*.35+aYac*.12+hPassDef*1.5:null;
+  const expHome=hExp!=null&&aExpDef!=null?(hExp+aExpDef):null,expAway=aExp!=null&&hExpDef!=null?(aExp+hExpDef):null;
+  const earlyHome=hEarly!=null&&aEarlyDef!=null?hEarly+aEarlyDef:null,earlyAway=aEarly!=null&&hEarlyDef!=null?aEarly+hEarlyDef:null;
 
   // Independent directional display diagnostics from pregame offense and defense features.
   const unit=(id,off,def,offSide)=>{const ok=off!=null&&def!=null;

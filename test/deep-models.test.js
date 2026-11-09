@@ -211,6 +211,7 @@ test("CFB matchup v2 marks unresolved FCS equivalency provisional", () => {
 
 test("NFL pro v1 requires independent EPA and QB evidence and keeps QB separate", () => {
   const p = projectNflProV1({
+    nflLeagueBaselines: { explosiveRate: .1, pressureRate: .25, lineYards: 4 },
     sport: "nfl",
     nflFeatures: {
       home: {

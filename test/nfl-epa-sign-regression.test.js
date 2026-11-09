@@ -55,3 +55,47 @@ test('offensive EPA improvement remains monotonic after correction',()=>{
   assert.ok(projectNflProV1(high).home>projectNflProV1(low).home);
  }
 });
+
+const fullFixture=()=>{
+ const g=fixture();
+ // Test-only references, not fitted production constants.
+ g.nflLeagueBaselines={explosiveRate:.1,pressureRate:.25,lineYards:4};
+ for(const f of Object.values(g.nflFeatures))Object.assign(f,{explosiveRate:.1,explosiveRateAllowed:.1,pressureRate:.25,pressureRateAllowed:.25,lineYards:4,lineYardsAllowed:4});
+ return g;
+};
+for(const model of [projectNflProV1,projectNflProV2]){
+ for(const side of ['home','away']){
+  const opp=side==='home'?'away':'home';
+  for(const [field,owner,values,direction] of [
+   ['explosiveRate',side,[.05,.1,.15],1],
+   ['explosiveRateAllowed',opp,[.05,.1,.15],1],
+   ['lineYards',side,[3,4,5],1],
+   ['lineYardsAllowed',opp,[3,4,5],1],
+   ['pressureRateAllowed',side,[.1,.25,.4],-1],
+   ['pressureRate',opp,[.1,.25,.4],-1],
+  ]){
+   test(`${model.name} ${side} score direction: ${owner} ${field}`,()=>{
+    const scores=values.map(v=>{const g=fullFixture();g.nflFeatures[owner][field]=v;return model(g)[side];});
+    assert.ok((scores[1]-scores[0])*direction>0);
+    assert.ok((scores[2]-scores[1])*direction>0);
+   });
+  }
+ }
+}
+test('nonzero-baseline terms are neutral at explicit league references and fail closed without them',()=>{
+ const g=fullFixture(),p=projectNflProV1(g);
+ for(const k of ['explosive','pressure','trenches'])assert.equal(p.decomposition.home.matchup[k],0);
+ delete g.nflLeagueBaselines;
+ const missing=projectNflProV1(g);
+ for(const k of ['explosive','pressure','trenches'])assert.equal(missing.decomposition.home.matchup[k],null);
+ assert.equal(projectNflProV2(g).interactions.home.pressure,null);
+ assert.ok(missing.coverage.share<p.coverage.share);
+});
+test('team defensive EPA, success allowed and early-down allowed retain the correct margin direction',()=>{
+ for(const key of ['defenseEpa','successRateAllowed','earlyDownEpaAllowed']){
+  const stronger=fixture(),weaker=fixture();
+  stronger.nflFeatures.home[key]=key==='successRateAllowed'?.3:-.1;
+  weaker.nflFeatures.home[key]=key==='successRateAllowed'?.5:.1;
+  assert.ok(projectNflProV1(stronger).margin>projectNflProV1(weaker).margin);
+ }
+});
