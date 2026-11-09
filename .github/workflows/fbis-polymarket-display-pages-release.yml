@@ -25,7 +25,7 @@ jobs:
       - name: Preserve approved REST display mode in Pages configuration
         run: |
           test "$(grep -Fc '[vars]' deploy/board/wrangler.toml)" = 1
-          ! grep -q '^FBIS_POLYMARKET_PREGAME_REST' deploy/board/wrangler.toml
+          if grep -q '^FBIS_POLYMARKET_PREGAME_REST' deploy/board/wrangler.toml; then exit 1; fi
           printf '\nFBIS_POLYMARKET_PREGAME_REST = "true"\n' >> deploy/board/wrangler.toml
       - name: Verify Torvik and private access offline
         run: node --import ./test/offline-network.js --test test/private-torvik-consumer.test.mjs test/torvik-recovery.test.mjs test/cbb-private-access-route.test.mjs test/cbb-card-summary.test.mjs test/torvik-transport-safety.test.js test/polymarket-pregame-rest.test.mjs test/polymarket-board.test.js
