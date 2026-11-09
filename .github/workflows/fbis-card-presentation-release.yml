@@ -1,4 +1,4 @@
-# Board-only release: correct REST reference freshness; preserve eligibility gates.
+# Board-only release: include merged NFL forward cards; preserve eligibility gates.
 name: FBIS card presentation checks and bounded Pages release
 on:
   pull_request:
