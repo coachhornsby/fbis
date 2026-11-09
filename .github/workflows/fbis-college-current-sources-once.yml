@@ -1,0 +1,43 @@
+name: CFBD and CBBD current input ingestion — bounded once
+on:
+  pull_request:
+    paths:
+      - 'scripts/capture-college-current-sources.mjs'
+      - 'scripts/lib/cbbdCurrentSource.mjs'
+      - 'scripts/lib/cfbdCoreSource.mjs'
+      - 'test/*-current-source.test.mjs'
+      - 'test/cfbd-core-source.test.mjs'
+      - '.github/workflows/fbis-college-current-sources-once.yml'
+  push:
+    branches: [main]
+    paths: ['.github/workflows/fbis-college-current-sources-once.yml']
+permissions: {contents: read}
+concurrency:
+  group: fbis-college-current-sources-once
+  cancel-in-progress: false
+jobs:
+  ingest:
+    runs-on: ubuntu-latest
+    timeout-minutes: 7
+    steps:
+      - uses: actions/checkout@v4.2.2
+      - uses: actions/setup-node@v4.1.0
+        with: {node-version: '22'}
+      - name: Verify source provenance and strict two-call budget offline
+        run: |
+          node --check scripts/capture-college-current-sources.mjs
+          node --test test/cbbd-current-source.test.mjs test/cfbd-core-source.test.mjs test/college-current-source-runner.test.mjs
+      - name: Capture current CFBD and CBBD once into private source storage
+        if: github.event_name == 'push'
+        env:
+          CFBD_CBBD_KEY: ${{ secrets.CFBD_CBBD_KEY || secrets.CFBD_API_KEY || secrets.CBBD_API_KEY }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        run: node scripts/capture-college-current-sources.mjs
+      - name: Retain counts and source hashes only, never licensed source records
+        if: github.event_name == 'push' && always()
+        uses: actions/upload-artifact@v4.6.2
+        with:
+          name: college-current-source-receipt-${{ github.run_id }}
+          path: artifacts/college-current-sources/receipt.json
+          retention-days: 7
