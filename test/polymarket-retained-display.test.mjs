@@ -34,3 +34,31 @@ test('only source-supplied exact US market URLs survive; never invent a destinat
   const s=snapshot();s.quotes[0].marketUrl=url;assert.equal(retained(s).quotes[0].marketUrl,null);
  }
 });
+
+test('REST display uses fifteen minutes, WS and strict readers retain two minutes',()=>{
+ for(const age of [120001,600000,899000,901000]){
+  const s=snapshot();s.quotes[0].sourceObservedAt=null;
+  const rest=decode(s,{now:at+age,retainLastObserved:true,transport:'REST'});
+  assert.equal(rest.quotes[0].stale,age+1000>900000);assert.equal(rest.stale,age>900000);
+  assert.equal(rest.quotes[0].sourceObservedAt,null);assert.equal(rest.quotes[0].receivedAt,s.quotes[0].receivedAt);
+  assert.equal(decode(s,{now:at+age,retainLastObserved:true,transport:'WebSocket'}).quotes[0].stale,true);
+  assert.equal(decode(s,{now:at+age,transport:'REST'}).ok,false);
+ }
+ const s=snapshot();s.quotes[0].sourceObservedAt=iso(at-901000);
+ assert.equal(decode(s,{now:at,retainLastObserved:true,transport:'REST'}).quotes[0].stale,true);
+});
+
+test('real card delivery keeps REST fresh at ten minutes and WS stale with identical clocks',async()=>{
+ const {readExchangeCardQuotes}=await import('../functions/lib/exchangeCardDelivery.js');
+ const {CERTIFIED_EXECUTION_JOBS}=await import('../services/account-budget/executionJobs.mjs');
+ for(const rest of [true,false])for(const age of [600000,901000]){
+  const clock=at+age,s=snapshot();s.quotes[0].sourceObservedAt=null;
+  const manifest={version:1,source:'FBIS_COLLECTED_SLATE',sport:'cfb',capturedAt:iso(clock),expiresAt:iso(clock+3600000),providerTags:['cfb'],fixtures:[{...game,home_name:'Missouri',away_name:'Texas'}]};
+  const env={CLOUDFLARE_ACCOUNT_ID:'test',FBIS_POLYMARKET_PREGAME_REST:String(rest),FBIS_ACCOUNT_BUDGET:{getByName:()=>({reserve:async({job})=>({allowed:true,maxUnits:CERTIFIED_EXECUTION_JOBS[job].units,expiresAtMs:Date.now()+120000})})},ARCHIVE:{get:async key=>{
+   const value=key.includes('fixtures-v1')?manifest:key.includes('bounded-rest-v1')?{referenceSnapshot:s}:key.includes('bounded/latest-v1')?s:null;
+   if(!value)return null;const text=JSON.stringify(value);return {size:Buffer.byteLength(text),body:new Response(text).body,json:async()=>JSON.parse(text)};
+  }}};
+  const out=await readExchangeCardQuotes(env,{sport:'cfb',date:'2026-11-07',now:clock});
+  const q=out.byEvent[game.id][0];assert.equal(q.transport,rest?'REST':'WebSocket');assert.equal(q.stale,!rest||age>900000);assert.equal(q.receivedAt,s.quotes[0].receivedAt);assert.equal(q.sourceObservedAt,null);assert.equal(q.canAuthorizeWager,false);
+ }
+});

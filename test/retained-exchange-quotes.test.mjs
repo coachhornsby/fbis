@@ -49,3 +49,19 @@ test('same timestamp price cannot revive closed state',()=>{
  const p=merge({}, {game:[q(-10000)]},now,[{venue:'Kalshi',marketId:q().marketId,receivedAt:new Date(now-10000).toISOString(),marketStatus:'closed'}]);
  assert.equal(merge(p,{game:[q(-10000,.8)]},now).game[0].marketStatus,'closed');
 });
+
+test('identical observation can correct freshness only, preserving all quote facts',()=>{
+ const old={...q(-180000),transport:'REST',sourceObservedAt:null,stale:true,fresh:false};
+ const p=merge({}, {game:[old]},now),incoming={...old,stale:false,fresh:true,marketUrl:'https://changed.invalid',canAuthorizeWager:true};
+ const next=merge(p,{game:[incoming]},now).game[0];assert.equal(next.stale,false);assert.equal(next.fresh,true);assert.equal(next.marketUrl,undefined);assert.equal(next.receivedAt,old.receivedAt);assert.equal(next.sourceObservedAt,null);assert.equal(next.canAuthorizeWager,false);
+ for(const changes of [{ask:.58},{line:1},{sourceOutcomeId:'changed'},{receivedAt:new Date(now-180001).toISOString()},{sourceObservedAt:new Date(now-190000).toISOString()},{transport:'WebSocket'},{quoteKind:'changed'}]){
+  const result=merge(p,{game:[{...incoming,...changes}]},now).game[0];assert.equal(result.stale,true);assert.equal(result.ask,old.ask);
+ }
+});
+test('same-time freshness correction never resurrects a closed contract or tombstone',()=>{
+ const old={...q(-180000),stale:true},incoming={...old,stale:false,fresh:true};
+ const closed=merge({}, {game:[{...old,marketStatus:'closed'}]},now);
+ assert.equal(merge(closed,{game:[incoming]},now).game[0].marketStatus,'closed');
+ const tomb={venue:old.venue,marketId:old.marketId,receivedAt:old.receivedAt,marketStatus:'closed'};
+ const p=merge({}, {game:[old]},now,[tomb]);assert.equal(merge(p,{game:[incoming]},now).game[0].marketStatus,'closed');
+});
