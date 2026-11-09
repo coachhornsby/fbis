@@ -1,4 +1,5 @@
 // Owner-requested week11 publication. Exact frozen coefficients; no invented inputs or wager authority.
+import {cfbdPublicationDates} from './lib/cfbdPublicationDates.mjs';
 import {cfbdPregameValidity} from './lib/cfbdPregameValidity.mjs';
 import{mkdir,readFile,writeFile}from'node:fs/promises';import{createHash}from'node:crypto';
 import{captureCfbdPpaGames}from'./lib/cfbdFittedRecovery.mjs';
@@ -8,8 +9,7 @@ import{publicProjectionSummary}from'../functions/lib/publicFourSportProjection.j
 const key=process.env.CFBD_CBBD_KEY,account=process.env.CLOUDFLARE_ACCOUNT_ID,token=process.env.CLOUDFLARE_API_TOKEN;
 const reuse=process.env.FBIS_CFB_REUSE_CAPTURED==='1';
 const refresh=process.env.FBIS_CFB_REFRESH_CURRENT==='1';
-const targetDate=process.env.FBIS_CFB_TARGET_DATE||null;
-if((reuse&&!targetDate)||(targetDate&&(!/^\d{4}-\d{2}-\d{2}$/.test(targetDate)||!Number.isFinite(Date.parse(targetDate+'T00:00:00Z'))||new Date(targetDate+'T00:00:00Z').toISOString().slice(0,10)!==targetDate)))throw Error('TARGET_DATE_INVALID');
+const targetDates=cfbdPublicationDates({targetDate:process.env.FBIS_CFB_TARGET_DATE,targetDates:process.env.FBIS_CFB_TARGET_DATES,reuse});
 const maxProviderCalls=reuse?0:refresh?2:5;
 const receipt={startedAt:new Date().toISOString(),maxProviderCalls,providerCalls:0,sources:[],published:[],errors:[],canAuthorizeWager:false};
 const reserve=p=>{if(p!=='CFBD'||receipt.providerCalls>=maxProviderCalls)throw Error('CFBD_CALL_BUDGET_EXCEEDED');receipt.providerCalls++;};
@@ -41,7 +41,9 @@ try{
  }
  if(!reuse)await put('private/college-sources/cfbd/completion/2026/latest.json',schedule.packet);
  const generatedAt=new Date().toISOString();
- const requestedFixtures=fixturePacket.games.filter(game=>!targetDate||game.date===targetDate);
+ const requestedFixtures=fixturePacket.games.filter(game=>!targetDates.length||targetDates.includes(game.date));
+ if(targetDates.some(date=>!requestedFixtures.some(g=>g.date===date)))throw Error('REQUESTED_DATE_FIXTURES_MISSING');
+ receipt.targetDates=targetDates;
  receipt.coverageRejected=requestedFixtures.map(game=>({eventId:String(game.id??game.eventId),...cfbdPregameValidity(game,{ppaPacket,schedulePacket:schedule.packet})})).filter(v=>!v.verified);
  const eligibleFixtures=requestedFixtures.filter(game=>cfbdPregameValidity(game,{ppaPacket,schedulePacket:schedule.packet}).verified);
  const result=buildCfbdFittedWeek({fixtures:eligibleFixtures,ppaPacket,priorPacket:prior.packet,schedulePacket:schedule.packet});
