@@ -6,6 +6,7 @@
  * for CBB only, one licensed KenPom rating feed when the owner already has a key.
  * Missing, stale, unmatched or insufficient evidence -> NO PREDICTION.
  */
+import {obtainCbbRecoveryInput} from './lib/cbbRecoveryInput.mjs';
 import {createRecoverySourceBudget,recoveryCoverage,recoveryReceiptDiagnostics} from './lib/recoveryEvidence.mjs';
 import {captureNbaSchedule,captureNbaResponse,combineNbaCurrentCaptures,runNbaRecoveryShadow} from './lib/nbaRecoveryShadow.mjs';
 import {captureTorvikRecovery,torvikRecoveryComparison} from './lib/torvikRecovery.mjs';
@@ -32,6 +33,8 @@ if(!/^\d{4}-\d{2}-\d{2}$/.test(date)||!Number.isFinite(dayNumber(date))||
 const account=String(process.env.CLOUDFLARE_ACCOUNT_ID||'');
 const token=String(process.env.CLOUDFLARE_API_TOKEN||'');
 const kenpomKey=String(process.env.KENPOM_API_KEY||'');
+const cbbInputPath=process.env.FBIS_CBB_INPUT_PATH||null,cbbOutputPath=process.env.FBIS_CBB_OUTPUT_PATH||null;
+let cbbCapturedAt=null;
 const outDir='artifacts/four-sport-recovery';
 await mkdir(outDir,{recursive:true});
 // Separate operator admission; intentionally absent from the scheduled workflow.
@@ -245,10 +248,13 @@ async function run(){
   results.torvik={state:torvik.state,season:seasonYear+1,receipts:torvik.receipts||[],error:torvik.error||null,providerUpdatedAt:null};
  }
  // The one permitted licensed current CBB ratings pull runs only if a key was ALREADY provisioned.
- if(target.cbb.length&&kenpomKey){
+ if((target.cbb.length||cbbOutputPath)&&(kenpomKey||cbbInputPath)){
   try{
    const u='https://kenpom.com/api.php?endpoint=ratings&y=2027';
-   const raw=await getJson(u,{kind:'KenPom',maxBytes:3000000});
+   const input=await obtainCbbRecoveryInput({inputPath:cbbInputPath,outputPath:cbbOutputPath,
+    fetchRatings:()=>getJson(u,{kind:'KenPom',maxBytes:3000000})});
+   const raw=input.rows;cbbCapturedAt=input.capturedAt;
+   results.cbbInput={source:cbbInputPath?'SAME_JOB_REUSE':'LICENSED_CAPTURE',capturedAt:cbbCapturedAt};
    if(!Array.isArray(raw)||raw.length<300)throw Error('CBB_RATINGS_TEAM_COVERAGE_INCOMPLETE');
    const mapped=indexKenpomRows(normalizeKenpomRatingRows(raw),2026);
    for(const g of target.cbb){
@@ -272,9 +278,9 @@ async function run(){
   if(!events.length){results.forecastCoverage[sport]=recoveryCoverage(target[sport],events,null);results.skipped.push({sport,reason:'NO_VALID_CURRENT_FORECASTS'});continue;}
   let packet;
   if(sport==='cbb'){
-   packet={version:1,season:2027,generatedAt,expiresAt:new Date(nowMs+6*3600000).toISOString(),
+   packet={version:1,season:2027,generatedAt:new Date().toISOString(),expiresAt:new Date(Date.parse(cbbCapturedAt)+6*3600000).toISOString(),
      visibility:'PRIVATE_PERSONAL_ANALYSIS',canAuthorizeWager:false,
-     captures:{kenpom:generatedAt,...(torvik?.ok?{torvik:torvik.receipts[0].retrievedAt}:{})},sourceAttribution:['KenPom','ESPN',...(torvik?.ok?['Torvik']:[])],
+     captures:{kenpom:cbbCapturedAt,...(torvik?.ok?{torvik:torvik.receipts[0].retrievedAt}:{})},sourceAttribution:['KenPom','ESPN',...(torvik?.ok?['Torvik']:[])],
      torvikProvenance:torvik?.ok?{season:seasonYear+1,receipts:torvik.receipts,providerUpdatedAt:null,usage:'PRIVATE_COMPARISON_ONLY',fourFactorsUse:'VALIDATED_INPUT_ONLY_NOT_MODEL_WEIGHT'}:null,
      events,summary:{fixtures:target.cbb.length,primaryProjections:events.length,confirmed:0,qualified:0},
      dataQuality:'RESEARCH_PRELIMINARY',canQualify:false};
