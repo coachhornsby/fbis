@@ -1,0 +1,116 @@
+name: FBIS Polymarket paired reference repair release
+on:
+  pull_request:
+    paths: ['.github/workflows/fbis-polymarket-paired-reference-release.yml']
+  push:
+    branches: [main]
+    paths: ['.github/workflows/fbis-polymarket-paired-reference-release.yml']
+permissions:
+  contents: read
+concurrency:
+  group: fbis-card-presentation-release
+  cancel-in-progress: false
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4.2.2
+        with:
+          ref: ${{ github.sha }}
+      - uses: actions/setup-node@v4.1.0
+        with:
+          node-version: '22'
+      - run: npm ci --ignore-scripts --no-audit --no-fund
+      - run: npm ci --prefix services/account-budget --ignore-scripts --no-audit --no-fund
+      - name: Preserve the approved Pages REST display flag only
+        run: |
+          python3 - <<'PYTHON'
+          import copy, pathlib, tomllib
+          path = pathlib.Path('deploy/board/wrangler.toml')
+          text = path.read_text()
+          before = tomllib.loads(text)
+          expected = copy.deepcopy(before)
+          assert isinstance(expected.get('vars'), dict), 'Missing Pages vars'
+          current = expected['vars'].get('FBIS_POLYMARKET_PREGAME_REST')
+          assert current in (None, 'true'), 'Unexpected repository REST flag'
+          expected['vars']['FBIS_POLYMARKET_PREGAME_REST'] = 'true'
+          if current is None:
+              assert text.count('[vars]') == 1, 'Ambiguous Pages vars'
+              text += '\nFBIS_POLYMARKET_PREGAME_REST = "true"\n'
+          assert tomllib.loads(text) == expected, 'Unexpected configuration change'
+          path.write_text(text)
+          PYTHON
+      - name: Verify offline collector and reader boundaries
+        run: |
+          node --import ./test/offline-network.js --test test/polymarket-paired-release.test.mjs test/polymarket-full-game-pairs.test.mjs test/polymarket-pregame-details.test.mjs test/exchange-fixture-lookahead.test.mjs test/polymarket-pregame-rest.test.mjs test/polymarket-us-cbb-first-half-route.test.mjs test/polymarket-rest-boundary.test.mjs test/polymarket-retained-display.test.mjs test/polymarket-bounded-session.test.mjs test/exchange-family-binding.test.mjs test/exchange-card-delivery.test.mjs test/exchange-card-rows.test.mjs test/job-execution-budget.test.mjs test/account-budget-admission.test.mjs test/account-budget-entrypoints.test.mjs
+          node --test test/polymarket-rest-runtime.test.mjs
+      - name: Compile without source acquisition
+        run: |
+          mkdir -p deploy/board/snapshots data/public/cbb-readiness
+          ./node_modules/.bin/vite build --config vite.publication.config.js
+      - name: Verify existing active REST modes, bindings, limits and cadence
+        if: github.event_name == 'push'
+        env:
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        run: |
+          node --input-type=module <<'NODE'
+          const canonicalTags=text=>{const tags=JSON.parse(text);if(!tags||typeof tags!=='object'||Array.isArray(tags))throw Error('INVALID_TAG_BINDING');return JSON.stringify(Object.fromEntries(Object.keys(tags).sort().map(k=>[k,tags[k]])));};
+          const bindingText=b=>b.name==='FBIS_POLYMARKET_TAGS_JSON'?canonicalTags(b.text):b.text;
+          const approvedTags='{"nfl":["nfl"],"cfb":["cfb"],"nba":["nba"],"cbb":["cbb"],"nhl":["nhl"]}';
+          const same=canonicalTags(approvedTags);
+          if(canonicalTags(' { "nhl": ["nhl"], "cbb":["cbb"], "nba":["nba"], "cfb":["cfb"], "nfl":["nfl"] } ')!==same)throw Error('JSON_FORMATTING_TEST_FAILED');
+          for(const changed of ['{"nfl":["other"],"cfb":["cfb"],"nba":["nba"],"cbb":["cbb"],"nhl":["nhl"]}','{"nfl":["nfl"]}','{"nfl":["nfl"],"cfb":["cfb"],"nba":["nba"],"cbb":["cbb"],"nhl":["nhl"],"extra":["extra"]}'])if(canonicalTags(changed)===same)throw Error('JSON_CHANGE_TEST_FAILED');
+          for(const invalid of ['{','null','[]']){let rejected=false;try{canonicalTags(invalid);}catch{rejected=true;}if(!rejected)throw Error('INVALID_JSON_TEST_FAILED');}
+          if(bindingText({name:'OTHER',text:' x '})!==' x ')throw Error('ORDINARY_BINDING_TEST_FAILED');
+          const root='https://api.cloudflare.com/client/v4/accounts/'+process.env.CLOUDFLARE_ACCOUNT_ID;
+          const get=async path=>{const r=await fetch(root+path,{redirect:'manual',signal:AbortSignal.timeout(20000),headers:{Authorization:'Bearer '+process.env.CLOUDFLARE_API_TOKEN}});if(!r.ok)throw Error('PREFLIGHT_HTTP_'+r.status);const b=await r.json();if(!b.success)throw Error('PREFLIGHT_UNAVAILABLE');return b.result;};
+          const settings=await get('/workers/scripts/fbis-polymarket-rest-collector/settings');
+          if(!settings.bindings?.some(b=>b.name==='FBIS_POLYMARKET_PREGAME_REST'&&b.type==='plain_text'&&b.text==='true'))throw Error('REST_MODE_NOT_ENABLED_STOP');
+          const normalizeBindings=bindings=>bindings.map(b=>b.type==='plain_text'?{name:b.name,type:b.type,text:bindingText(b)}:b.type==='r2_bucket'?{name:b.name,type:b.type,bucket_name:b.bucket_name}:{name:b.name,type:b.type,class_name:b.class_name,script_name:b.script_name}).sort((a,b)=>a.name.localeCompare(b.name));
+          const normalized=normalizeBindings(settings.bindings||[]);
+          const expected=[
+            {name:'ARCHIVE',type:'r2_bucket',bucket_name:'fbis-archive'},
+            {name:'FBIS_POLYMARKET_PREGAME_REST',type:'plain_text',text:'true'},
+            {name:'CLOUDFLARE_ACCOUNT_ID',type:'plain_text',text:process.env.CLOUDFLARE_ACCOUNT_ID},
+            {name:'FBIS_ACCOUNT_BUDGET',type:'durable_object_namespace',class_name:'AccountBudget',script_name:'fbis-account-budget'},
+            {name:'FBIS_POLYMARKET_TAGS_JSON',type:'plain_text',text:canonicalTags(approvedTags)}
+          ].sort((a,b)=>a.name.localeCompare(b.name));
+          const formatted=expected.map(b=>b.name==='FBIS_POLYMARKET_TAGS_JSON'?{...b,text:JSON.stringify(JSON.parse(approvedTags),null,2)}:b);
+          if(JSON.stringify(normalizeBindings(formatted))!==JSON.stringify(expected))throw Error('FULL_BINDING_FORMATTING_TEST_FAILED');
+          const changed=formatted.map(b=>b.name==='FBIS_POLYMARKET_TAGS_JSON'?{...b,text:'{"nfl":["other"]}'}:b);
+          if(JSON.stringify(normalizeBindings(changed))===JSON.stringify(expected))throw Error('FULL_BINDING_CHANGE_TEST_FAILED');
+          if(JSON.stringify(normalized)!==JSON.stringify(expected)){
+            const differences=[...new Set([...normalized,...expected].map(b=>b.name))].flatMap(name=>{
+              const a=normalized.find(b=>b.name===name),b=expected.find(b=>b.name===name);
+              if(!a||!b)return [{name,presence:false}];
+              return [...new Set([...Object.keys(a),...Object.keys(b)])].filter(k=>a[k]!==b[k]).map(field=>({name,field,actualType:typeof a[field],expectedType:typeof b[field],actualLength:typeof a[field]==='string'?a[field].length:null,expectedLength:typeof b[field]==='string'?b[field].length:null}));
+            });console.log('BINDING_DIAGNOSTIC '+JSON.stringify(differences));throw Error('WORKER_BINDINGS_CHANGED_STOP');
+          }
+          if(settings.compatibility_date!=='2026-10-01'||settings.compatibility_flags?.length||settings.limits?.cpu_ms!==100||settings.observability?.enabled===true||settings.logpush===true||Object.keys(settings.placement||{}).length||(settings.tail_consumers||[]).length)throw Error('WORKER_SETTINGS_CHANGED_STOP');
+          const subdomain=await get('/workers/scripts/fbis-polymarket-rest-collector/subdomain');
+          if(subdomain.enabled!==false||subdomain.previews_enabled===true)throw Error('WORKER_PUBLIC_ACCESS_CHANGED_STOP');
+          const schedules=await get('/workers/scripts/fbis-polymarket-rest-collector/schedules');
+          if(JSON.stringify(schedules.schedules.map(s=>s.cron))!==JSON.stringify(['*/2 * * * *']))throw Error('SCHEDULE_CHANGED_STOP');
+          const pages=await get('/pages/projects/fbis');
+          if(pages.deployment_configs?.production?.env_vars?.FBIS_POLYMARKET_PREGAME_REST?.value!=='true')throw Error('PAGES_MODE_NOT_ENABLED_STOP');
+          console.log('Existing active modes, bindings and schedules verified. No policy mutations.');
+          NODE
+      - name: Build current public scoreboard assets for production Pages
+        if: github.event_name == 'push'
+        run: npm run build:publication
+      - name: Deploy compatible Pages reader first
+        if: github.event_name == 'push'
+        working-directory: deploy/board
+        env:
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        run: ../../node_modules/.bin/wrangler pages deploy dist --project-name fbis --branch main --commit-hash "${GITHUB_SHA}"
+
+      - name: Deploy existing REST collector last, preserving variables
+        if: github.event_name == 'push'
+        env:
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        run: ./node_modules/.bin/wrangler deploy --config wrangler.polymarket-rest-collector.toml --keep-vars

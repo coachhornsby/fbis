@@ -7,8 +7,10 @@ export function pregameDiscoveryPlan(manifest,{now,slot}){
  const windows=starts.map(start=>({startTimeMin:new Date(start-60000).toISOString(),startTimeMax:new Date(start+60000).toISOString()}));
  const all=windows.flatMap(window=>manifest.providerTags.map(tag=>({tag,...window})));
  if(!all.length)return [];
- const offset=(Math.floor(slot/10)*4)%all.length;
- return Array.from({length:Math.min(4,all.length)},(_,i)=>({...all[(offset+i)%all.length],page:0}));
+ const cycle=Math.floor(slot/10),count=manifest.sport==='cbb'?1:4;
+ const offset=(cycle*count)%all.length;
+ return Array.from({length:Math.min(count,all.length)},(_,i)=>({...all[(offset+i)%all.length],page:0,
+  ...(manifest.sport==='cbb'?{detailRotation:Math.floor(cycle/all.length)}:{})}));
 }
 export function pregameDiscoveryUrl(query){
  const u=new URL('/v1/events',POLY_US_API);
