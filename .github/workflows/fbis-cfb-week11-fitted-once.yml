@@ -1,0 +1,42 @@
+name: CFB week 11 frozen projections — bounded once
+on:
+  pull_request:
+    paths:
+      - 'scripts/publish-cfb-week11-fitted.mjs'
+      - 'scripts/lib/cfbdFrozenPrior.mjs'
+      - 'functions/lib/publicFourSportProjection.js'
+      - 'test/cfbd-frozen-prior.test.mjs'
+      - '.github/workflows/fbis-cfb-week11-fitted-once.yml'
+  push:
+    branches: [main]
+    paths: ['.github/workflows/fbis-cfb-week11-fitted-once.yml']
+permissions: {contents: read}
+concurrency:
+  group: fbis-college-current-sources-once
+  cancel-in-progress: false
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 7
+    steps:
+      - uses: actions/checkout@v4.2.2
+      - uses: actions/setup-node@v4.1.0
+        with: {node-version: '22'}
+      - name: Verify frozen coefficients, provenance and publication gates offline
+        run: |
+          node --check scripts/publish-cfb-week11-fitted.mjs
+          node --test test/cfbd-frozen-prior.test.mjs test/public-four-sport-projections.test.mjs test/private-four-sport-projections.test.mjs
+      - name: Capture missing frozen inputs with five requests and publish verified forecasts
+        if: github.event_name == 'push'
+        env:
+          CFBD_CBBD_KEY: ${{ secrets.CFBD_CBBD_KEY || secrets.CFBD_API_KEY }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        run: node scripts/publish-cfb-week11-fitted.mjs
+      - name: Retain source hashes, coverage and derived output only
+        if: github.event_name == 'push' && always()
+        uses: actions/upload-artifact@v4.6.2
+        with:
+          name: cfb-week11-fitted-receipt-${{ github.run_id }}
+          path: artifacts/cfb-week11-fitted/receipt.json
+          retention-days: 7

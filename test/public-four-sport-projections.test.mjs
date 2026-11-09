@@ -67,3 +67,13 @@ test('anonymous validator refuses substituted model authority',()=>{
   p.events[0].projection.modelId='OTHER';
   assert.throws(()=>validatePublicProjectionSummary(p,{sport:'cfb',date}),/NON_PUBLIC_MODEL/);
 });
+
+test('verified frozen CFBD model requires exact coefficient and source provenance',async()=>{
+ const {publicModelAllowed}=await import('../functions/lib/publicFourSportProjection.js');
+ const {default:fitted}=await import('../data/models/cfb-fbis-v2-fitted-aa.js');
+ const e={sourceLabel:'CFBD verified per-game PPA and frozen prior; CFB-FBIS-v2',projection:{modelId:'CFB-FBIS-v2',modelVersion:fitted.version},provenance:{featureContract:fitted.featureContract,coefficientsSha256:fitted.sourceArtifacts.fittedCoefficientsFinalSha256,priorSourceSeason:2025,ppaResponseSha256:'a'.repeat(64),homeGameIds:['1','2','3'],awayGameIds:['4','5','6']}};
+ assert.equal(publicModelAllowed(e,'cfb',{requireProvenance:true}),true);
+ for(const change of [{coefficientsSha256:'x'},{priorSourceSeason:2024},{homeGameIds:[]},{featureContract:'adjusted-epa-substitution'}])assert.equal(publicModelAllowed({...e,provenance:{...e.provenance,...change}},'cfb',{requireProvenance:true}),false);
+ assert.equal(publicModelAllowed({...e,sourceLabel:'Unverified upload'},'cfb',{requireProvenance:true}),false);
+ assert.equal(publicModelAllowed(e,'nba',{requireProvenance:true}),false);
+});
