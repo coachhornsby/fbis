@@ -10,6 +10,6 @@ export function pinnoddsCardRows(game,clock=Date.now()){
   const q=selection.families[family]?.quotes.find(q=>q.side===side);
   if(!q)return {line:null,price:'—',title:'No captured PinnOdds '+family+' price',state:'missing'};
   const line=family==='moneyline'?null:family==='total'?(side==='over'?'O ':'U ')+q.line:(q.line>0?'+':'')+q.line;
-  return {line,price:signedAmerican(marketDisplayAmerican(q)),stale,state:'observed',statusLabel:stale?'Stale':null,observedLabel:'Fetched '+age(clock-at),title:'Pinnacle via PinnOdds · fetched '+research.latestCapturedAt+' · Provider quote time unknown',link:null,canAuthorizeWager:false,executionEligible:false};
+  return {line,price:signedAmerican(marketDisplayAmerican(q)),stale,state:'observed',statusLabel:stale?'Stale':null,observedAtMs:at,observedLabel:'Fetched '+age(clock-at),title:'Pinnacle via PinnOdds · fetched '+research.latestCapturedAt+' · Provider quote time unknown',link:null,canAuthorizeWager:false,executionEligible:false};
  })}));
 }

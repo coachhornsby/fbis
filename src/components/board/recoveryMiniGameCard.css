@@ -99,7 +99,7 @@
  background:linear-gradient(90deg,rgba(6,39,58,.88),rgba(20,25,42,.96));
 }
 .fbis-shell-main.route-board .fbis-mini-bottom>div{
- display:flex;flex-direction:column;gap:3px;min-width:0;
+ display:flex;flex-direction:column;gap:1px;min-width:0;
  padding:10px 11px 11px;justify-content:center;
 }
 .fbis-shell-main.route-board .fbis-mini-bottom>div+div{
@@ -166,19 +166,19 @@
 
 
 /* EdgeFinder-style exchange boxes: branding stays behind readable prices. */
-.fbis-shell-main.route-board .fbis-mini-exchanges{padding:4px 12px 12px;border-top:1px solid #34404c;color:#f3f8ff;font-size:16px;line-height:1.4}
-.fbis-shell-main.route-board .fbis-mini-market-heading{display:grid;grid-template-columns:34% 33% 33%;align-items:center;text-align:center;min-height:44px;color:#e5e7eb}
+.fbis-shell-main.route-board .fbis-mini-exchanges{padding:2px 10px 8px;border-top:1px solid #34404c;color:#f3f8ff;font-size:16px;line-height:1.4}
+.fbis-shell-main.route-board .fbis-mini-market-heading{display:grid;grid-template-columns:34% 33% 33%;align-items:center;text-align:center;min-height:36px;color:#e5e7eb}
 .fbis-shell-main.route-board .fbis-mini-market-team-logo{display:inline-flex;vertical-align:middle;margin:auto;max-width:100%}
-.fbis-shell-main.route-board .fbis-mini-venue-panel{position:relative;isolation:isolate;overflow:hidden;min-height:94px;background:#062f2e}
-.fbis-shell-main.route-board .fbis-mini-venue-panel.is-polymarket{background:#142858;border-top:2px solid #958548}
-.fbis-shell-main.route-board .fbis-mini-venue-watermark{position:absolute;inset:0;opacity:.18;pointer-events:none;user-select:none;background:center/94% auto no-repeat url('/brands/kalshi-watermark.png');z-index:-1}
+.fbis-shell-main.route-board .fbis-mini-venue-panel{position:relative;isolation:isolate;overflow:hidden;min-height:132px;background:#062f2e}
+.fbis-shell-main.route-board .fbis-mini-venue-panel.is-polymarket{background:#142858;border-top:1px solid #ffffff25}
+.fbis-shell-main.route-board .fbis-mini-venue-watermark{position:absolute;inset:0;opacity:.18;pointer-events:none;user-select:none;background:center 38%/86% auto no-repeat url('/brands/kalshi-watermark.png');z-index:-1}
 .fbis-shell-main.route-board .is-polymarket .fbis-mini-venue-watermark{opacity:.12;background-image:url('/brands/polymarket-watermark.png')}
 .fbis-shell-main.route-board .fbis-mini-venue-panel table{position:relative;width:100%;border-collapse:collapse;table-layout:fixed}
-.fbis-shell-main.route-board .fbis-mini-venue-panel th,.fbis-shell-main.route-board .fbis-mini-venue-panel td{padding:8px 4px;overflow-wrap:anywhere;text-align:center;vertical-align:middle;background:transparent}
+.fbis-shell-main.route-board .fbis-mini-venue-panel th,.fbis-shell-main.route-board .fbis-mini-venue-panel td{padding:4px 4px;overflow-wrap:anywhere;text-align:center;vertical-align:middle;background:transparent}
 .fbis-shell-main.route-board .fbis-mini-venue-panel th{width:34%;font-size:16px;font-weight:600;color:#f3f8ff}
 .fbis-shell-main.route-board .fbis-mini-venue-panel td{width:33%;font-size:20px;font-weight:750;color:#fbd279;font-variant-numeric:tabular-nums;text-shadow:0 1px 3px #061321}
 .fbis-shell-main.route-board .fbis-mini-venue-panel tr+tr{border-top:1px solid #ffffff13}
-.fbis-shell-main.route-board .fbis-mini-exchange-empty{position:relative;display:flex;align-items:center;justify-content:center;min-height:94px;margin:0;padding:12px;box-sizing:border-box;color:#e5e7eb;font-size:16px;font-weight:650;text-shadow:0 1px 3px #061321}
+.fbis-shell-main.route-board .fbis-mini-exchange-empty{position:relative;display:flex;align-items:center;justify-content:center;min-height:132px;margin:0;padding:12px;box-sizing:border-box;color:#e5e7eb;font-size:16px;font-weight:650;text-shadow:0 1px 3px #061321}
 .fbis-mini-exchange-line{display:block;color:#f3f8ff;font-size:16px;font-weight:500}
 .fbis-mini-sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
 .fbis-shell-main.route-board .fbis-mini-team-total-prices{display:flex;flex-direction:column;gap:6px}
@@ -190,7 +190,7 @@
 
 @media(forced-colors:active){.fbis-shell-main.route-board .fbis-mini-venue-watermark{display:none}.fbis-shell-main.route-board .fbis-mini-venue-name{position:static;width:auto;height:auto;margin:0;overflow:visible;clip:auto;white-space:normal;display:block;padding:4px 8px;font-weight:700}.fbis-shell-main.route-board .fbis-mini-venue-panel{border:1px solid CanvasText}}
 /* Retained observations remain legible and never look like live recommendations. */
-.fbis-shell-main.route-board .fbis-mini-captured-quote{display:flex;flex-direction:column;gap:3px;min-width:0}
+.fbis-shell-main.route-board .fbis-mini-captured-quote{display:flex;flex-direction:column;gap:1px;min-width:0}
 .fbis-shell-main.route-board .fbis-mini-captured-quote a{color:#fbd279;text-decoration:underline;text-underline-offset:3px}
 .fbis-shell-main.route-board .fbis-mini-captured-quote a:focus-visible{outline:2px solid #fff;outline-offset:3px}
 .fbis-shell-main.route-board .fbis-mini-quote-status,.fbis-shell-main.route-board .fbis-mini-quote-time{display:block;font-size:14px;line-height:1.35;font-weight:500;color:#f3f4f6;white-space:normal;overflow-wrap:anywhere}
@@ -206,5 +206,7 @@
 .fbis-shell-main.route-board .fbis-mini-saved-projection small{font-size:11px;line-height:1.2;color:#c5ced8}
 
 /* Pinnacle uses the same market rows and team columns as exchange venues. */
-.fbis-shell-main.route-board .fbis-mini-venue-panel.is-pinnacle{background:#12243f;border-bottom:2px solid #958548}
-.fbis-shell-main.route-board .is-pinnacle .fbis-mini-venue-watermark{background-image:url('/brands/pinnacle-wordmark-transparent.svg');background-size:160px auto;opacity:.12}
+.fbis-shell-main.route-board .fbis-mini-venue-panel.is-pinnacle{background:#12243f;border-bottom:1px solid #ffffff25}
+.fbis-shell-main.route-board .is-pinnacle .fbis-mini-venue-watermark{background-image:url('/brands/pinnacle-wordmark-transparent.svg');background-size:86% auto;opacity:.12}
+
+.fbis-shell-main.route-board .fbis-mini-venue-age{position:relative;margin:0;padding:3px 6px 5px;text-align:right;font-size:12px;line-height:1.3;color:#d1dbea;background:#08162599}
