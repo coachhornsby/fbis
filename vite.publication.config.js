@@ -1,10 +1,19 @@
 import {defineConfig} from 'vite';
 import react from '@vitejs/plugin-react';
 import {cp,rename,writeFile,readFile,readdir} from 'node:fs/promises';
+import {mergeCfbScheduleFallback} from './src/lib/cfbScheduleFallback.js';
 import {attachPersistedPinnoddsReference} from './src/lib/pinnoddsPersistedReference.js';
 export default defineConfig({plugins:[react(),{name:'static-board-publication',async closeBundle(){
   await rename('deploy/board/dist/publication.html','deploy/board/dist/index.html');
   await cp('deploy/board/snapshots','deploy/board/dist/board-data',{recursive:true});
+  // Frozen upcoming official CFB schedules fill missing dates/rows only.
+  for(const file of await readdir('data/public/cfb-schedule').catch(e=>{if(e.code==='ENOENT')return [];throw e;})){
+   if(!/^2026-11-(10|11|12|13|14)\.json$/.test(file))continue;
+   const target='deploy/board/dist/board-data/'+file;
+   let existing=null;try{existing=JSON.parse(await readFile(target,'utf8'));}catch(e){if(e.code!=='ENOENT')throw e;}
+   const fallback=JSON.parse(await readFile('data/public/cfb-schedule/'+file,'utf8'));
+   await writeFile(target,JSON.stringify(mergeCfbScheduleFallback(existing,fallback)));
+  }
   // Retained sanitized direct observations survive board rebuilds without a pull.
   for(const file of await readdir('data/public/pinnodds').catch(e=>{if(e.code==='ENOENT')return [];throw e;})){
    if(!/^\d{4}-\d{2}-\d{2}\.json$/.test(file))continue;
@@ -18,3 +27,4 @@ export default defineConfig({plugins:[react(),{name:'static-board-publication',a
   await writeFile('deploy/board/dist/_redirects','/api/* /api-unavailable.json 200\n');
   await writeFile('deploy/board/dist/_headers','/board-data/*\n  Cache-Control: public, max-age=60\n/api-unavailable.json\n  Cache-Control: no-store\n');
 }}],build:{outDir:'deploy/board/dist',emptyOutDir:true,rollupOptions:{input:'publication.html'}}});
+

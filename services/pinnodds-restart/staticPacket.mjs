@@ -31,12 +31,14 @@ export async function buildDirectStaticPacket({raw,receipt,fixtures,now=Date.now
 }
 // Trusted local MCP acquisition only: explicit provider-to-ESPN name bindings
 // are supplied by the independently reviewed fixture proof, never fuzzy-matched.
-export async function buildDetailedBasketballPacket({raw,receipt,fixtures,now=Date.now()}){
+export const buildDetailedBasketballPacket=options=>buildDetailedCollegePacket(options,{sportId:3,sport:'cbb',providerSport:'Basketball'});
+export const buildDetailedFootballPacket=options=>buildDetailedCollegePacket(options,{sportId:5,sport:'cfb',providerSport:'Football'});
+async function buildDetailedCollegePacket({raw,receipt,fixtures,now=Date.now()},{sportId,sport,providerSport}){
  const args=receipt?.sourceArguments;
- if(typeof raw!=='string'||new TextEncoder().encode(raw).length>2097152||receipt?.ok!==true||receipt.acquisition!=='direct'||receipt.completeFeed!==false||receipt.sportId!==3||receipt.feed!=='prematch'||receipt.sourceUrl!=='https://mcp.pinnodds.com/mcp'||receipt.sourceTool!=='mcp__codex_apps__pinnodds_get_events'||!args||Object.keys(args).sort().join(',')!=='limit,mode,query,response_format,sport'||args.sport!==3||args.mode!=='prematch'||args.query!=='NCAA'||args.response_format!=='detailed'||args.limit!==100||receipt.rawKey!=null||receipt.snapshotId!=='pinnodds-direct-'+receipt.rawHash||await sha256(raw)!==receipt.rawHash)throw Error('PINNODDS_DETAILED_RECEIPT_MISMATCH');
+ if(typeof raw!=='string'||new TextEncoder().encode(raw).length>2097152||receipt?.ok!==true||receipt.acquisition!=='direct'||receipt.completeFeed!==false||receipt.sportId!==sportId||receipt.feed!=='prematch'||receipt.sourceUrl!=='https://mcp.pinnodds.com/mcp'||receipt.sourceTool!=='mcp__codex_apps__pinnodds_get_events'||!args||Object.keys(args).sort().join(',')!=='limit,mode,query,response_format,sport'||args.sport!==sportId||args.mode!=='prematch'||args.query!=='NCAA'||args.response_format!=='detailed'||args.limit!==100||receipt.rawKey!=null||receipt.snapshotId!=='pinnodds-direct-'+receipt.rawHash||await sha256(raw)!==receipt.rawHash)throw Error('PINNODDS_DETAILED_RECEIPT_MISMATCH');
  const input=JSON.parse(raw);
- if(input.sport!=='Basketball'||input.mode!=='prematch'||!Array.isArray(input.events)||input.events.length>100||input.total!==input.events.length||receipt.providerEventCount!==input.events.length)throw Error('PINNODDS_DETAILED_BODY_INVALID');
- if(!Array.isArray(fixtures)||fixtures.some(g=>g.sport!=='cbb'||typeof g.providerHome!=='string'||typeof g.providerAway!=='string'||!Number.isSafeInteger(g.providerEventId)))throw Error('PINNODDS_DETAILED_BINDING_INVALID');
+ if(input.sport!==providerSport||input.mode!=='prematch'||!Array.isArray(input.events)||input.events.length>100||input.total!==input.events.length||receipt.providerEventCount!==input.events.length)throw Error('PINNODDS_DETAILED_BODY_INVALID');
+ if(!Array.isArray(fixtures)||fixtures.some(g=>g.sport!==sport||typeof g.providerHome!=='string'||typeof g.providerAway!=='string'||!Number.isSafeInteger(g.providerEventId)))throw Error('PINNODDS_DETAILED_BINDING_INVALID');
  const used=new Set();
  const events=input.events.map(e=>{
   if(e.league!=='NCAA'||e.has_odds!==true||e.special||e.special_category||e.parent_id)return {...e,league_name:'UNSUPPORTED',periods:{}};
@@ -91,3 +93,4 @@ export function publishStaticReference(board,packet,{now=Date.now()}={}){
  const clean={...board};for(const key of Object.keys(clean))if(/^pinn(?:acle|odds)/i.test(key))delete clean[key];
  return {...clean,games:board.games.map(stripLegacyPinnodds),pinnoddsStaticReference:publicReferencePacket(packet)};
 }
+
