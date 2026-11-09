@@ -1,3 +1,4 @@
+import PinnoddsCardMarkets from './PinnoddsCardMarkets.jsx';
 import {liveGameLabel} from '../../lib/gameCardClock.js';
 import TeamLogo from '../TeamLogo.jsx';
 import {recoveryLeanShopping} from '../../lib/recoveryLeanShopping.js';
@@ -92,6 +93,7 @@ export default function RecoveryMiniGameCard({game,onOpen,clock=Date.now()}){
     </div>
    </div>}
   </button>
+  {game.sport==='cbb'&&game.pinnoddsResearch?.offers?.length ? <PinnoddsCardMarkets game={game} compact /> : null}
   <div className="fbis-mini-exchanges" aria-label="Exchange prices">
    <div className="fbis-mini-market-heading" aria-hidden="true"><span>Market</span><span className="fbis-mini-market-team" title={displayName(away)} aria-label={displayName(away)}><TeamLogo team={away} size={30} tone="light" className="fbis-mini-market-team-logo"/></span><span className="fbis-mini-market-team" title={displayName(home)} aria-label={displayName(home)}><TeamLogo team={home} size={30} tone="light" className="fbis-mini-market-team-logo"/></span></div>
    {['Kalshi','Polymarket'].map(venue=>{
