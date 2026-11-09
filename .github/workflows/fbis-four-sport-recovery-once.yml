@@ -41,9 +41,13 @@ jobs:
           KENPOM_API_KEY: ${{ secrets.KENPOM_API_KEY || secrets.KENPOM }}
           FBIS_CBB_OUTPUT_PATH: ${{ runner.temp }}/fbis-cbb-ratings.json
         run: |
-          node scripts/recover-four-sport-once.mjs
+          status=0
+          node scripts/recover-four-sport-once.mjs || status=$?
           cp artifacts/four-sport-recovery/receipt.json artifacts/four-sport-recovery/receipt-today.json
+          exit "$status"
       - name: Prepare next-day game cards from the same free inputs
+        # Today may have no remaining pregame fixtures late in the evening.
+        if: ${{ !cancelled() }}
         env:
           # Never double-consume the licensed KenPom feed for next-day research.
           KENPOM_API_KEY: ""
