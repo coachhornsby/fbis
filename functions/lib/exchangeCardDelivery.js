@@ -40,7 +40,8 @@ export async function readExchangeCardQuotes(original,{sport,date,now=Date.now()
  const env=await beginJobExecution(original,EXCHANGE_CARD_JOB);
  const read=async key=>{const o=await env.ARCHIVE.get(key);return o?o.json():null;};
  const rawManifest=await read(fixtureKey(sport));
- let manifest,manifestError;try{manifest=validateFixtureManifest(rawManifest,now);}catch(error){manifestError=error;if(rawManifest){if(!(Date.parse(rawManifest.capturedAt)<=now&&Date.parse(rawManifest.expiresAt)<=now))throw error;validateFixtureManifest(rawManifest,Date.parse(rawManifest.capturedAt));if(rawManifest.sport!==sport)throw Error('FIXTURE_SPORT_MISMATCH');}}
+ const fixtureValidation={allowCfbRestLookahead:original.FBIS_POLYMARKET_PREGAME_REST==='true'};
+ let manifest,manifestError;try{manifest=validateFixtureManifest(rawManifest,now,fixtureValidation);}catch(error){manifestError=error;if(rawManifest){if(!(Date.parse(rawManifest.capturedAt)<=now&&Date.parse(rawManifest.expiresAt)<=now))throw error;validateFixtureManifest(rawManifest,Date.parse(rawManifest.capturedAt),fixtureValidation);if(rawManifest.sport!==sport)throw Error('FIXTURE_SPORT_MISMATCH');}}
  if(manifest&&manifest.sport!==sport)throw Error('FIXTURE_SPORT_MISMATCH');
  const fallback=sport==='cfb'?retainedCfbExchangeFixtures(futureCfbPacket,{date,now}):{fixtures:[]};
  if(!manifest&&!fallback.fixtures.length)throw manifestError;

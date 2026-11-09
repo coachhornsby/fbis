@@ -1,25 +1,31 @@
 import {validateStreamRoster} from '../polymarket-us-stream/boundedSession.mjs';
 import {POLY_US_API,parsePolymarketUsPrice} from '../../functions/lib/polymarketUs.js';
-// Same /v1/events destination, four requests, no credentials or new storage.
-// Narrow kickoff windows avoid repeatedly spending all discovery on old IDs.
+// Pack independent fixture identities into bounded time windows. A single
+// kickoff minute is not a whole slate: use the same four calls across as many
+// games as fit, reserving unused calls for exact-event details.
 export function pregameDiscoveryPlan(manifest,{now,slot}){
- const starts=[...new Set(manifest.fixtures.map(g=>Date.parse(g.start)).filter(t=>t>now&&t<=now+72*3600000))].sort((a,b)=>a-b);
- const windows=starts.map(start=>({startTimeMin:new Date(start-60000).toISOString(),startTimeMax:new Date(start+60000).toISOString()}));
- const all=windows.flatMap(window=>manifest.providerTags.map(tag=>({tag,...window})));
+ const hours=manifest.sport==='cfb'&&manifest.fixtureHorizonHours===168?168:72;
+ const fixtures=manifest.fixtures.filter(g=>Date.parse(g.start)>now&&Date.parse(g.start)<=now+hours*3600000).sort((a,b)=>Date.parse(a.start)-Date.parse(b.start));
+ const starts=new Map();for(const g of fixtures){const t=Date.parse(g.start);starts.set(t,(starts.get(t)||0)+1);}
+ const groups=[];let group;
+ for(const [start,count] of starts){
+  if(!group||group.count+count>20){group={first:start,last:start,count:0};groups.push(group);}
+  group.last=start;group.count+=count;
+ }
+ const all=groups.flatMap(g=>manifest.providerTags.flatMap(tag=>Array.from({length:Math.ceil(g.count/20)},(_,page)=>({tag,page,
+  startTimeMin:new Date(g.first-60000).toISOString(),startTimeMax:new Date(g.last+60000).toISOString()}))));
  if(!all.length)return [];
- const cycle=Math.floor(slot/10),count=manifest.sport==='cbb'?1:4;
- const offset=(cycle*count)%all.length;
- return Array.from({length:Math.min(count,all.length)},(_,i)=>({...all[(offset+i)%all.length],page:0,
-  ...(manifest.sport==='cbb'?{detailRotation:Math.floor(cycle/all.length)}:{})}));
+ const cycle=Math.floor(slot/10),offset=all.length>4?(cycle*4)%all.length:0;
+ return Array.from({length:Math.min(4,all.length)},(_,i)=>({...all[(offset+i)%all.length],detailRotation:cycle}));
 }
 export function pregameDiscoveryUrl(query){
  const u=new URL('/v1/events',POLY_US_API);
- for(const [k,v] of Object.entries({tagSlug:query.tag,active:true,closed:false,limit:20,offset:0,orderBy:'id',orderDirection:'asc',startTimeMin:query.startTimeMin,startTimeMax:query.startTimeMax}))u.searchParams.set(k,String(v));
+ for(const [k,v] of Object.entries({tagSlug:query.tag,active:true,closed:false,limit:20,offset:query.page*20,orderBy:'id',orderDirection:'asc',startTimeMin:query.startTimeMin,startTimeMax:query.startTimeMax}))u.searchParams.set(k,String(v));
  return u;
 }
 export function restReferenceSnapshot(selected,markets,now){
- const capturedAt=new Date(now).toISOString();
- if(selected.length)validateStreamRoster({version:2,source:'Polymarket US',capturedAt,expiresAt:new Date(now+900000).toISOString(),roster:selected},now);
+ const capturedAt=new Date(now).toISOString(),extended=selected.length>0&&selected.every(r=>r.sport==='cfb');
+ if(selected.length)validateStreamRoster({version:2,source:'Polymarket US',capturedAt,expiresAt:new Date(now+900000).toISOString(),roster:selected},now,{allowCfbRestLookahead:extended});
  const quotes=[];
  for(const row of selected){
   const market=markets.get(row.source_market_id);
@@ -29,5 +35,5 @@ export function restReferenceSnapshot(selected,markets,now){
   const invalid=!(bestAsk>0&&bestAsk<1)||bestBid!=null&&(!(bestBid>0&&bestBid<1)||bestBid>bestAsk);
   quotes.push({marketSlug:row.source_market_id,bestAsk,bestBid,receivedAt:capturedAt,sourceObservedAt:null,marketState:unavailable||(invalid?'MARKET_STATE_UNAVAILABLE':null),quoteKind:'DISPLAY_REFERENCE_NOT_EXECUTABLE'});
  }
- return {version:1,source:'Polymarket US',scope:'BOUNDED_RESEARCH_CAPTURE',transport:'REST',startedAt:capturedAt,capturedAt,roster:selected,quotes,canQualify:false,canAuthorizeWager:false};
+ return {version:1,source:'Polymarket US',scope:'BOUNDED_RESEARCH_CAPTURE',transport:'REST',...(extended?{fixtureHorizonHours:168}:{}),startedAt:capturedAt,capturedAt,roster:selected,quotes,canQualify:false,canAuthorizeWager:false};
 }

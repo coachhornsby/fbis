@@ -10,6 +10,9 @@ on:
       - 'functions/lib/exchangeCardDelivery.js'
       - 'test/polymarket-us-cbb-first-half-route.test.mjs'
       - 'services/polymarket-rest-collector/pregame.mjs'
+      - 'services/polymarket-rest-collector/fairSelection.mjs'
+      - 'test/polymarket-capture-coverage.test.mjs'
+      - 'test/polymarket-cbb-fair-selection.test.mjs'
       - 'test/polymarket-pregame-rest.test.mjs'
       - '.github/workflows/fbis-poly-us-cbb-first-half-ci.yml'
 permissions:
@@ -36,7 +39,7 @@ jobs:
         run: npm ci --prefix services/account-budget --ignore-scripts --no-audit --no-fund
       - name: Verify offline REST reference and admission integration
         run: |
-          node --import ./test/offline-network.js --test test/polymarket-offline-ci.test.mjs test/polymarket-pregame-rest.test.mjs test/polymarket-rest-boundary.test.mjs test/polymarket-retained-display.test.mjs test/job-execution-budget.test.mjs test/account-budget-admission.test.mjs test/account-budget-entrypoints.test.mjs
+          node --import ./test/offline-network.js --test test/polymarket-offline-ci.test.mjs test/polymarket-capture-coverage.test.mjs test/polymarket-cbb-fair-selection.test.mjs test/polymarket-pregame-rest.test.mjs test/polymarket-rest-boundary.test.mjs test/polymarket-retained-display.test.mjs test/job-execution-budget.test.mjs test/account-budget-admission.test.mjs test/account-budget-entrypoints.test.mjs
           node --test test/polymarket-rest-runtime.test.mjs
       - name: Build existing Pages board without deployment
         run: |
