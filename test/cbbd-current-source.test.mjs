@@ -1,0 +1,7 @@
+import test from 'node:test';import assert from 'node:assert/strict';
+import{normalizeCbbdCurrent,captureCbbdCurrentSource}from'../scripts/lib/cbbdCurrentSource.mjs';
+const row={team:'Duke',season:2027,offensiveRating:115,defensiveRating:95,tempo:68};
+test('current identity and all independent inputs verified',()=>{const r=normalizeCbbdCurrent([row]);assert.equal(r.normalized.length,1);assert.equal(r.normalized[0].canonicalId,'cbb-150');});
+test('no prior substitution, fabricated pace, null-to-zero or duplicate teams',()=>{for(const patch of[{season:2026},{tempo:null},{offensiveRating:null},{team:'Unverified team'}])assert.equal(normalizeCbbdCurrent([{...row,...patch}]).normalized.length,0);assert.equal(normalizeCbbdCurrent([row,row]).rejected.length,1);});
+test('empty source is unavailable, not zero-valued ratings',async()=>{let calls=0;const {packet,receipt}=await captureCbbdCurrentSource({key:'test',reserve:k=>{assert.equal(k,'CBBD');calls++;},fetchFn:async()=>new Response('[]'),now:()=>Date.parse('2026-11-09T06:00:00Z')});assert.equal(calls,1);assert.equal(receipt.state,'CURRENT_RATINGS_NOT_PUBLISHED');assert.equal(receipt.primaryModelInfluence,0);assert.deepEqual(packet.rows,[]);});
+test('requires budget and does not retry provider failure',async()=>{let calls=0;await assert.rejects(captureCbbdCurrentSource({key:'test',fetchFn:async()=>{calls++;}}),/BUDGET/);await assert.rejects(captureCbbdCurrentSource({key:'test',reserve:()=>{},fetchFn:async()=>{calls++;return new Response('',{status:429});}}),/429/);assert.equal(calls,1);});
