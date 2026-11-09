@@ -4,6 +4,10 @@ on:
     paths:
       - 'scripts/publish-cfb-week11-fitted.mjs'
       - 'scripts/lib/cfbdFrozenPrior.mjs'
+      - 'scripts/lib/cfbdPublicationDates.mjs'
+      - 'scripts/lib/cfbdPregameValidity.mjs'
+      - 'test/cfbd-publication-dates.test.mjs'
+      - 'test/cfbd-pregame-validity.test.mjs'
       - 'functions/lib/publicFourSportProjection.js'
       - 'test/cfbd-frozen-prior.test.mjs'
       - '.github/workflows/fbis-cfb-week11-fitted-once.yml'
@@ -25,12 +29,12 @@ jobs:
       - name: Verify frozen coefficients, provenance and publication gates offline
         run: |
           node --check scripts/publish-cfb-week11-fitted.mjs
-          node --test test/cfbd-pregame-validity.test.mjs test/cfbd-fitted-recovery.test.mjs test/cfbd-frozen-prior.test.mjs test/public-four-sport-projections.test.mjs test/private-four-sport-projections.test.mjs
-      - name: Restore November 10 projections from coverage-verified stored evidence without provider calls
+          node --test test/cfbd-publication-dates.test.mjs test/cfbd-pregame-validity.test.mjs test/cfbd-fitted-recovery.test.mjs test/cfbd-frozen-prior.test.mjs test/public-four-sport-projections.test.mjs test/private-four-sport-projections.test.mjs
+      - name: Restore remaining Week 11 projections from coverage-verified stored evidence without provider calls
         if: github.event_name == 'push'
         env:
           FBIS_CFB_REUSE_CAPTURED: "1"
-          FBIS_CFB_TARGET_DATE: "2026-11-10"
+          FBIS_CFB_TARGET_DATES: "2026-11-11,2026-11-12,2026-11-13,2026-11-14"
           CFBD_CBBD_KEY: ${{ secrets.CFBD_CBBD_KEY || secrets.CFBD_API_KEY }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}

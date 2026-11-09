@@ -1,0 +1,3 @@
+import test from 'node:test';import assert from 'node:assert/strict';import{cfbdPublicationDates as dates}from'../scripts/lib/cfbdPublicationDates.mjs';
+test('explicit one or four dates only; backwards compatible',()=>{assert.deepEqual(dates({reuse:true,targetDate:'2026-11-10'}),['2026-11-10']);assert.equal(dates({reuse:true,targetDates:'2026-11-11,2026-11-12,2026-11-13,2026-11-14'}).length,4);});
+test('reject broad, ambiguous, invalid and duplicate date scope',()=>{for(const x of [{},{targetDate:'2026-02-30'},{targetDates:'2026-11-11,2026-11-11'},{targetDate:'2026-11-10',targetDates:'2026-11-11'},{targetDates:'2026-11-10,2026-11-11,2026-11-12,2026-11-13,2026-11-14'}])assert.throws(()=>dates({...x,reuse:true}));});
