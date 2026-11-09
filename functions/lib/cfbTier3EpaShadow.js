@@ -1,7 +1,7 @@
 /** Read-only point-in-time Tier3 EPA shadow. Hypothesis coefficients are NOT fitted. */
 const number=v=>v===null||v===undefined||v===""?null:Number.isFinite(Number(v))?Number(v):null;
 const clock=s=>Date.parse(String(s||""));
-export const TIER3_SHADOW_VERSION="CFB-TIER3-EPA-SENSITIVITY-v0.1";
+export const TIER3_SHADOW_VERSION="CFB-TIER3-EPA-SENSITIVITY-v0.2";
 export function tier3ShadowProjection(row) {
  const kickoff=clock(row.kickoff),receipt=clock(row.receivedAt),frozen=clock(row.baselineFrozenAt);
  if(![kickoff,receipt,frozen].every(Number.isFinite)||!(receipt<kickoff&&frozen<kickoff))
@@ -18,7 +18,8 @@ export function tier3ShadowProjection(row) {
    return {ok:false,reason:"MISSING_BASELINE_OR_EPA_FAMILY"};
  const [hpo,hro,apo,aro,hpd,hrd,apd,ard]=features;
  // Four pre-registered sensitivity ablations, not fitted coefficients.
- const pass=(hpo-apd)-(apo-hpd),rush=(hro-ard)-(aro-hrd);
+ // Defense inputs are EPA allowed: higher means worse defense, aiding opponent.
+ const pass=(hpo+apd)-(apo+hpd),rush=(hro+ard)-(aro+hrd);
  const baseMargin=h-a,baseTotal=h+a;
  const variants={pass:baseMargin+3*pass,rush:baseMargin+3*rush,
    combined:baseMargin+1.5*(pass+rush)};
