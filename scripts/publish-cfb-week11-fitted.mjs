@@ -5,8 +5,9 @@ import{captureCfbdFrozenPrior,captureCfbdCompletionSchedule,buildCfbdFittedWeek}
 import{validateFourSportPacket}from'../functions/lib/privateFourSportProjection.js';
 import{publicProjectionSummary}from'../functions/lib/publicFourSportProjection.js';
 const key=process.env.CFBD_CBBD_KEY,account=process.env.CLOUDFLARE_ACCOUNT_ID,token=process.env.CLOUDFLARE_API_TOKEN;
+const reuse=process.env.FBIS_CFB_REUSE_CAPTURED==='1';
 const refresh=process.env.FBIS_CFB_REFRESH_CURRENT==='1';
-const maxProviderCalls=refresh?2:5;
+const maxProviderCalls=reuse?0:refresh?2:5;
 const receipt={startedAt:new Date().toISOString(),maxProviderCalls,providerCalls:0,sources:[],published:[],errors:[],canAuthorizeWager:false};
 const reserve=p=>{if(p!=='CFBD'||receipt.providerCalls>=maxProviderCalls)throw Error('CFBD_CALL_BUDGET_EXCEEDED');receipt.providerCalls++;};
 const sha=x=>createHash('sha256').update(x).digest('hex');const url=p=>'https://api.cloudflare.com/client/v4/accounts/'+encodeURIComponent(account)+'/r2/buckets/fbis-archive/objects/'+p.split('/').map(encodeURIComponent).join('/');
@@ -16,7 +17,13 @@ try{
  if(!key||!account||!token)throw Error('EXISTING_SOURCE_OR_STORAGE_CREDENTIALS_MISSING');
  const fixturePacket=JSON.parse(await readFile('data/research/cfb-week11-fixtures-20261109.json','utf8'));
  let ppaPacket,prior,schedule;
- if(refresh){
+ if(reuse){
+  ppaPacket=JSON.parse(await read('private/college-sources/cfbd/ppa-games/2026/latest.json'));
+  prior={packet:JSON.parse(await read('private/college-sources/cfbd/frozen-prior/2025/latest.json'))};
+  schedule={packet:JSON.parse(await read('private/college-sources/cfbd/completion/2026/latest.json'))};
+  if(Date.now()-Date.parse(ppaPacket.capturedAt)>6*3600000)throw Error('CURRENT_PPA_CAPTURE_EXPIRED');
+  receipt.sources.push({source:'REUSE_VERIFIED_PRIVATE_CAPTURES',requests:0,capturedAt:ppaPacket.capturedAt});
+ }else if(refresh){
   const priorPacket=JSON.parse(await read('private/college-sources/cfbd/frozen-prior/2025/latest.json'));
   if(priorPacket.sourceSeason!==2025||priorPacket.frozen!==true||priorPacket.featureContract!=='ppa-derived-base-v2'||!priorPacket.rows?.length)throw Error('STORED_FROZEN_PRIOR_INVALID');
   const ppa=await captureCfbdPpaGames({key,reserve});
