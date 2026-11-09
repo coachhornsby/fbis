@@ -14,5 +14,10 @@ export default function PrivateSportProjection({game,packet,clock}){
    <div>Projected winner <b>{winner?.name||'Tie'}</b> · Fair spread <b>{winner?winner.name+' -'+fixed(Math.abs(p.margin)):'Pick'}</b></div>
    <small>{p.modelId} · {p.modelVersion} · {record.modelAuthority.replaceAll('_',' ')} · Input observed {captured} CT</small>
    <small>{record.expired?'Expired model-input snapshot':record.started?'Game started; frozen pregame estimate':'Research projection only'} · No verified current sportsbook quotes · No wager authorization</small>
+   {game.sport==='nfl'&&record.nflPlayerResearch?.rows.length>0&&<details>
+    <summary>NFL player estimates · {record.nflPlayerResearch.rows.length} research stats</summary>
+    <small>{record.historical?'Frozen pregame estimates':'Uncalibrated estimates'} · Availability not cleared · Not betting recommendations</small>
+    <ul>{record.nflPlayerResearch.rows.map(r=><li key={r.playerId+':'+r.market}>{r.playerName} ({r.teamId==='nfl-'+game.home.espnId?game.home.name:game.away.name}) · {r.market.replaceAll('_',' ')}: <b>{fixed(r.projection)}</b> · {r.gate}</li>)}</ul>
+   </details>}
  </section>;
 }

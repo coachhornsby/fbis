@@ -1,3 +1,5 @@
+import {validateNflDirectionalResearch} from './nflDirectionalTransport.js';
+import {validateNflPlayerResearch} from './nflPlayerResearchTransport.js';
 // Private, precomputed model-output transport. No inference, provider retrieval, or wagers.
 export const PRIVATE_RECOVERY_SPORTS=Object.freeze(['nfl','nba','cfb']);
 const validDate=date=>/^\d{4}-\d{2}-\d{2}$/.test(String(date||''))&&Number.isFinite(Date.parse(date+'T12:00:00Z'))&&new Date(date+'T12:00:00Z').toISOString().slice(0,10)===date;
@@ -15,7 +17,8 @@ export function validateFourSportPacket(packet,{sport,date}={}){
    throw Error('INVALID_PRIVATE_SPORT_PACKET');
  const seen=new Set();
  for(const e of packet.events){
-   if(!e||!/^\d+$/.test(String(e.eventId))||e.date!==packet.date||!validTime(e.start)||
+   const generatedAt=packet.sport==='nfl'?(packet.eventGeneratedAt?.[String(e?.eventId)]??e?.generatedAt??packet.generatedAt):packet.generatedAt;
+   if(!validTime(generatedAt)||Date.parse(generatedAt)>Date.parse(packet.generatedAt)||!e||!/^\d+$/.test(String(e.eventId))||e.date!==packet.date||!validTime(e.start)||
      !new RegExp('^'+packet.sport+'-\\d+$').test(e.homeId)||
      !new RegExp('^'+packet.sport+'-\\d+$').test(e.awayId)||
      e.homeId===e.awayId||seen.has(e.eventId)||
@@ -25,10 +28,12 @@ export function validateFourSportPacket(packet,{sport,date}={}){
      Math.abs(e.projection.homeScore+e.projection.awayScore-e.projection.total)>0.2||
      !e.projection.modelId||!e.projection.modelVersion||
      e.canAuthorizeWager!==false||!validTime(e.sourceCapturedAt)||
-     Date.parse(e.sourceCapturedAt)>Date.parse(packet.generatedAt)||Date.parse(e.sourceCapturedAt)>Date.parse(e.start)||
-     Date.parse(packet.generatedAt)>=Date.parse(e.start)||
-     Date.parse(packet.generatedAt)-Date.parse(e.sourceCapturedAt)>(packet.sport==='nba'?24:72)*60*60*1000)
+     Date.parse(e.sourceCapturedAt)>Date.parse(generatedAt)||Date.parse(e.sourceCapturedAt)>Date.parse(e.start)||
+     Date.parse(generatedAt)>=Date.parse(e.start)||
+     Date.parse(generatedAt)-Date.parse(e.sourceCapturedAt)>(packet.sport==='nba'?24:72)*60*60*1000)
      throw Error('INVALID_PRIVATE_SPORT_FIXTURE');
+   if(e.nflPlayerResearch!==undefined){if(packet.sport!=='nfl')throw Error('NFL_PLAYER_RESEARCH_WRONG_SPORT');validateNflPlayerResearch(e.nflPlayerResearch,e);}
+   if(e.nflDirectionalResearch!==undefined){if(packet.sport!=='nfl')throw Error('NFL_DIRECTIONAL_WRONG_SPORT');validateNflDirectionalResearch(e.nflDirectionalResearch);}
    seen.add(e.eventId);
  }
  return packet;

@@ -18,7 +18,7 @@ export function overlayVerifiedResearchScores(game,{cbbPacket=null,sportPacket=n
     attribution:game.sport==='cbb'?(p.attribution||'KenPom-based provisional research'):source.modelAuthority||sportPacket?.modelAuthority||'Frozen research'
  };
  const packet=game.sport==='cbb'?cbbPacket:sportPacket;
- const generated=Date.parse(packet.generatedAt),captured=Date.parse(projection.sourceCapturedAt);
+ const generated=Date.parse(source.generatedAt||packet.eventGeneratedAt?.[String(game.id)]||packet.generatedAt),captured=Date.parse(projection.sourceCapturedAt);
  // Historical scores must come from a verified pregame packet, not a live rerun.
  if(source.expired||source.started){
   if(!['live','final'].includes(game.status)||!Number.isFinite(generated)||!Number.isFinite(captured)||
@@ -28,6 +28,7 @@ export function overlayVerifiedResearchScores(game,{cbbPacket=null,sportPacket=n
  }
  return {
   ...game,
+  ...(game.sport==='nfl'&&source.nflDirectionalResearch?{nflGameMatchup:{unitMatchups:source.nflDirectionalResearch.unitMatchups,canQualify:false,canAuthorizeWager:false}}:{}),
   projectionUnavailable:false,pureProjectionAvailable:true,projectionKind:'FBIS',
   projectionState:'RESEARCH_ONLY',projectionMaturity:'RESEARCH',publicationStatus:'RESEARCH_PUBLISHABLE',
   canQualify:false,canAuthorizeWager:false,bettingAllowed:false,qualificationBlocked:true,
