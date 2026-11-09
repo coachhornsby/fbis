@@ -23,7 +23,7 @@ function pressureInteraction(off={},def={}){
 function runInteraction(off={},def={}){
   const yoe=n(off,"rushYoePerAtt"), rush=n(off,"rushEpa"), allowed=n(def,"rushEpaAllowed");
   if(rush==null||allowed==null)return null;
-  return clamp((rush-allowed)*3.2+(yoe==null?0:yoe*.25),-1.6,1.6);
+  return clamp((rush+allowed)*3.2+(yoe==null?0:yoe*.25),-1.6,1.6);
 }
 function coverageRouteInteraction(off={},def={}){
   const sep=n(off,"receivingSeparation"),yac=n(off,"receivingYacOe");
@@ -55,7 +55,7 @@ function familyMap(game,h,a){
 }
 export function projectNflProV2(game={},options={}){
   const base=projectNflProV1(game);
-  if(!base.ok)return {...base,modelId:NFL_PRO_V2_ID,version:"v2.0",role:"shadow",canQualify:false};
+  if(!base.ok)return {...base,modelId:NFL_PRO_V2_ID,version:"v2.0.1",role:"shadow",canQualify:false};
   const h=side(game,"home"),a=side(game,"away");
   const hp=pressureInteraction(h,a),ap=pressureInteraction(a,h);
   const hr=runInteraction(h,a),ar=runInteraction(a,h);
@@ -74,7 +74,7 @@ export function projectNflProV2(game={},options={}){
   const sigmaMargin=round1(base.sigmaMargin*(1+missing*.16+volAdj*.10));
   const sigmaTotal=round1(base.sigmaTotal*(1+missing*.12+volAdj*.08));
   return {
-    ...base,modelId:NFL_PRO_V2_ID,version:"v2.0",role:"shadow",canQualify:false,
+    ...base,modelId:NFL_PRO_V2_ID,version:"v2.0.1",role:"shadow",canQualify:false,
     home,away,margin,total,sigmaMargin,sigmaTotal,pHomeWin:pGreater(margin,0,sigmaMargin),
     advancedCoverage:{share:advancedCoverage,present,total:totalFamilies,families},
     interactions:{weights:w,home:{pressure:hp,run:hr,coverageRoute:hc,availability:ha},away:{pressure:ap,run:ar,coverageRoute:ac,availability:aa}},

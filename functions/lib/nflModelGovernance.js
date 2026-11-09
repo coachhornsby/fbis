@@ -15,11 +15,11 @@ export const NFL_PRODUCTION_CHAMPION = Object.freeze({
 
 export const NFL_DISPLAYED_RESEARCH = Object.freeze({
   modelId: "NFL-PRO-v1",
-  version: "v1.2",
+  version: "v1.2.1",
   role: "research-board-primary",
   canQualify: false,
   canAuthorizeWager: false,
-  displayLabel: "FBIS NFL-PRO-v1.2 RESEARCH PROJECTION",
+  displayLabel: "FBIS NFL-PRO-v1.2.1 RESEARCH PROJECTION",
   note: "Displayed board research score. Not the production champion. Not injury-aware. Not bet-eligible.",
 });
 
@@ -29,7 +29,7 @@ export const NFL_QB_PERSONNEL_CHALLENGER = Object.freeze({
   canQualify: false,
   canAuthorizeWager: false,
   consumesVerifiedAvailability: true,
-  note: "Authorized to consume verified QB/personnel availability in SHADOW only. Does not alter the displayed v1.2 research score or champion.",
+  note: "Authorized to consume verified QB/personnel availability in SHADOW only. Does not alter the displayed v1.2.1 research score or champion.",
 });
 
 export const NFL_PLAYER_PROP_RESEARCH = Object.freeze({

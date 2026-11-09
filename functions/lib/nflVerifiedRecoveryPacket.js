@@ -4,7 +4,7 @@ import {prepareNflPlayerResearch} from './nflPlayerResearchTransport.js';
 import {prepareNflDirectionalResearch} from './nflDirectionalTransport.js';
 import {boardDate} from './publicBoardSnapshot.js';
 import {validateFourSportPacket} from './privateFourSportProjection.js';
-export const NFL_VERIFIED_SOURCE_LABEL='nflverse verified current-season inputs; NFL-PRO-v1.2 research; no wagering';
+export const NFL_VERIFIED_SOURCE_LABEL='nflverse verified current-season inputs; NFL-PRO-v1.2.1 research; no wagering';
 export async function prepareVerifiedNflRecoveryPacket({date,games,publication,schedule,previousPacket=null,now=Date.now()}){
  if(!/^\d{4}-\d{2}-\d{2}$/.test(date)||!Number.isFinite(Date.parse(date+'T12:00:00Z')))throw Error('NFL_PACKET_DATE');
  if(previousPacket){validateFourSportPacket(previousPacket,{sport:'nfl',date});if(Date.parse(previousPacket.expiresAt)<=now)throw Error('NFL_PREVIOUS_PACKET_EXPIRED_NO_RESTAMP');}

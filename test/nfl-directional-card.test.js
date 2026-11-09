@@ -43,3 +43,13 @@ test('current passing EPA fills unit comparisons without inventing Next Gen trac
  assert.ok(x.unitMatchups.every(v=>v.metric==='EPA per play'&&v.synopsis.includes('EPA/play')));
  assert.equal(x.signals.find(v=>v.id==='pressure').available,false);
 });
+
+
+test('better defense EPA allowed cannot increase opposing directional advantage',async()=>{
+ const {analyzeNflGameMatchup}=await import('../functions/lib/nflGameMatchup.js');
+ const baseline={ok:true,home:24,away:21,margin:3,total:45};
+ const compare=allowed=>analyzeNflGameMatchup({nflFeatures:{home:{passEpa:0,rushEpa:0},away:{passEpaAllowed:allowed,rushEpaAllowed:allowed}}},baseline).unitMatchups;
+ const weak=compare(.2),strong=compare(-.2);
+ for(const i of [0,2]){assert.ok(strong[i].adjustment<weak[i].adjustment);assert.equal(weak[i].winner,'home');assert.equal(strong[i].winner,'away');}
+ const jsx=await read('NflDirectionalMatchups.jsx');assert.match(jsx,/RESEARCH COMPARISON/);assert.doesNotMatch(jsx,/MODEL ADJUSTMENT/);
+});

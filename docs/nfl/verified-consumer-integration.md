@@ -44,7 +44,7 @@ validators use these per-event times so new inputs cannot restamp started games.
 The previous expiry is never renewed. Expired predecessors require a separately
 reviewed archival/publication plan, not silent replacement.
 
-The public summary admits only the exact NFL-PRO-v1.2 producer-validated source/provenance contract
+The public summary admits only the exact NFL-PRO-v1.2.1 producer-validated source/provenance contract
 and checks labels/hash format, not cryptographic score authentication. It emits
 derived scores, fixture identities and times, not raw source rows or
 receipt hashes. NBA/CFB allowlists are unchanged. Actual route and client matcher

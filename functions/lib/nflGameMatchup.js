@@ -45,7 +45,7 @@ export function analyzeNflGameMatchup(game={},baseline=game.nflProShadow){
 
   // Independent directional display diagnostics from pregame offense and defense features.
   const unit=(id,off,def,offSide)=>{const ok=off!=null&&def!=null;
-    const delta=ok?round1(clamp((off-def)*3,-1.5,1.5)):null;
+    const delta=ok?round1(clamp((off+def)*3,-1.5,1.5)):null;
     return {id,available:ok,adjustment:delta,winner:ok&&Math.abs(delta)>=.15?(delta>0?offSide:offSide==="home"?"away":"home"):null,evidence:"point-in-time-team-features",role:"research-display-only"};
   };
   const passOff=(sep,yac)=>sep!=null&&yac!=null?(sep-2.9)*.35+yac*.12:null;

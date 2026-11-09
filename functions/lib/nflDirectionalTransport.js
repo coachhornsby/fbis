@@ -8,7 +8,7 @@ export function validateNflDirectionalResearch(value){
   if(!r||r.id!==IDS[i]||Object.keys(r).length!==KEYS.length||KEYS.some(k=>!Object.hasOwn(r,k))||typeof r.available!=='boolean'||r.role!=='research-display-only'||r.evidence!=='point-in-time-team-features'||typeof r.synopsis!=='string'||r.synopsis.length>240)throw Error('INVALID_NFL_DIRECTIONAL_ROW');
   if(r.available){
    if(![r.offenseEpa,r.defenseEpaAllowed,r.adjustment].every(x=>typeof x==='number'&&Number.isFinite(x))||Math.abs(r.offenseEpa)>10||Math.abs(r.defenseEpaAllowed)>10||Math.abs(r.adjustment)>1.5||![null,'home','away'].includes(r.winner)||r.metric!=='EPA per play')throw Error('INVALID_NFL_DIRECTIONAL_VALUES');
-   const expected=Math.round(Math.max(-1.5,Math.min(1.5,(r.offenseEpa-r.defenseEpaAllowed)*3))*10)/10;
+   const expected=Math.round(Math.max(-1.5,Math.min(1.5,(r.offenseEpa+r.defenseEpaAllowed)*3))*10)/10;
    const offSide=i%2===0?'home':'away',winner=Math.abs(expected)>=.15?(expected>0?offSide:offSide==='home'?'away':'home'):null;
    if(Math.abs(expected-r.adjustment)>1e-9||r.winner!==winner)throw Error('INVALID_NFL_DIRECTIONAL_DERIVATION');
   }else if([r.offenseEpa,r.defenseEpaAllowed,r.adjustment,r.winner,r.metric].some(x=>x!==null))throw Error('INVALID_NFL_DIRECTIONAL_MISSINGNESS');

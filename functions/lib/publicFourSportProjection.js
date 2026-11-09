@@ -8,7 +8,7 @@ export const PUBLIC_MODEL_IDS=Object.freeze({
   cfb:'CFB-SCORE-FORM-RESEARCH',
 });
 const permitted=sport=>PRIVATE_RECOVERY_SPORTS.includes(sport)&&Boolean(PUBLIC_MODEL_IDS[sport]);
-const advancedNfl=e=>e.projection?.modelId==='NFL-PRO-v1'&&e.projection.modelVersion==='v1.2'&&e.sourceLabel==='nflverse verified current-season inputs; NFL-PRO-v1.2 research; no wagering'&&e.nflVerifiedInput?.source==='nflverse'&&e.nflVerifiedInput.canAuthorizeWager===false&&e.nflVerifiedInput.observedAt===e.sourceCapturedAt&&/^[a-f0-9]{64}$/.test(e.nflVerifiedInput.snapshotSha256||'');
+const advancedNfl=e=>e.projection?.modelId==='NFL-PRO-v1'&&e.projection.modelVersion==='v1.2.1'&&e.sourceLabel==='nflverse verified current-season inputs; NFL-PRO-v1.2.1 research; no wagering'&&e.nflVerifiedInput?.source==='nflverse'&&e.nflVerifiedInput.canAuthorizeWager===false&&e.nflVerifiedInput.observedAt===e.sourceCapturedAt&&/^[a-f0-9]{64}$/.test(e.nflVerifiedInput.snapshotSha256||'');
 function summaryEvent(e,sport,packet){
   // The recovery producer uses ESPN-derived form/box scores only for these ids.
   // An altered or unverifiable source label cannot be silently made public.
@@ -38,6 +38,6 @@ export function validatePublicProjectionSummary(packet,{sport,date}={}){
     throw Error('INVALID_PUBLIC_MODEL_SUMMARY');
   const privateEquivalent={...packet,visibility:'PRIVATE_PERSONAL_ANALYSIS'};
   validateFourSportPacket(privateEquivalent,{sport,date});
-  if(packet.events.some(e=>e.projection.modelId!==PUBLIC_MODEL_IDS[sport]&&!(sport==='nfl'&&e.projection.modelId==='NFL-PRO-v1'&&e.projection.modelVersion==='v1.2')))throw Error('NON_PUBLIC_MODEL');
+  if(packet.events.some(e=>e.projection.modelId!==PUBLIC_MODEL_IDS[sport]&&!(sport==='nfl'&&e.projection.modelId==='NFL-PRO-v1'&&e.projection.modelVersion==='v1.2.1')))throw Error('NON_PUBLIC_MODEL');
   return packet;
 }

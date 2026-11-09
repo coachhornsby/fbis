@@ -68,7 +68,7 @@ test("NFL-PRO-v1.2 tracking signals move projections but remain market-independe
   });
   assert.equal(tracked.modelId,NFL_PRO_ID);
   assert.equal(tracked.marketInformed,false);
-  assert.equal(tracked.version,"v1.2");
+  assert.equal(tracked.version,"v1.2.1");
   assert.ok(tracked.margin > plain.margin);
   assert.equal(tracked.coverage.available.includes("nextGenTracking"),true);
 });

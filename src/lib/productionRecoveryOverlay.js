@@ -18,12 +18,13 @@ export function overlayVerifiedResearchScores(game,{cbbPacket=null,sportPacket=n
     attribution:game.sport==='cbb'?(p.attribution||'KenPom-based provisional research'):source.modelAuthority||sportPacket?.modelAuthority||'Frozen research'
  };
  const packet=game.sport==='cbb'?cbbPacket:sportPacket;
- const generated=Date.parse(source.generatedAt||packet.eventGeneratedAt?.[String(game.id)]||packet.generatedAt),captured=Date.parse(projection.sourceCapturedAt);
+ const generatedAt=source.generatedAt||packet.eventGeneratedAt?.[String(game.id)]||packet.generatedAt;
+ const generated=Date.parse(generatedAt),captured=Date.parse(projection.sourceCapturedAt);
  // Historical scores must come from a verified pregame packet, not a live rerun.
  if(source.expired||source.started){
   if(!['live','final'].includes(game.status)||!Number.isFinite(generated)||!Number.isFinite(captured)||
     generated>clock||captured>generated||generated>=Date.parse(game.start))return game;
-  return {...game,recoveryHistoricalProjection:{...projection,generatedAt:packet.generatedAt,expired:source.expired},
+  return {...game,recoveryHistoricalProjection:{...projection,generatedAt,expired:source.expired},
     canQualify:false,canAuthorizeWager:false,bettingAllowed:false,qualificationBlocked:true};
  }
  return {
