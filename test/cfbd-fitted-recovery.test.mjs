@@ -18,3 +18,10 @@ test('one PPA capture retains missing kickoff/completion honestly; no extra fetc
 });
 
 test('recent capture still requires full coverage at exported consumer',()=>{const missing=structuredClone(ppa);missing.rows.pop();assert.equal(projectCfbdFittedRecovery(game,{ppaPacket:missing,priorPacket:prior,schedulePacket:schedule,now}).ok,false);assert.equal(projectCfbdFittedRecovery(game,{ppaPacket:ppa,priorPacket:prior,now}).ok,false);});
+
+test('fresh PPA with three games cannot hide a fourth completed game',()=>{
+ const history=structuredClone(schedule);
+ history.data.push({...history.data[0],id:99,startDate:'2026-11-07T20:00:00Z'});
+ const result=projectCfbdFittedRecovery(game,{ppaPacket:ppa,priorPacket:prior,schedulePacket:history,now});
+ assert.equal(result.ok,false);
+});
