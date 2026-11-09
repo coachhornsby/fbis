@@ -49,3 +49,18 @@ and status-unverified games; provider update time remains unknown. Source rating
 plus FBIS formula are labeled separately from Torvik's published game forecasts.
 No comparison affects the primary score, prices, sorting, edges, or wagers.
 A missing admitted producer snapshot remains unavailable rather than fabricated.
+
+Private comparison freshness ends at the earlier of the packet expiry or six
+hours after the oldest required source receipt. Repackaging cannot renew source
+freshness. Expired comparisons remain explicitly historical and cannot authorize wagers.
+
+## Per-comparison computation time
+The runner's packet timestamp is captured before its source requests. Each newly
+computed Torvik comparison therefore carries its own `generatedAt`. Computation
+must occur after both source receipts, before tip, and strictly within six hours
+of both receipts. The private view checks this ordering and the effective expiry.
+Old comparisons without this timestamp fail closed rather than being restamped.
+Deploy producer and consumer together; this patch does not backfill old packets,
+refresh source access, authorize bulk requests, or activate the generic recovery
+runner. Offline fixture tests cover capture → formula → private summary → matching
+card, plus source-stale, future-receipt, post-tip, and missing-time rejection.

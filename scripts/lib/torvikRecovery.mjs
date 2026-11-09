@@ -56,10 +56,10 @@ export async function captureTorvikRecovery({admitted=false,season=2027,fetchFn=
  }catch(e){return {ok:false,state:'UNAVAILABLE',error:String(e.message||e),receipts,canAuthorizeWager:false};}
 }
 
-export function torvikRecoveryComparison(g,capture){
- if(!capture?.ok||capture.receipts?.length!==2||g.status!=='scheduled'||typeof g.neutralSite!=='boolean'||!capture.receipts.every(r=>Number.isFinite(Date.parse(r.retrievedAt))&&Date.parse(r.retrievedAt)<Date.parse(g.start)))return null;
+export function torvikRecoveryComparison(g,capture,{now=Date.now()}={}){
+ if(!Number.isFinite(now)||now>=Date.parse(g.start)||!capture?.ok||capture.receipts?.length!==2||g.status!=='scheduled'||typeof g.neutralSite!=='boolean'||!capture.receipts.every(r=>Number.isFinite(Date.parse(r.retrievedAt))&&Date.parse(r.retrievedAt)<=now&&now-Date.parse(r.retrievedAt)<6*3600000&&Date.parse(r.retrievedAt)<Date.parse(g.start)))return null;
  const h=lookupTorvikRating(capture.index,g.home),a=lookupTorvikRating(capture.index,g.away);
  if(!h||!a||h.canonicalId===a.canonicalId)return null;
  const p=cbbTorvikRatingsV1(g,{homeAdjOe:h.adjOe,homeAdjDe:h.adjDe,homeTempo:h.tempo,awayAdjOe:a.adjOe,awayAdjDe:a.adjDe,awayTempo:a.tempo});
- return p.ok?{home:p.home,away:p.away,margin:p.margin,total:p.total,attribution:'Torvik '+capture.season+' ratings + FBIS formula; research comparison only; provider update time unknown',comparisonOnly:true,canAuthorizeWager:false}:null;
+ return p.ok?{generatedAt:new Date(now).toISOString(),home:p.home,away:p.away,margin:p.margin,total:p.total,attribution:'Torvik '+capture.season+' ratings + FBIS formula; research comparison only; provider update time unknown',comparisonOnly:true,canAuthorizeWager:false}:null;
 }

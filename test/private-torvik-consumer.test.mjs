@@ -3,7 +3,7 @@ import {privateTorvikSummary,torvikComparisonFor} from '../functions/lib/private
 import {loadPrivateTorvik} from '../src/lib/privateTorvikRead.js';
 import {readFileSync} from 'node:fs';
 const now=Date.parse('2026-11-08T14:00:00Z'),date='2026-11-08';
-function fixture(){return {version:1,visibility:'PRIVATE_PERSONAL_ANALYSIS',season:2027,canAuthorizeWager:false,generatedAt:'2026-11-08T12:00:00Z',expiresAt:'2026-11-08T18:00:00Z',rawInputs:'DO_NOT_EXPOSE',torvikProvenance:{season:2027,usage:'PRIVATE_COMPARISON_ONLY',providerUpdatedAt:null,receipts:['team_results','fffinal'].map(path=>({url:`https://barttorvik.com/2027_${path}.csv`,httpStatus:200,sha256:'a'.repeat(64),retrievedAt:'2026-11-08T12:01:00Z'}))},events:[{eventId:'123',date,start:'2026-11-08T17:00:00Z',homeId:'cbb-1',awayId:'cbb-2',neutralSite:false,comparison:{home:75,away:70,margin:5,total:145,comparisonOnly:true,canAuthorizeWager:false,raw:'DO_NOT_EXPOSE'}}]};}
+function fixture(){return {version:1,visibility:'PRIVATE_PERSONAL_ANALYSIS',season:2027,canAuthorizeWager:false,generatedAt:'2026-11-08T12:00:00Z',expiresAt:'2026-11-08T18:00:00Z',rawInputs:'DO_NOT_EXPOSE',torvikProvenance:{season:2027,usage:'PRIVATE_COMPARISON_ONLY',providerUpdatedAt:null,receipts:['team_results','fffinal'].map(path=>({url:`https://barttorvik.com/2027_${path}.csv`,httpStatus:200,sha256:'a'.repeat(64),retrievedAt:'2026-11-08T12:01:00Z'}))},events:[{eventId:'123',date,start:'2026-11-08T17:00:00Z',homeId:'cbb-1',awayId:'cbb-2',neutralSite:false,comparison:{generatedAt:'2026-11-08T12:02:00Z',home:75,away:70,margin:5,total:145,comparisonOnly:true,canAuthorizeWager:false,raw:'DO_NOT_EXPOSE'}}]};}
 const game={id:'123',sport:'cbb',date,start:'2026-11-08T17:00:00Z',home:{espnId:'1'},away:{espnId:'2'},neutralSite:false,status:'scheduled'};
 test('private summary strictly whitelists comparison and provenance labels',()=>{const r=privateTorvikSummary(fixture(),{date,now});assert.equal(r.events[0].comparison.total,145);assert.equal(r.providerUpdatedAt,null);assert.ok(!JSON.stringify(r).includes('DO_NOT_EXPOSE'));assert.equal(r.torvikProvenance,undefined);assert.equal(r.canAuthorizeWager,false);});
 for(const [name,mutate] of [['wrong season',p=>p.season=2026],['public packet',p=>p.visibility='PUBLIC'],['missing receipts',p=>p.torvikProvenance.receipts=[]],['wrong source',p=>p.torvikProvenance.receipts[0].url='https://example.com/x'],['fake hash',p=>p.torvikProvenance.receipts[0].sha256='z'.repeat(64)],['future retrieval',p=>p.torvikProvenance.receipts[0].retrievedAt='2026-11-09T12:00Z'],['after-tip',p=>p.events[0].start='2026-11-08T12:00Z'],['duplicate',p=>p.events.push(p.events[0])],['wrong date',p=>p.events[0].date='2026-11-09'],['bad scores',p=>p.events[0].comparison.total=999],['wager authority',p=>p.events[0].comparison.canAuthorizeWager=true]])test(name+' rejected',()=>{const p=fixture();mutate(p);assert.throws(()=>privateTorvikSummary(p,{date,now}));});
@@ -27,3 +27,23 @@ test('authenticated Torvik view reads one projection object, not markets, and re
 test('stale schedule before tip is unverified, not started',()=>{const p=privateTorvikSummary(fixture(),{date,now});const row=torvikComparisonFor({...game,status:'unverified'},p,now);assert.equal(row.started,false);assert.equal(row.statusUnverified,true);});
 
 test('new packet cannot re-label stale retrieval or extend six-hour lifetime',()=>{const p=fixture();p.torvikProvenance.receipts[0].retrievedAt='2026-11-07T12:00Z';assert.throws(()=>privateTorvikSummary(p,{date,now}));const q=fixture();q.expiresAt='2026-11-10T12:00Z';assert.throws(()=>privateTorvikSummary(q,{date,now}));});
+
+
+test('new packet cannot refresh either source beyond six hours from retrieval',()=>{
+ const p=fixture();
+ p.torvikProvenance.receipts[0].retrievedAt='2026-11-08T06:03:00Z';
+ const result=privateTorvikSummary(p,{date,now});
+ assert.equal(result.expiresAt,'2026-11-08T12:03:00.000Z');
+ assert.equal(result.events.length,1); // Retained as a saved comparison, not fresh inputs.
+ assert.equal(torvikComparisonFor(game,result,now).expired,true);
+ assert.equal(torvikComparisonFor(game,result,Date.parse(result.expiresAt)).expired,true);
+ p.torvikProvenance.receipts[0].retrievedAt='2026-11-08T12:01:00Z';
+ p.torvikProvenance.receipts[1].retrievedAt='2026-11-08T07:00:00Z';
+ assert.equal(privateTorvikSummary(p,{date,now}).expiresAt,'2026-11-08T13:00:00.000Z');
+});
+test('source freshness never extends an earlier packet expiry',()=>{
+ const p=fixture();p.expiresAt='2026-11-08T15:00:00Z';
+ assert.equal(privateTorvikSummary(p,{date,now}).expiresAt,'2026-11-08T15:00:00.000Z');
+});
+
+test('comparison computation must follow receipts and precede tip and source expiry',()=>{for(const generatedAt of [undefined,'2026-11-08T11:59:00Z','2026-11-08T12:00:00Z','2026-11-08T17:00:00Z','2026-11-09T12:00:00Z']){const p=fixture();p.events[0].comparison.generatedAt=generatedAt;assert.throws(()=>privateTorvikSummary(p,{date,now}));}});
