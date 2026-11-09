@@ -16,8 +16,9 @@ test('Polymarket exchange card uses the bundled owner-provided logo', () => {
 });
 
 test('Kalshi and all exchange price rows are unaffected', () => {
-  assert.ok(component.includes("['Kalshi','Polymarket'].map(venue=>"));
+  assert.ok(component.includes("[...(pinnacleRows.length?['Pinnacle']:[]),'Kalshi','Polymarket'].map(venue=>"));
   assert.ok(component.includes('exchangeCardRows(game,clock)'));
+  assert.ok(component.includes("venue==='Pinnacle'?pinnacleRows:exchangeRows.filter(row=>row.venue===venue)"));
   assert.ok(component.includes('row.cells.map((cell,i)=>'));
   assert.ok(component.includes('className="fbis-mini-venue-watermark"'));
 });
