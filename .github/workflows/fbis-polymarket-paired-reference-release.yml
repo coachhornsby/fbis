@@ -1,4 +1,4 @@
-name: FBIS Polymarket bounded coverage repair release
+name: FBIS Polymarket bounded detail allocation release
 on:
   pull_request:
     paths: ['.github/workflows/fbis-polymarket-paired-reference-release.yml']

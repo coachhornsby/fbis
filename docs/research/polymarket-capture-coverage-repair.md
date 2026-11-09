@@ -96,3 +96,51 @@ The pinned Miniflare 4.20260730.0 suite includes a 34-game expanded-slate test u
 actual local Worker, R2 and AccountBudget boundaries with a mocked provider. A dry
 Vite publication build compiles without source acquisition. No provider requests,
 production R2 operations, publication or deployment were performed by this patch.
+
+## Follow-up: reserve useful details after broader discovery
+
+The scheduled 13:54 UTC CBB capture contained 27 matched games, all moneylines;
+the 13:52 CFB capture contained five matched moneylines. These counts are not raw
+provider page counts and do not establish the availability of derivatives or
+opposite-side metadata. Offline reconstruction of the saved 50-game CBB schedule
+produced four list attempts: an early nine-fixture range, two pages for a
+21-fixture kickoff, and a late twenty-fixture range. Consequently no detail calls
+remained. The saved 67-game CFB week likewise produced four list windows.
+
+For CBB/CFB REST only, discovery now uses one range bounded by the eligible
+fixtures' earliest and latest starts. It attempts page zero and proceeds to page
+one only after a full twenty-event raw response. If both pages are full, one
+further page rotates across a fixture-derived bounded set of later offsets.
+A short raw page ends further list attempts for that range. Matched-event counts
+never determine exhaustion. Two configured tags alternate with both tags included
+in the recurrence period; production's existing single-tag bindings are unchanged.
+
+At most three list attempts leave at least one detail opportunity when an eligible
+matched event exists. Short responses free up to three detail opportunities. A
+synthetic 27-raw-event response needs two list calls plus two details; five raw
+events need one list call plus three details. This does not assert that the live
+27/five matched captures had those raw counts or that details will contain quotes.
+
+The saturated-case tradeoff is explicit: at most sixty list events plus one event
+detail, instead of eighty list events and no details. The four-request ceiling,
+twenty-event page cap, two-MiB aggregate response limit, CPU100 limit and fifty-
+contract snapshot remain unchanged. The first two source pages stay anchored;
+the later probe rotates. An empty higher offset consumes at most one attempt,
+and the following run starts from page zero again. The fixture-derived offset
+extent is a probe bound, not a claim about provider catalog size. Unmatched source
+events can consume slots and matches can remain beyond that chosen extent.
+
+Detail candidates are stable-sorted within their originating list pages, globally
+deduplicated by exact slug, then interleaved across pages. Rotation advances using
+the full discovery-plan recurrence rather than the raw cycle, avoiding periodic
+subset starvation. Under pressure at the fifty-contract output limit, one verified
+representative per available family from detailed events is reserved before filling
+other slots. Remaining event allocation rotates so the same tail identities are
+not always discarded. This can trade some simultaneous moneyline breadth for real
+verified derivative references. No market, line, side or opposite ID is inferred.
+
+Regression tests cover short/full/empty raw pages, unmatched events, two-tag
+rotation, later-page detail fairness, output-cap fairness, and derivative retention
+at both 49-event and sixty-event pressure boundaries. All completeness flags stay
+false. Finite requests and the replacement-only fifty-contract snapshot cannot
+guarantee every game and every family simultaneously.
