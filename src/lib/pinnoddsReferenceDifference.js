@@ -11,7 +11,7 @@ const rounded=n=>Math.round(n*10)/10;
  */
 export function pinnoddsReferenceDifference(game={},projection={}) {
   const missing={spread:null,total:null,leading:null,available:false,researchOnly:true};
-  if(!SCORE_SPORTS.has(String(game?.sport||"").toLowerCase())||
+  if(game?.pinnoddsResearch?.displayOnly===true||game?.pinnoddsResearch?.stale===true||!SCORE_SPORTS.has(String(game?.sport||"").toLowerCase())||
     game?.durableFallback?.statusUnverified===true||!projection?.available)return missing;
   const away=value(projection.away),home=value(projection.home);
   if(away==null||home==null)return missing;

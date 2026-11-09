@@ -284,6 +284,7 @@ export default function CompactGameCard({ game, onOpen }) {
         )}
       </div>
 
+      {!stored && sportId === "cbb" && game.pinnoddsResearch?.offers?.length ? <PinnoddsCardMarkets game={game} compact /> : null}
       <NbaBookEventButtons game={game} compact />
       {!stored && isCfb ? <CfbCapturedMarket game={game} /> : null}
       {!stored && isCfb ? <CfbThreeVenueLines game={game} compact /> : null}

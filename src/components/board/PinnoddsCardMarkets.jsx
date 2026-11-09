@@ -30,6 +30,15 @@ export default function PinnoddsCardMarkets({game,projection,marketFamilies,comp
  const sport=String(game?.sport||"").toLowerCase();
  const order=marketFamilies||["moneyline",...pinnoddsMarketOrder(sport).filter(f=>f!=="moneyline")];
  if(!order.length || !game?.pinnoddsResearch?.offers?.length)return null;
+ if(sport==='cbb'&&game.pinnoddsResearch?.captureCompleteness==='partial'){
+  const families=order.filter(f=>selection.families[f]);
+  if(!families.length)return null;
+  return <section className="pinnodds-card-reference" aria-label="PinnOdds captured market reference">
+   <header><strong className="pinnodds-card-brand"><img src="/brands/pinnacle-user-icon.png" alt="" width="20" height="20"/>Pinnacle <small>via PinnOdds</small></strong><span>Reference</span></header>
+   <div className="pinnodds-card-reference-grid">{families.map(f=><div key={f}><h4>{f==='spread'?'Spread':f==='total'?'Total':'Moneyline'}</h4>{selection.families[f].quotes.map(q=><div className="pinnodds-card-reference-quote" key={q.side}><span>{f==='total'?(q.side==='over'?'Over':'Under'):(game[q.side]?.abbr||team(game,q.side))}</span><b>{f==='moneyline'?'':offered(f,q)}</b><strong>{signedAmerican(marketDisplayAmerican(q))}</strong></div>)}</div>)}</div>
+   <footer>{game.pinnoddsResearch.stale?'Stale · Last fetched ':'Last fetched '}{stamp(game.pinnoddsResearch.latestCapturedAt)} · Partial coverage{!selection.families.moneyline?' · No moneyline supplied':''}<br/>Provider quote time unavailable</footer>
+  </section>;
+ }
  const difference=pinnoddsReferenceDifference(game,projection);
  const priority=["cfb","nfl","cbb","nba","wnba"].includes(sport);
  const hasPaired=order.some(f=>selection.families[f]);

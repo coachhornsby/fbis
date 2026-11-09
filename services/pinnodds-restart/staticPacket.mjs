@@ -29,19 +29,42 @@ export async function buildDirectStaticPacket({raw,receipt,fixtures,now=Date.now
  if(receipt?.ok!==true||receipt.acquisition!=='direct'||typeof receipt.completeFeed!=='boolean'||receipt.sportId!==5||receipt.feed!=='prematch'||!approvedDirectSource(receipt.sourceUrl)||receipt.rawKey!=null||receipt.snapshotId!=='pinnodds-direct-'+receipt.rawHash||await sha256(raw)!==receipt.rawHash)throw Error('PINNODDS_DIRECT_RECEIPT_MISMATCH');
  return buildValidatedPacket({raw,receipt,fixtures,now});
 }
-function buildValidatedPacket({raw,receipt,fixtures,now}){
+// Trusted local MCP acquisition only: explicit provider-to-ESPN name bindings
+// are supplied by the independently reviewed fixture proof, never fuzzy-matched.
+export async function buildDetailedBasketballPacket({raw,receipt,fixtures,now=Date.now()}){
+ const args=receipt?.sourceArguments;
+ if(typeof raw!=='string'||new TextEncoder().encode(raw).length>2097152||receipt?.ok!==true||receipt.acquisition!=='direct'||receipt.completeFeed!==false||receipt.sportId!==3||receipt.feed!=='prematch'||receipt.sourceUrl!=='https://mcp.pinnodds.com/mcp'||receipt.sourceTool!=='mcp__codex_apps__pinnodds_get_events'||!args||Object.keys(args).sort().join(',')!=='limit,mode,query,response_format,sport'||args.sport!==3||args.mode!=='prematch'||args.query!=='NCAA'||args.response_format!=='detailed'||args.limit!==100||receipt.rawKey!=null||receipt.snapshotId!=='pinnodds-direct-'+receipt.rawHash||await sha256(raw)!==receipt.rawHash)throw Error('PINNODDS_DETAILED_RECEIPT_MISMATCH');
+ const input=JSON.parse(raw);
+ if(input.sport!=='Basketball'||input.mode!=='prematch'||!Array.isArray(input.events)||input.events.length>100||input.total!==input.events.length||receipt.providerEventCount!==input.events.length)throw Error('PINNODDS_DETAILED_BODY_INVALID');
+ if(!Array.isArray(fixtures)||fixtures.some(g=>g.sport!=='cbb'||typeof g.providerHome!=='string'||typeof g.providerAway!=='string'||!Number.isSafeInteger(g.providerEventId)))throw Error('PINNODDS_DETAILED_BINDING_INVALID');
+ const used=new Set();
+ const events=input.events.map(e=>{
+  if(e.league!=='NCAA'||e.has_odds!==true||e.special||e.special_category||e.parent_id)return {...e,league_name:'UNSUPPORTED',periods:{}};
+  const bindings=fixtures.filter(g=>g.providerEventId===e.event_id&&g.providerHome===e.home&&g.providerAway===e.away&&Date.parse(g.start)===Date.parse(e.starts));
+  if(bindings.length!==1)return {...e,league_name:'UNSUPPORTED',periods:{}};
+  if(used.has(e.event_id))throw Error('PINNODDS_DETAILED_DUPLICATE_EVENT');used.add(e.event_id);
+  const g=bindings[0],period={number:0};
+  const price=v=>typeof v==='number'&&Number.isFinite(v)&&v>1;
+  if(e.ml!=null){if(!price(e.ml.home)||!price(e.ml.away)||e.ml.draw!=null)throw Error('PINNODDS_DETAILED_MARKET_INVALID');period.money_line={home:e.ml.home,away:e.ml.away};}
+  if(e.spread!=null){if(typeof e.spread.hdp!=='number'||!Number.isFinite(e.spread.hdp)||!price(e.spread.home)||!price(e.spread.away))throw Error('PINNODDS_DETAILED_MARKET_INVALID');period.spreads={main:{...e.spread}};}
+  if(e.total!=null){if(typeof e.total.points!=='number'||!Number.isFinite(e.total.points)||e.total.points<=0||!price(e.total.over)||!price(e.total.under))throw Error('PINNODDS_DETAILED_MARKET_INVALID');period.totals={main:{...e.total}};}
+  return {event_id:e.event_id,starts:e.starts,home:g.home_name,away:g.away_name,league_name:'NCAA',periods:{num_0:period}};
+ });
+ return buildValidatedPacket({raw,receipt,fixtures,now,decodedBody:{events},retainLastObserved:true});
+}
+function buildValidatedPacket({raw,receipt,fixtures,now,decodedBody,retainLastObserved=false}){
  if(receipt.providerStatus!=null&&receipt.providerStatus!=='fresh')throw Error('PINNODDS_PACKET_PROVIDER_NOT_FRESH');
  const captured=Date.parse(receipt.collectedAt),started=Date.parse(receipt.captureStartedAt);
  if(!Number.isFinite(now)||!Number.isFinite(captured)||!Number.isFinite(started)||started>captured||captured-started>110000||captured>now||now-captured>MAX_AGE)throw Error('PINNODDS_PACKET_STALE_OR_INVALID_CLOCK');
- if(!Array.isArray(fixtures)||fixtures.length>100||fixtures.some(g=>!g||!['nfl','cfb'].includes(g.sport)||typeof g.id!=='string'||!g.id||!g.home_name||!g.away_name||!Number.isFinite(Date.parse(g.start))))throw Error('PINNODDS_PACKET_FIXTURE_CONTRACT');
+ if(!Array.isArray(fixtures)||fixtures.length>100||fixtures.some(g=>!g||!(receipt.sportId===3?['cbb']:['nfl','cfb']).includes(g.sport)||typeof g.id!=='string'||!g.id||!g.home_name||!g.away_name||!Number.isFinite(Date.parse(g.start))))throw Error('PINNODDS_PACKET_FIXTURE_CONTRACT');
  if(new Set(fixtures.map(g=>g.sport+'|'+g.id)).size!==fixtures.length)throw Error('PINNODDS_PACKET_DUPLICATE_FIXTURE');
- const body=JSON.parse(raw);if(!Array.isArray(body.events)||body.events.length>2000||body.events.length!==receipt.providerEventCount)throw Error('PINNODDS_PACKET_EVENTS_CONTRACT');
+ const body=decodedBody??JSON.parse(raw);if(!Array.isArray(body.events)||body.events.length>2000||body.events.length!==receipt.providerEventCount)throw Error('PINNODDS_PACKET_EVENTS_CONTRACT');
  // Preselect strict independently supplied fixture identities, never use a
  // model forecast to infer identity, and do not tolerate fuzzy/time-shift matches.
- const scoped=body.events.filter(e=>!e.special&&!e.special_category&&fixtures.some(g=>g.sport===pinnoddsSport(5,e.league_name)&&g.home_name===e.home&&g.away_name===e.away&&Date.parse(g.start)===Date.parse(e.starts)&&Date.parse(g.start)>now)).map(e=>({...e,specials:undefined}));
- const result=normalizePinnoddsMarkets({...body,events:scoped},{sportId:5,feed:'prematch',capturedAt:receipt.collectedAt,games:fixtures,snapshotId:receipt.snapshotId,rawKey:receipt.rawKey});
+ const scoped=body.events.filter(e=>!e.special&&!e.special_category&&fixtures.some(g=>g.sport===pinnoddsSport(receipt.sportId,e.league_name)&&g.home_name===e.home&&g.away_name===e.away&&Date.parse(g.start)===Date.parse(e.starts)&&Date.parse(g.start)>now)).map(e=>({...e,specials:undefined}));
+ const result=normalizePinnoddsMarkets({...body,events:scoped},{sportId:receipt.sportId,feed:'prematch',capturedAt:receipt.collectedAt,games:fixtures,snapshotId:receipt.snapshotId,rawKey:receipt.rawKey});
  const offers=result.rows.filter(r=>r.eventId&&['moneyline','spread','total','team_total'].includes(r.marketFamily)&&fixtures.some(g=>g.id===r.eventId&&g.sport===r.sport&&g.home_name===r.homeTeam&&g.away_name===r.awayTeam&&Date.parse(g.start)===Date.parse(r.eventStart)&&Date.parse(g.start)>now));
- const packet={contract:'fbis-pinnodds-static-reference-v1',snapshotId:receipt.snapshotId,captureCompleteness:receipt.acquisition==='direct'?(receipt.completeFeed?'complete':'partial'):'unknown',rawHash:receipt.rawHash,capturedAt:receipt.collectedAt,expiresAt:new Date(captured+MAX_AGE).toISOString(),providerQuoteClockVerified:false,canAuthorizeWager:false,
+ const packet={retainLastObserved,contract:'fbis-pinnodds-static-reference-v1',snapshotId:receipt.snapshotId,captureCompleteness:receipt.acquisition==='direct'?(receipt.completeFeed?'complete':'partial'):'unknown',rawHash:receipt.rawHash,capturedAt:receipt.collectedAt,expiresAt:new Date(captured+MAX_AGE).toISOString(),providerQuoteClockVerified:false,canAuthorizeWager:false,
  games:fixtures.map(g=>({id:g.id,sport:g.sport,start:g.start,home_name:g.home_name,away_name:g.away_name,pinnoddsResearch:{source:'PinnOdds',researchOnly:true,canAuthorizeWager:false,matchedCanonicalEventId:g.id,latestCapturedAt:receipt.collectedAt,offers:offers.filter(r=>r.sport===g.sport&&r.eventId===g.id).map(r=>({...r,capturedAt:receipt.collectedAt,collectedAt:receipt.collectedAt}))}})),
  diagnostics:{providerEventCount:body.events.length,selectedProviderEvents:scoped.length,offers:offers.length,fullMarketCoverageVerified:false}};
  deepFreeze(packet);verifiedPackets.add(packet);return packet;
@@ -59,7 +82,7 @@ export function applyStaticPacket(board,packet,{now=Date.now()}={}){
 
 export function publicReferencePacket(packet){
  if(!verifiedPackets.has(packet))throw Error('PINNODDS_PACKET_UNUSABLE');
- return deepFreeze({contract:PINNODDS_REFERENCE_CONTRACT,captureCompleteness:packet.captureCompleteness,capturedAt:packet.capturedAt,expiresAt:packet.expiresAt,providerQuoteClockVerified:false,canAuthorizeWager:false,
+ return deepFreeze({retainLastObserved:packet.retainLastObserved===true,contract:PINNODDS_REFERENCE_CONTRACT,captureCompleteness:packet.captureCompleteness,capturedAt:packet.capturedAt,expiresAt:packet.expiresAt,providerQuoteClockVerified:false,canAuthorizeWager:false,
  games:packet.games.map(g=>({id:g.id,sport:g.sport,start:g.start,home_name:g.home_name,away_name:g.away_name,offers:g.pinnoddsResearch.offers.map(q=>({source:'PinnOdds',marketFamily:q.marketFamily,team:q.team??null,side:q.side,line:q.line,decimalOdds:q.decimalOdds,period:q.period,sourceMarketId:q.sourceMarketId,standardOrAlt:q.standardOrAlt,capturedAt:packet.capturedAt}))}))});
 }
 export function publishStaticReference(board,packet,{now=Date.now()}={}){

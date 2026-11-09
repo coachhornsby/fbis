@@ -34,7 +34,7 @@ export function rankAlternateLines(game,projection,offers=[],{now=new Date(),sta
   }
   if(win==null)reasons.push('Line-specific model uncertainty unavailable');
   if(Date.parse(game.start||'')<=+now)reasons.push('Pregame market has started');
-  const mainOffers=game?.pinnoddsResearch?.offers||[];
+  const mainOffers=game?.pinnoddsResearch?.displayOnly||game?.pinnoddsResearch?.stale?[]:game?.pinnoddsResearch?.offers||[];
   const mainLine=mainOffers.find(q=>q.marketFamily===o.marketFamily&&q.side===o.side&&n(q.line)!=null);
   const lineDistance=mainLine?Math.abs(Number(o.line)-Number(mainLine.line)):null;
   return {source:o.source,marketFamily:o.marketFamily,side:o.side,line:Number(o.line),winProbability:win,pushProbability:push,

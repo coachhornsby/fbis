@@ -48,7 +48,7 @@ function modelProbabilities(game) {
 export function buildMoneylinePriceComparison(game={},options={}) {
   const sport=String(game.sport||"").toLowerCase();
   const sources=Array.isArray(game?.market?.venueOffers)?game.market.venueOffers:[];
-  const pin=[...(game?.pinnoddsResearch?.offers||[]),...sources.filter(o=>o.source==="PinnOdds")]
+  const pin=[...(game?.pinnoddsResearch?.displayOnly||game?.pinnoddsResearch?.stale?[]:game?.pinnoddsResearch?.offers||[]),...sources.filter(o=>o.source==="PinnOdds")]
     .filter(o=>o.marketFamily==="moneyline" && (o.period==="full_game" || o.period==="fg"));
   const poly=sources.filter(o=>(o.source==="Polymarket US"||o.source==="Polymarket US WebSocket") &&
     o.marketFamily==="moneyline" && (o.period==="full_game" || o.period==="fg") &&
