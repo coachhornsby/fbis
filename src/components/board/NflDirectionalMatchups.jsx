@@ -41,7 +41,7 @@ export default function NflDirectionalMatchups({game,matchup,away,home}){
     <div className="nfl-unit-line"><div><TeamLogo team={teams[r.a]} size={32}/><strong>{r.aUnit}</strong></div><span>VS</span><div><TeamLogo team={teams[r.b]} size={32}/><strong>{r.bUnit}</strong></div></div>
     <div className="nfl-unit-result">{winner?<><TeamLogo team={winner} size={46}/><span className="nfl-unit-winner"><small>ADVANTAGE</small><strong>{winner.fullName||winner.name||winner.abbr}</strong></span></>:<strong>{r.status}</strong>}</div>
     {r.synopsis?<p className="nfl-unit-synopsis">{r.synopsis}</p>:null}
-    {r.value!=null?<small>MODEL ADJUSTMENT {r.value>0?"+":""}{r.value.toFixed(2)}</small>:<small>{r.status==="UNAVAILABLE"?"DIRECTIONAL DATA PENDING":"NO MATERIAL EDGE"}</small>}
+    {r.value!=null?<small>RESEARCH COMPARISON {r.value>0?"+":""}{r.value.toFixed(2)}</small>:<small>{r.status==="UNAVAILABLE"?"DIRECTIONAL DATA PENDING":"NO MATERIAL EDGE"}</small>}
    </div>;
   })}</div>
  </section>;

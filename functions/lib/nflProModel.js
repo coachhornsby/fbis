@@ -11,6 +11,7 @@ import { pGreater } from "./metrics.js";
 import { clamp, coverageSummary, finite, round1, weightedPresent } from "./deepModelCommon.js";
 
 export const NFL_PRO_ID = "NFL-PRO-v1";
+export const NFL_PRO_VERSION = "v1.2.1";
 export const NFL_PRO_CONSTANTS = {
   leaguePpg: 22.5,
   hfa: 1.5,
@@ -93,7 +94,7 @@ function trackingValue(f = {}) {
   return { value: value == null ? null : clamp(value, -1.6, 1.6), inputs: { rushYoe, rushEfficiency, separation, yacOe } };
 }
 
-function matchup(off = {}, def = {}) {
+function matchup(off = {}, def = {}, league = {}) {
   const passOff = n(off, "passEpa", "dropbackEpa", "passOffEpa");
   const passDef = n(def, "passEpaAllowed", "passDefEpa");
   const rushOff = n(off, "rushEpa", "rushOffEpa");
@@ -104,11 +105,18 @@ function matchup(off = {}, def = {}) {
   const pressureAllowed = n(off, "pressureRateAllowed", "pressureAllowed");
   const lineOff = n(off, "lineYards", "adjustedLineYards");
   const lineDef = n(def, "lineYardsAllowed", "adjustedLineYardsAllowed");
-  const pass = passOff == null || passDef == null ? null : clamp((passOff - passDef) * 7, -2.8, 2.8);
-  const rush = rushOff == null || rushDef == null ? null : clamp((rushOff - rushDef) * 4.5, -1.8, 1.8);
-  const explosive = explosiveOff == null || explosiveDef == null ? null : clamp((explosiveOff - explosiveDef) * 14, -1.8, 1.8);
-  const pressure = pressureDef == null || pressureAllowed == null ? null : clamp((pressureAllowed - pressureDef) * 7, -1.8, 1.8);
-  const trenches = lineOff == null || lineDef == null ? null : clamp((lineOff - lineDef) * 0.5, -1.5, 1.5);
+  // nflverse defensive EPA is opponent EPA allowed, not defensive EPA gained.
+  // Lower allowed EPA must lower the opposing offense's score.
+  const pass = passOff == null || passDef == null ? null : clamp((passOff + passDef) * 7, -2.8, 2.8);
+  const rush = rushOff == null || rushDef == null ? null : clamp((rushOff + rushDef) * 4.5, -1.8, 1.8);
+  // Nonzero-baseline rates/yardage require an explicit, pregame league reference.
+  // Do not invent fitted centers or retain a known inverted signal when unavailable.
+  const explosiveCenter = n(league, "explosiveRate");
+  const pressureCenter = n(league, "pressureRate");
+  const lineCenter = n(league, "lineYards");
+  const explosive = explosiveOff == null || explosiveDef == null || explosiveCenter == null ? null : clamp((explosiveOff + explosiveDef - 2 * explosiveCenter) * 14, -1.8, 1.8);
+  const pressure = pressureDef == null || pressureAllowed == null || pressureCenter == null ? null : clamp((2 * pressureCenter - pressureAllowed - pressureDef) * 7, -1.8, 1.8);
+  const trenches = lineOff == null || lineDef == null || lineCenter == null ? null : clamp((lineOff + lineDef - 2 * lineCenter) * 0.5, -1.5, 1.5);
   return { pass, rush, explosive, pressure, trenches, total: [pass, rush, explosive, pressure, trenches].reduce((s, v) => s + (v ?? 0), 0) };
 }
 
@@ -145,7 +153,7 @@ export function projectNflProV1(game = {}) {
   if (hp.value == null || ap.value == null || hq.value == null || aq.value == null) {
     return {
       modelId: NFL_PRO_ID,
-      version: "v1.2",
+      version: NFL_PRO_VERSION,
       role: "shadow",
       family: "professional-football",
       ok: false,
@@ -156,8 +164,8 @@ export function projectNflProV1(game = {}) {
     };
   }
 
-  const hm = matchup(homeF, awayF);
-  const am = matchup(awayF, homeF);
+  const hm = matchup(homeF, awayF, game.nflLeagueBaselines);
+  const am = matchup(awayF, homeF, game.nflLeagueBaselines);
   const hst = specialTeams(homeF);
   const ast = specialTeams(awayF);
   const htrack = trackingValue(homeF);
@@ -188,7 +196,7 @@ export function projectNflProV1(game = {}) {
 
   return {
     modelId: NFL_PRO_ID,
-    version: "v1.2",
+    version: NFL_PRO_VERSION,
     role: "shadow",
     family: "professional-football",
     ok: true,
@@ -211,6 +219,10 @@ export function projectNflProV1(game = {}) {
     },
     provenance: {
       marketUsed: false,
+      defensiveEpaConvention: "opponent-offensive-epa-allowed",
+      calibrationStatus: "unvalidated-sign-correction",
+      matchupLeagueBaselines: { ...game.nflLeagueBaselines },
+      nonzeroBaselineMatchupsRequireLeagueReference: true,
       recordUsedAsCoreInput: false,
       rawPpgUsedAsCoreInput: false,
       turnoverMarginUsedAsCoreInput: false,
@@ -254,7 +266,7 @@ export function attachNflProShadow(games = []) {
       available,
       games: next.length,
       qualificationAllowed: true,
-      note: "NFL-PRO-v1.2 adds capped Next Gen passing/rushing/receiving signals. It remains research-only until leakage-safe walk-forward evidence beats the prior model and market benchmarks.",
+      note: "NFL-PRO-v1.2.1 corrects the defensive EPA allowed sign in passing/rushing matchups. It remains research-only until leakage-safe walk-forward evidence beats the prior model and market benchmarks.",
     },
   };
 }
