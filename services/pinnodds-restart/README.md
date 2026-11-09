@@ -149,3 +149,9 @@ Deployment order (do not invoke before all gates are met):
    and reconcile the exact result before any further action. No cron is added.
    A receipt proves acquisition only. Existing trusted archive publication and
    expiry validation must run before claiming that fresh odds appear on cards.
+
+Production uses a cost-stop stub, not the complete repository orchestrator.
+Deploy only `workers/pinnodds-restart-worker.mjs` for this recovery. It retains
+all unrelated pause behavior and legacy paused-session exports. Do not deploy
+the full orchestrator as a shortcut. Preserve the existing 10-ms runtime CPU
+limit (stricter than the contract ceiling), all bindings, and empty schedule.

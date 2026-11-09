@@ -1,0 +1,5 @@
+import test from 'node:test';import assert from 'node:assert/strict';
+import worker,{PausedSession} from '../workers/pinnodds-restart-worker.mjs';
+test('unrelated endpoints and scheduling remain paused',async()=>{for(const path of ['/','/health','/api/pinnodds-status','/api/run','/api/pinned-inspection']){const r=await worker.fetch(new Request('https://example.invalid'+path),{});assert.equal(r.status,503);assert.deepEqual(await r.json(),{ok:false,status:'COST_STOP_20261027',executed:false});}assert.equal(await worker.scheduled(),undefined);});
+test('both new routes stay disabled without explicit flags',async()=>{for(const path of ['/api/pinnodds-capture-once','/api/pinnodds-account-check-once'])assert.equal((await worker.fetch(new Request('https://example.invalid'+path,{method:'POST'}),{})).status,404);});
+test('legacy paused sessions clear alarms and close websockets',async()=>{let alarms=0,closed;const s=new PausedSession({storage:{async deleteAlarm(){alarms++;}}});assert.equal((await s.fetch()).status,503);await s.alarm();s.webSocketMessage({close(...args){closed=args;}});assert.equal(alarms,2);assert.deepEqual(closed,[1000,'FBIS cost stop']);});
