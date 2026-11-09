@@ -38,17 +38,30 @@ jobs:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
         run: |
           node --input-type=module <<'NODE'
+          const canonicalTags=text=>{const tags=JSON.parse(text);if(!tags||typeof tags!=='object'||Array.isArray(tags))throw Error('INVALID_TAG_BINDING');return JSON.stringify(Object.fromEntries(Object.keys(tags).sort().map(k=>[k,tags[k]])));};
+          const bindingText=b=>b.name==='FBIS_POLYMARKET_TAGS_JSON'?canonicalTags(b.text):b.text;
+          const approvedTags='{"nfl":["nfl"],"cfb":["cfb"],"nba":["nba"],"cbb":["cbb"],"nhl":["nhl"]}';
+          const same=canonicalTags(approvedTags);
+          if(canonicalTags(' { "nhl": ["nhl"], "cbb":["cbb"], "nba":["nba"], "cfb":["cfb"], "nfl":["nfl"] } ')!==same)throw Error('JSON_FORMATTING_TEST_FAILED');
+          for(const changed of ['{"nfl":["other"],"cfb":["cfb"],"nba":["nba"],"cbb":["cbb"],"nhl":["nhl"]}','{"nfl":["nfl"]}','{"nfl":["nfl"],"cfb":["cfb"],"nba":["nba"],"cbb":["cbb"],"nhl":["nhl"],"extra":["extra"]}'])if(canonicalTags(changed)===same)throw Error('JSON_CHANGE_TEST_FAILED');
+          for(const invalid of ['{','null','[]']){let rejected=false;try{canonicalTags(invalid);}catch{rejected=true;}if(!rejected)throw Error('INVALID_JSON_TEST_FAILED');}
+          if(bindingText({name:'OTHER',text:' x '})!==' x ')throw Error('ORDINARY_BINDING_TEST_FAILED');
           const root='https://api.cloudflare.com/client/v4/accounts/'+process.env.CLOUDFLARE_ACCOUNT_ID;
           const get=async path=>{const r=await fetch(root+path,{headers:{Authorization:'Bearer '+process.env.CLOUDFLARE_API_TOKEN}});if(!r.ok)throw Error('PREFLIGHT_HTTP_'+r.status);const b=await r.json();if(!b.success)throw Error('PREFLIGHT_UNAVAILABLE');return b.result;};
           const settings=await get('/workers/scripts/fbis-polymarket-rest-collector/settings');
           if(settings.bindings?.some(b=>b.name==='FBIS_POLYMARKET_PREGAME_REST'&&b.text==='true'))throw Error('NEW_MODE_ALREADY_ENABLED_STOP');
-          const normalized=(settings.bindings||[]).map(b=>b.type==='plain_text'?{name:b.name,type:b.type,text:b.text}:b.type==='r2_bucket'?{name:b.name,type:b.type,bucket_name:b.bucket_name}:{name:b.name,type:b.type,class_name:b.class_name,script_name:b.script_name}).sort((a,b)=>a.name.localeCompare(b.name));
+          const normalizeBindings=bindings=>bindings.map(b=>b.type==='plain_text'?{name:b.name,type:b.type,text:bindingText(b)}:b.type==='r2_bucket'?{name:b.name,type:b.type,bucket_name:b.bucket_name}:{name:b.name,type:b.type,class_name:b.class_name,script_name:b.script_name}).sort((a,b)=>a.name.localeCompare(b.name));
+          const normalized=normalizeBindings(settings.bindings||[]);
           const expected=[
             {name:'ARCHIVE',type:'r2_bucket',bucket_name:'fbis-archive'},
             {name:'CLOUDFLARE_ACCOUNT_ID',type:'plain_text',text:process.env.CLOUDFLARE_ACCOUNT_ID},
             {name:'FBIS_ACCOUNT_BUDGET',type:'durable_object_namespace',class_name:'AccountBudget',script_name:'fbis-account-budget'},
-            {name:'FBIS_POLYMARKET_TAGS_JSON',type:'plain_text',text:'{"nfl":["nfl"],"cfb":["cfb"],"nba":["nba"],"cbb":["cbb"],"nhl":["nhl"]'}
+            {name:'FBIS_POLYMARKET_TAGS_JSON',type:'plain_text',text:canonicalTags(approvedTags)}
           ].sort((a,b)=>a.name.localeCompare(b.name));
+          const formatted=expected.map(b=>b.name==='FBIS_POLYMARKET_TAGS_JSON'?{...b,text:JSON.stringify(JSON.parse(approvedTags),null,2)}:b);
+          if(JSON.stringify(normalizeBindings(formatted))!==JSON.stringify(expected))throw Error('FULL_BINDING_FORMATTING_TEST_FAILED');
+          const changed=formatted.map(b=>b.name==='FBIS_POLYMARKET_TAGS_JSON'?{...b,text:'{"nfl":["other"]}'}:b);
+          if(JSON.stringify(normalizeBindings(changed))===JSON.stringify(expected))throw Error('FULL_BINDING_CHANGE_TEST_FAILED');
           if(JSON.stringify(normalized)!==JSON.stringify(expected)){
             const differences=[...new Set([...normalized,...expected].map(b=>b.name))].flatMap(name=>{
               const a=normalized.find(b=>b.name===name),b=expected.find(b=>b.name===name);
@@ -81,3 +94,4 @@ jobs:
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
         run: ../../node_modules/.bin/wrangler pages deploy dist --project-name fbis --branch main --commit-hash "7d84a7be2b61a2b50ca276699032207de38db6e3"
+
