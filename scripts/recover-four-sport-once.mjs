@@ -323,6 +323,7 @@ catch(e){results.errors.push({stage:'RUN',reason:String(e.message||e)});}
 results.diagnostics=recoveryReceiptDiagnostics(results);
 await writeFile(outDir+'/receipt.json',JSON.stringify(results,null,2)+'\n');
 console.log(JSON.stringify(results));
+if(results.diagnostics.sources.torvik?.flags.length)console.warn('::warning::Torvik comparison unavailable: '+results.diagnostics.sources.torvik.flags.join(', ')+'. No source retry was attempted; primary forecast coverage is reported separately.');
 if(results.coverageState==='PARTIAL')console.warn('::warning::Projection coverage is PARTIAL. Inspect forecastCoverage for missing forecasts and expiry before kickoff; job success is not complete board coverage.');
 if(results.errors.length||!results.written.some(x=>x.stored))process.exitCode=1;
 

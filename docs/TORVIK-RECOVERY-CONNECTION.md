@@ -100,6 +100,17 @@ The file is deleted in an `always()` cleanup step and excluded from artifacts.
 Only existing projection packets are published; no extra R2 object, market
 call, D1 call, model coefficient, or primary KenPom value is introduced.
 
+Source health is reported separately from primary forecast coverage. An admitted
+capture failure adds `TORVIK_CAPTURE_FAILED` and its error code (for example,
+`TORVIK_HTTP_403`) to receipt diagnostics and emits a workflow warning. Reuse
+failure adds `TORVIK_REUSE_FAILED`; a missing ephemeral file is specifically
+`TORVIK_REUSED_INPUT_MISSING`, including when reading older ENOENT receipts.
+A failed capture does not create the input file, but a missing file alone does
+not establish an upstream HTTP status. Inspect the first pass's receipt for
+that cause. Diagnostics report accepted receipt count, not a fabricated fetch
+receipt for a refusal. Primary publication, source budgets, expiry, and the
+no-retry rule remain unchanged; a successful job can still lack Torvik data.
+
 This is one capture pair per eligible scheduled run, not permission to issue
 additional diagnostics or manual refreshes that day. Automatic operation is
 verified only after the scheduled receipts and private consumer are observed.

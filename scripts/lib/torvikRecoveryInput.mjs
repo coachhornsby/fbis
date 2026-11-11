@@ -28,9 +28,14 @@ export function validateTorvikRecoveryInput(value,{season=2027,now=Date.now()}={
 }
 export async function obtainTorvikRecoveryInput({inputPath,outputPath,capture,season=2027,now=Date.now}={}){
  if(inputPath){
-  if((await stat(inputPath)).size>MAX_BYTES)throw Error('TORVIK_REUSED_INPUT_TOO_LARGE');
-  const raw=await readFile(inputPath,'utf8');if(Buffer.byteLength(raw)>MAX_BYTES)throw Error('TORVIK_REUSED_INPUT_TOO_LARGE');
-  return validateTorvikRecoveryInput(JSON.parse(raw),{season,now:now()});
+  try{
+   if((await stat(inputPath)).size>MAX_BYTES)throw Error('TORVIK_REUSED_INPUT_TOO_LARGE');
+   const raw=await readFile(inputPath,'utf8');if(Buffer.byteLength(raw)>MAX_BYTES)throw Error('TORVIK_REUSED_INPUT_TOO_LARGE');
+   return validateTorvikRecoveryInput(JSON.parse(raw),{season,now:now()});
+  }catch(e){
+   if(e?.code==='ENOENT')throw Error('TORVIK_REUSED_INPUT_MISSING',{cause:e});
+   throw e;
+  }
  }
  const result=await capture();if(!result?.ok)return result;
  const value={version:1,season:result.season,rows:result.rows,receipts:result.receipts,providerUpdatedAt:result.providerUpdatedAt,canQualify:result.canQualify,canAuthorizeWager:result.canAuthorizeWager};
