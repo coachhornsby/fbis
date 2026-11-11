@@ -35,6 +35,21 @@ export function recoveryReceiptDiagnostics(receipt,{nowMs=Date.now(),minCaptureA
  const entries=Object.entries(receipt?.forecastCoverage||{});
  if(['cbb','cfb','nba','nfl'].some(s=>!Object.hasOwn(receipt?.forecastCoverage||{},s)))reasons.push('INCOMPLETE_SPORT_COVERAGE');
  if(!entries.length)reasons.push('MISSING_COVERAGE');
+ const sources={},torvik=receipt?.torvik;
+ // Optional source failure must remain visible even when primary forecasts publish.
+ // Missing reuse input explains this pass only; it does not prove why capture failed.
+ if(torvik){
+  const flags=[],reuse=torvik.source==='SAME_JOB_REUSE';
+  const errorCode=reuse&&/^ENOENT(?::|$)/.test(torvik.error||'')?'TORVIK_REUSED_INPUT_MISSING':
+   typeof torvik.error==='string'&&/^[A-Z][A-Z0-9_]{0,95}$/.test(torvik.error)?torvik.error:torvik.error?'TORVIK_SOURCE_ERROR':null;
+  if(torvik.state==='UNAVAILABLE'||errorCode){
+   flags.push(reuse?'TORVIK_REUSE_FAILED':'TORVIK_CAPTURE_FAILED');
+   if(errorCode)flags.push(errorCode);
+  }else if(!['PRIVATE_RESEARCH_INPUT','NOT_ADMITTED'].includes(torvik.state))flags.push('INVALID_TORVIK_SOURCE_STATE');
+  sources.torvik={state:torvik.state||null,source:torvik.source||null,errorCode,
+   acceptedReceiptCount:Array.isArray(torvik.receipts)?torvik.receipts.length:0,flags};
+  reasons.push(...flags);
+ }
  const sports={};
  for(const [sport,c] of entries){
   if(!c||typeof c!=='object'){sports[sport]={flags:['INVALID_COVERAGE']};continue;}
@@ -59,5 +74,5 @@ export function recoveryReceiptDiagnostics(receipt,{nowMs=Date.now(),minCaptureA
   sports[sport]={flags,scheduled,projected,expiresAt:c.expiresAt||null,missingCount:c.missingEventIds?.length||0,expiresBeforeKickoffCount:c.expiresBeforeStartEventIds?.length||0};
  }
  const needsAttention=reasons.length>0||Object.values(sports).some(s=>s.flags.length>0)||receipt?.coverageState==='PARTIAL';
- return {checkedAt:new Date(nowMs).toISOString(),state:needsAttention?'ATTENTION_REQUIRED':'CURRENT',reasons,sports,action:needsAttention?'ALERT_ONLY':'NONE',canDispatch:false,canAuthorizeWager:false};
+ return {checkedAt:new Date(nowMs).toISOString(),state:needsAttention?'ATTENTION_REQUIRED':'CURRENT',reasons,sources,sports,action:needsAttention?'ALERT_ONLY':'NONE',canDispatch:false,canAuthorizeWager:false};
 }

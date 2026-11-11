@@ -32,6 +32,18 @@ test('failed source capture does not create a reusable input',async()=>{
  const dir=await mkdtemp(join(tmpdir(),'torvik-fail-')),path=join(dir,'input.json'),failure={ok:false,state:'UNAVAILABLE',error:'TORVIK_HTTP_403'};
  try{assert.equal(await obtainTorvikRecoveryInput({outputPath:path,capture:async()=>failure}),failure);await assert.rejects(stat(path),/ENOENT/);}finally{await rm(dir,{recursive:true,force:true});}
 });
+test('first-source 403 and missing next-day reuse consume one request total, never retry',async()=>{
+ const dir=await mkdtemp(join(tmpdir(),'torvik-refusal-')),path=join(dir,'input.json'),budget=createRecoverySourceBudget({Torvik:2});let calls=0;
+ try{
+  const capture=()=>captureTorvikRecovery({admitted:true,reserve:kind=>budget.reserve(kind),
+   fetchFn:async()=>{calls++;return new Response('',{status:403});}});
+  const today=await obtainTorvikRecoveryInput({outputPath:path,capture});
+  assert.equal(today.state,'UNAVAILABLE');assert.equal(today.error,'TORVIK_HTTP_403');assert.deepEqual(today.receipts,[]);
+  await assert.rejects(obtainTorvikRecoveryInput({inputPath:path,capture}),e=>e.message==='TORVIK_REUSED_INPUT_MISSING'&&e.cause?.code==='ENOENT');
+  assert.equal(calls,1);assert.equal(budget.counts.Torvik,1);assert.equal(budget.limits.Torvik,2);
+  await assert.rejects(stat(path),/ENOENT/);
+ }finally{await rm(dir,{recursive:true,force:true});}
+});
 test('workflow retains one daily slot and forbids Torvik acquisition on pushes, manual runs and retries',async()=>{
  const s=await readFile(new URL('../.github/workflows/fbis-four-sport-recovery-once.yml',import.meta.url),'utf8');
  assert.match(s,/FBIS_TORVIK_NOT_BEFORE_DATE: \"2026-11-10\"/);

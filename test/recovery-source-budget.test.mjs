@@ -60,3 +60,56 @@ test('valid complete four-sport empty slate is current',()=>{
  const forecastCoverage=Object.fromEntries(['cbb','cfb','nba','nfl'].map(s=>[s,{state:'NO_SCHEDULED_GAMES',scheduled:0,projected:0,missingEventIds:[],expiresBeforeStartEventIds:[],expiresAt:null}]));
  assert.equal(recoveryReceiptDiagnostics({generatedAt:'2026-11-07T17:45Z',coverageState:'COMPLETE',written:[],forecastCoverage},{nowMs:Date.parse('2026-11-07T18:00Z')}).state,'CURRENT');
 });
+
+const completeReceipt=()=>({generatedAt:'2026-11-10T19:45:10.191Z',coverageState:'COMPLETE',errors:[],
+ written:[{sport:'cbb',events:1,stored:true}],forecastCoverage:Object.fromEntries(['cbb','nfl','nba','cfb'].map(s=>[s,
+  {state:s==='cbb'?'COMPLETE':'NO_SCHEDULED_GAMES',scheduled:s==='cbb'?1:0,projected:s==='cbb'?1:0,
+   missingEventIds:[],expiresBeforeStartEventIds:[],expiresAt:s==='cbb'?'2026-11-11T01:45:04.581Z':null}]))});
+const diagnosticClock={nowMs:Date.parse('2026-11-10T19:46Z')};
+test('Nov10 Torvik first-source 403 is visible despite successful primary publication',()=>{
+ const r={...completeReceipt(),providerCalls:{ESPN:107,KenPom:1,Torvik:1},
+  torvik:{state:'UNAVAILABLE',source:'BULK_CAPTURE',season:2027,receipts:[],error:'TORVIK_HTTP_403',providerUpdatedAt:null}};
+ const before=JSON.stringify(r),d=recoveryReceiptDiagnostics(r,diagnosticClock);
+ assert.equal(d.state,'ATTENTION_REQUIRED');assert.deepEqual(d.reasons,['TORVIK_CAPTURE_FAILED','TORVIK_HTTP_403']);
+ assert.deepEqual(d.sources.torvik,{state:'UNAVAILABLE',source:'BULK_CAPTURE',errorCode:'TORVIK_HTTP_403',
+  acceptedReceiptCount:0,flags:['TORVIK_CAPTURE_FAILED','TORVIK_HTTP_403']});
+ assert.deepEqual(d.sports.cbb.flags,[]);assert.equal(d.action,'ALERT_ONLY');assert.equal(d.canDispatch,false);
+ assert.equal(d.canAuthorizeWager,false);assert.equal(JSON.stringify(r),before);
+});
+test('missing next-day input reports the reuse cause without inventing an upstream HTTP failure',()=>{
+ for(const error of ["ENOENT: no such file or directory, stat '/home/runner/work/_temp/fbis-torvik-ratings.json'",'TORVIK_REUSED_INPUT_MISSING']){
+  const r={...completeReceipt(),torvik:{state:'UNAVAILABLE',source:'SAME_JOB_REUSE',receipts:[],error}};
+  const d=recoveryReceiptDiagnostics(r,diagnosticClock);
+  assert.deepEqual(d.reasons,['TORVIK_REUSE_FAILED','TORVIK_REUSED_INPUT_MISSING']);
+  assert.equal(d.sources.torvik.errorCode,'TORVIK_REUSED_INPUT_MISSING');assert.equal(d.sources.torvik.acceptedReceiptCount,0);
+  assert.doesNotMatch(JSON.stringify(d),/HTTP_403|\/home\/runner/);
+ }
+});
+test('other capture and reuse failures remain distinct and do not suggest retrying',()=>{
+ for(const [source,error] of [['BULK_CAPTURE','TORVIK_FACTOR_SCHEMA_UNVERIFIED'],['SAME_JOB_REUSE','INVALID_TORVIK_REUSED_INPUT']]){
+  const r={...completeReceipt(),torvik:{state:'UNAVAILABLE',source,receipts:[{httpStatus:200}],error}};
+  const d=recoveryReceiptDiagnostics(r,diagnosticClock);
+  assert.equal(d.sources.torvik.acceptedReceiptCount,1);assert.equal(d.sources.torvik.errorCode,error);
+  assert.deepEqual(d.reasons,[source==='BULK_CAPTURE'?'TORVIK_CAPTURE_FAILED':'TORVIK_REUSE_FAILED',error]);
+  assert.equal(d.canDispatch,false);assert.equal(d.action,'ALERT_ONLY');
+ }
+});
+test('absent or deliberately unadmitted Torvik does not manufacture a source failure',()=>{
+ for(const torvik of [undefined,{state:'NOT_ADMITTED',receipts:[]}]){
+  const d=recoveryReceiptDiagnostics({...completeReceipt(),torvik},diagnosticClock);
+  assert.equal(d.state,'CURRENT');assert.deepEqual(d.reasons,[]);
+ }
+});
+test('successful Torvik does not alter forecast freshness or add alert reasons',()=>{
+ const r={...completeReceipt(),torvik:{state:'PRIVATE_RESEARCH_INPUT',source:'SAME_JOB_REUSE',error:null,
+  receipts:[{httpStatus:200},{httpStatus:200}]}};
+ const d=recoveryReceiptDiagnostics(r,diagnosticClock);
+ assert.equal(d.state,'CURRENT');assert.deepEqual(d.sources.torvik.flags,[]);assert.equal(d.sources.torvik.acceptedReceiptCount,2);
+ assert.equal(d.sports.cbb.expiresAt,r.forecastCoverage.cbb.expiresAt);
+ assert.ok(recoveryReceiptDiagnostics(r,{nowMs:Date.parse(r.forecastCoverage.cbb.expiresAt)}).sports.cbb.flags.includes('EXPIRED'));
+});
+test('runner warns on Torvik source diagnostics without changing its publication exit condition',()=>{
+ const runner=readFileSync(new URL('../scripts/recover-four-sport-once.mjs',import.meta.url),'utf8');
+ assert.match(runner,/if\(results\.diagnostics\.sources\.torvik\?\.flags\.length\)console\.warn\('::warning::Torvik comparison unavailable:/);
+ assert.match(runner,/if\(results\.errors\.length\|\|!results\.written\.some\(x=>x\.stored\)\)process\.exitCode=1/);
+});
