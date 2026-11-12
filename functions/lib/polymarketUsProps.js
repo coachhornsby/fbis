@@ -42,8 +42,33 @@ export async function loadCapturedPolymarketUsProps(env,{games=[],players=[],spo
    const index=await obj.json(),age=now-Date.parse(index.capturedAt);
    if(index.canonicalEventId!==String(game.id)||index.sport!==game.sport||!Number.isFinite(age)||age<0||age>2*3600000||!String(index.detailKey||'').startsWith('market-sources/polymarket-us/bootstrap/')){coverage.push({eventId:String(game.id),sport:game.sport,status:'US_PROP_INVENTORY_STALE_OR_UNVERIFIED'});continue;}
    const raw=await env.ARCHIVE.get(index.detailKey);if(!raw)throw Error('US_PROP_DETAIL_MISSING');const event=await raw.json();
-   if(String(event.id)!==index.providerEventId||!Array.isArray(event.markets)||!Number.isInteger(event.marketCounts?.numMarkets)||event.marketCounts.numMarkets!==event.markets.length)throw Error('US_PROP_DETAIL_IDENTITY_MISMATCH');
+   if(String(event.id)!==index.providerEventId||!Array.isArray(event.markets)||!Number.isInteger(event.marketCounts?.numMarkets))throw Error('US_PROP_DETAIL_IDENTITY_MISMATCH');
    const props=event.markets.filter(m=>m.sportsMarketTypeV2==='SPORTS_MARKET_TYPE_PROP');
+   const marketIds=event.markets.map(m=>String(m.id??m.slug??'')).filter(Boolean);
+   const advertised=event.marketCounts.numMarkets,observed=event.markets.length;
+   // A provider count disagreement does not prove a complete inventory. Preserve
+   // every captured contract as MARKET-ONLY instead of dropping the entire event.
+   if(advertised!==observed||marketIds.length!==observed||new Set(marketIds).size!==observed){
+    for(const m of props)rejected.push({
+     rejected:true,reason:'US_PROP_INVENTORY_COUNT_MISMATCH',
+     provider:'Polymarket',venue:'Polymarket US',source:'Polymarket US',
+     sport:game.sport,canonicalEventId:String(game.id),providerEventId:String(event.id),
+     contractId:String(m.slug??m.id??''),providerMarketId:m.id==null?null:String(m.id),
+     rawTitle:m.question||m.title||null,player_name:m.metadata?.playerName||null,
+     providerPlayerId:m.metadata?.playerId==null?null:String(m.metadata.playerId),
+     statFamily:m.sportsMarketType||null,
+     playerStatContract:/(^|_)player_/.test(m.sportsMarketType||''),
+     line:m.line==null||!Number.isFinite(Number(m.line))?null:Number(m.line),
+     period:m.period||null,active:m.active===true,closed:m.closed===true,
+     collectedAt:index.capturedAt,canQualify:false,canAuthorizeWager:false
+    });
+    coverage.push({eventId:String(game.id),sport:game.sport,
+     status:'US_PROP_INVENTORY_COUNT_MISMATCH',advertisedMarkets:advertised,
+     observedMarkets:observed,uniqueMarketIds:new Set(marketIds).size,
+     contracts:props.length,playerStatContracts:props.filter(m=>/(^|_)player_/.test(m.sportsMarketType||'')).length,
+     capturedAt:index.capturedAt});
+    continue;
+   }
    for(const m of props){const r=mapPolymarketUsProp(m,event,game,players,{capturedAt:index.capturedAt});if(r?.rejected)rejected.push(r);else if(Array.isArray(r))rows.push(...r);}
    coverage.push({eventId:String(game.id),sport:game.sport,status:props.length?'US_PROP_INVENTORY_CAPTURED':'NO_US_PROPS_IN_VERIFIED_EVENT',contracts:props.length,capturedAt:index.capturedAt});
   }catch{coverage.push({eventId:String(game.id),sport:game.sport,status:'US_PROP_INVENTORY_READ_FAILED'});}
