@@ -40,3 +40,17 @@ test("health diagnostics expose signer configuration without secrets",()=>{
  assert.equal(out.websocket.workerSignerProxyConfigured,true);
  assert.equal(out.websocket.doSignerProxyConfigured,false);
 });
+
+test("unavailable Polymarket status does not fabricate a missing persisted-BBO warning",()=>{
+ const x=fixture();x.polymarket={ok:false,reason:"HTTP_503"};
+ const out=evaluateMarketHeartbeat({...x,now});
+ assert.ok(out.failures.includes("POLYMARKET_STATUS_UNAVAILABLE"));
+ assert.equal(out.websocket.operational,true);
+ assert.ok(!out.warnings.includes("POLYMARKET_WEBSOCKET_NO_BBO_PERSISTED_60M"));
+ assert.equal(out.websocket.lastBboPersistedAt,null);
+});
+test("available Polymarket status still warns when BBO is stale",()=>{
+ const x=fixture();x.polymarket.signedMarketWebsocket.lastBboCapture=iso(90);
+ const out=evaluateMarketHeartbeat({...x,now});
+ assert.ok(out.warnings.includes("POLYMARKET_WEBSOCKET_NO_BBO_PERSISTED_60M"));
+});
