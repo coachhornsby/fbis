@@ -106,7 +106,16 @@ export async function loadPolymarketUsBoardOffers(db,games=[],sport,{now=new Dat
   const inferredSide=['moneyline','spread'].includes(family)
     ?(binding?.side||polymarketUsCanonicalSide({marketFamily:family,sport,side:r.side,raw:payload},matchedGame))
     :null;
-  const side=['moneyline','spread'].includes(family)&&['home','away','draw'].includes(payload?.canonicalSide)?payload.canonicalSide:inferredSide|| (soccerContract?polymarketUsSideLabel(payload.providerMarket,payload.providerSide,"soccer"):r.side);
+  // Reject old persisted CBB orientation labels unless independent provider
+  // home and away evidence is still present and consistent on readback.
+  const cbbOrientationOk=sport!=='cbb'||!['moneyline','spread'].includes(family)||
+    !!polymarketUsCanonicalSide({sport:'cbb',marketFamily:family,side:r.side,
+      homeTeam:payload?.providerHomeTeam,awayTeam:payload?.providerAwayTeam,
+      raw:payload},matchedGame);
+  const unresolvedCbb=sport==='cbb'&&['moneyline','spread'].includes(family)&&!cbbOrientationOk;
+  const side=unresolvedCbb
+    ?String(payload?.providerSide?.team?.name||payload?.providerSide?.description||'UNVERIFIED')
+    :(['moneyline','spread'].includes(family)&&['home','away','draw'].includes(payload?.canonicalSide)?payload.canonicalSide:inferredSide|| (soccerContract?polymarketUsSideLabel(payload.providerMarket,payload.providerSide,"soccer"):r.side));
   if(soccerContract&&family==="moneyline"&&payload.contractLong!==true)continue;
   if(sport==="soccer"&&r.source==="Polymarket US WebSocket"&&payload?.contractBindingVerified!==true)continue;
   const providerObservedAt=providerObservationTime({source:r.source,raw:payload,sourceObservedAt:
@@ -127,7 +136,7 @@ export async function loadPolymarketUsBoardOffers(db,games=[],sport,{now=new Dat
     typeof r.source_outcome_id==='string'&&r.source_outcome_id===String(payload.providerOutcomeId||'')&&
     raw?.bestAsk!=null&&r.contract_price!=null&&
     Math.abs(raw.bestAsk-Number(r.contract_price))<0.00001&&
-    temporal.status==='CURRENT';
+    temporal.status==='CURRENT'&&cbbOrientationOk;
   arr.push({
     source:r.source,marketFamily:family,side:family==='total'&&/^(over|under)\b/i.test(side)?side.match(/^(over|under)/i)[1].toLowerCase():side,period,deliveryStore,
     historicalReference,line:binding?.line!=null?binding.line:family==='spread'&&payload?.contractLong===false&&payload?.sideSpecificLine!==true&&r.line!=null?-Number(r.line):r.line,contractPrice:r.contract_price==null?null:Number.isFinite(display)?display:null,

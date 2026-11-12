@@ -99,7 +99,8 @@ export function auditKalshiMarketRecords(sport,records=[],{
  };
 }
 export async function kalshiCoverageReport(env,{now=new Date(),sport=null}={}){
- const sports=SPORTS.filter(s=>!sport||s===sport);
+ // CBB is opt-in only; default NFL/CFB audit incurs no new R2 reads.
+ const sports=sport==="cbb"?["cbb"]:SPORTS.filter(s=>!sport||s===sport);
  const result=await Promise.all(sports.map(async s=>{
   const [snapshot,receipt,checkpoint,evidence,evidenceStatus]=await Promise.all([
    read(env?.ARCHIVE,"sports/"+s+".json"),
@@ -154,7 +155,7 @@ export async function kalshiCoverageReport(env,{now=new Date(),sport=null}={}){
  }));
  return{
   ok:true,provider:"Kalshi",asOf:now.toISOString(),
-  scope:"NFL_CFB_SIGNED_PUBLIC_SHADOW_ONLY",
+  scope:sport==="cbb"?"CBB_SIGNED_PUBLIC_SHADOW_ONLY":"NFL_CFB_SIGNED_PUBLIC_SHADOW_ONLY",
   sports:result,
   governance:{
    fullSportCoverageVerified:false,canQualify:false,

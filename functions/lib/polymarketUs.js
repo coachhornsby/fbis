@@ -194,6 +194,8 @@ export function polymarketUsMarketOffers(e,sport,{canonicalId=null,capturedAt=ne
         sourceOutcomeId:String(side.id||side.identifier||label),fetchedAt:capturedAt,
         raw:{providerEventId,providerEventSlug:typeof e.slug==='string'?e.slug:null,eventNavigation,providerMarketId:String(m.id||slug),providerOutcomeId:String(side.id||""),
           providerTitle:e.title||null,marketTitle:m.question||m.title||null,
+          providerHomeTeam:e.homeTeam?.name||null,providerAwayTeam:e.awayTeam?.name||null,
+          providerNeutralSite:e.neutralSite===true||e.isNeutralSite===true||e.neutral===true,
           providerMarketType:m.sportsMarketTypeV2||m.sportsMarketType||null,
           contractLong:typeof side.long==="boolean"?side.long:null,
           providerMarket:m,providerSide:side,
@@ -237,6 +239,19 @@ export async function fetchPolymarketUsLeagueEvents(slug,fetchImpl=fetch,{limit=
 export function polymarketUsCanonicalSide(offer,game,league){
  if(!['moneyline','spread'].includes(offer.marketFamily)||!game)return null;
  if(offer.sport==='soccer'&&/^(draw|tie)$/i.test(offer.side))return 'draw';
+  // CBB title order cannot establish home/away. Neutral or unverified
+  // provider orientation must never become a canonical contract-side binding.
+  if(offer.sport==='cbb'){
+    const neutral=v=>v===true||v===1||v==='true';
+    if([game.neutralSite,game.neutral_site,game.isNeutralSite,game.neutral,
+        offer.raw?.providerNeutralSite].some(neutral))return null;
+    if(offer.raw?.contractLong===false)return null;
+    const pHome=offer.homeTeam||offer.raw?.providerHomeTeam;
+    const pAway=offer.awayTeam||offer.raw?.providerAwayTeam;
+    if(!pHome||!pAway||
+       !teamMatches(pHome,game.home_name||game.home?.name,game.home_abbr||game.home?.abbr,'cbb')||
+       !teamMatches(pAway,game.away_name||game.away?.name,game.away_abbr||game.away?.abbr,'cbb'))return null;
+  }
  const original=String(offer.raw?.providerSide?.team?.name||offer.side||'');
  const negated=/^not /i.test(original);
  const name=original.replace(/^not /i,'').replace(/\s+[+-]\d+(?:\.\d+)?\s*$/,'').trim();
